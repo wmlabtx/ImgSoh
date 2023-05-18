@@ -70,6 +70,9 @@
     <Reference Include="Magick.NET.Core, Version=13.1.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
       <HintPath>packages\Magick.NET.Core.13.1.2\lib\netstandard20\Magick.NET.Core.dll</HintPath>
     </Reference>
+    <Reference Include="Magick.NET.SystemDrawing, Version=7.0.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
+      <HintPath>packages\Magick.NET.SystemDrawing.7.0.4\lib\net462\Magick.NET.SystemDrawing.dll</HintPath>
+    </Reference>
     <Reference Include="OpenCvSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
       <HintPath>packages\OpenCvSharp4.4.7.0.20230115\lib\net48\OpenCvSharp.dll</HintPath>
     </Reference>
@@ -126,6 +129,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="EncryptionHelper.cs" />
     <Compile Include="MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
