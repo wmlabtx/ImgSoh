@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace Test
 {
-    [TestClass()]
+    [TestClass]
     public class EncryptionHelperTests
     {
         [TestMethod]

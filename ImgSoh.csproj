@@ -122,6 +122,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="AppPalette.cs" />
+    <Compile Include="ColorLAB.cs" />
     <Compile Include="ImgMdfAdd.cs" />
     <Compile Include="ImgMdfCompute.cs" />
     <Compile Include="ImgMdfConfirm.cs" />

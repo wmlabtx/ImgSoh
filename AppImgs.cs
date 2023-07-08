@@ -9,6 +9,7 @@ namespace ImgSoh
     {
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
         private static readonly object _imgLock = new object();
+        private static long _lastmonth = -1;
 
         public static void Clear()
         {
@@ -106,6 +107,7 @@ namespace ImgSoh
             }
         }
 
+        /*
         public static DateTime GetMinLastView()
         {
             DateTime lv;
@@ -123,6 +125,7 @@ namespace ImgSoh
 
             return lv;
         }
+        */
 
         public static Img GetNextView()
         {
@@ -130,19 +133,42 @@ namespace ImgSoh
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
                     if (_imgList.Count > 2) {
-                        var minrev = short.MaxValue;
-                        short rev;
+                        var minticks = long.MaxValue;
+                        var minrev = short.MinValue;
                         foreach (var img in _imgList.Values) {
-                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out Img imgnext)) {
+                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext)) {
                                 continue;
                             }
 
-                            rev = Math.Min(img.Review, imgnext.Review);
-                             if (imgX == null || rev < minrev || (rev == minrev && img.Distance < imgX.Distance)) {
-                                minrev = rev;
+                            var ticks = Math.Min(img.LastView.Ticks, imgnext.LastView.Ticks);
+                            var rev = Math.Min(img.Review, imgnext.Review);
+                            var days = (long)TimeSpan.FromTicks(ticks).TotalDays;
+                            if (days == _lastmonth) {
+                                continue;
+                            }
+
+                            if (imgX == null) {
                                 imgX = img;
+                                minticks = ticks;
+                                minrev = rev;
+                            }
+                            else {
+                                if (rev < minrev) {
+                                    imgX = img;
+                                    minticks = ticks;
+                                    minrev = rev;
+                                }
+                                else {
+                                    if (rev == minrev && img.Distance < imgX.Distance) {
+                                        imgX = img;
+                                        minticks = ticks;
+                                        minrev = rev;
+                                    }
+                                }
                             }
                         }
+
+                        _lastmonth = (long)TimeSpan.FromTicks(minticks).TotalDays;
                     }
                 }
                 finally {
@@ -162,7 +188,7 @@ namespace ImgSoh
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
                     foreach (var img in _imgList.Values) {
-                        if (img.Next.Equals(img.Hash) || !_imgList.ContainsKey(img.Next)) {
+                        if (img.Next.Equals(img.Hash) || !_imgList.ContainsKey(img.Next) || img.GetVector() == null || img.GetVector().Length != 4096) {
                             imgX = img;
                             break;
                         }
@@ -221,7 +247,7 @@ namespace ImgSoh
 
         public static string GetFolder()
         {
-            var iFolder = AppVars.IRandom(0, 255);
+            var iFolder = AppVars.RandomNext(256);
             var folder = $"{iFolder:x2}";
             return folder;
         }
@@ -316,7 +342,7 @@ namespace ImgSoh
         {
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    if (_imgList.TryGetValue(hash, out Img img)) {
+                    if (_imgList.TryGetValue(hash, out var img)) {
                         img.IncrementReview();
                     }
                 }
@@ -333,7 +359,7 @@ namespace ImgSoh
         {
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    if (_imgList.TryGetValue(hash, out Img img)) {
+                    if (_imgList.TryGetValue(hash, out var img)) {
                         img.SetNext(next);
                     }
                 }
@@ -350,7 +376,7 @@ namespace ImgSoh
         {
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    if (_imgList.TryGetValue(hash, out Img img)) {
+                    if (_imgList.TryGetValue(hash, out var img)) {
                         img.SetLastCheck(lastcheck);
                     }
                 }
@@ -367,7 +393,7 @@ namespace ImgSoh
         {
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    if (_imgList.TryGetValue(hash, out Img img)) {
+                    if (_imgList.TryGetValue(hash, out var img)) {
                         img.SetLastView(lastview);
                     }
                 }
@@ -384,8 +410,25 @@ namespace ImgSoh
         {
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    if (_imgList.TryGetValue(hash, out Img img)) {
+                    if (_imgList.TryGetValue(hash, out var img)) {
                         img.SetDistance(distance);
+                    }
+                }
+                finally {
+                    Monitor.Exit(_imgLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static void SetVector(string hash, byte[] vector)
+        {
+            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
+                try {
+                    if (_imgList.TryGetValue(hash, out var img)) {
+                        img.SetVector(vector);
                     }
                 }
                 finally {

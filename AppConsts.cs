@@ -2,20 +2,20 @@
 {
     public static class AppConsts
     {
-        public const string PathRoot = @"D:\Users\Murad\Spacer";
-        public const string PathRootProtected = @"M:\Spacer";
-        public const string FolderDb = "Db";
-        public const string FileVgg = PathRoot + @"\" + FolderDb +@"\" + "resnet152-v2-7.onnx";
+        private const string PathRoot = @"D:\Users\Murad\Spacer";
+        private const string PathRootProtected = @"M:\Spacer";
+        private const string FolderDb = "Db";
+        public const string FileVgg = PathRoot + @"\" + FolderDb +@"\" + "vgg16.onnx";
         public const string FileDatabase = PathRoot + @"\" + FolderDb + @"\" + "images.mdf";
         public const string FilePalette = PathRoot + @"\" + FolderDb + @"\" + "palette.png";
-        public const string FolderRw = "Rw";
+        private const string FolderRw = "Rw";
         public const string PathRw = PathRoot + @"\" + FolderRw;
         public const string PathRwProtected = PathRootProtected + @"\" + FolderRw;
-        public const string FolderHp = "Hp";
+        private const string FolderHp = "Hp";
         public const string PathHp = PathRoot + @"\" + FolderHp;
-        public const string FolderGb = "Gb";
+        private const string FolderGb = "Gb";
         public const string PathGbProtected = PathRootProtected + @"\" + FolderGb;
-        public const string FolderDe = "De";
+        private const string FolderDe = "De";
         public const string PathDeProtected = PathRootProtected + @"\" + FolderDe;
 
         public const int MaxImportFiles = 100000;
@@ -44,5 +44,6 @@
         public const string AttributeNext = "Next";
         public const string TableVars = "Vars";
         public const string AttributeDateTakenLast = "DateTakenLast";
+        public const string AttributePalette = "Palette";
     }
 }

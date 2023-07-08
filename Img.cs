@@ -15,7 +15,7 @@ namespace ImgSoh
             AppDatabase.ImageUpdateProperty(Hash, AppConsts.AttributeDateTaken, DateTaken);
         }
 
-        public byte[] _vector;
+        private byte[] _vector;
         public byte[] GetVector()
         {
             return _vector;

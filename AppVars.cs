@@ -11,12 +11,12 @@ namespace ImgSoh
         public static bool ImportRequested { get; set; }
 
         private static readonly Random _random = new Random();
-        public static int  IRandom(int minValue, int maxValue)
+        public static int RandomNext(int maxValue)
         {
             int result;
             if (Monitor.TryEnter(_random, AppConsts.LockTimeout)) {
                 try {
-                    result = _random.Next(minValue, maxValue);
+                    result = _random.Next(maxValue);
                 }
                 finally { 
                     Monitor.Exit(_random); 

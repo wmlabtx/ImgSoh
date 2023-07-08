@@ -13,7 +13,7 @@ namespace ImgSoh
         private static int _bad;
         private static int _found;
 
-        public static List<string> GetSimilars(Img imgX, IProgress<string> progress)
+        private static List<string> GetSimilars(Img imgX, IProgress<string> progress)
         {
             var filename = imgX.GetFileName();
             if (!File.Exists(filename)) {
@@ -34,7 +34,7 @@ namespace ImgSoh
                 return;
             }
 
-            var lastview = new DateTime(2020, 1, 1);
+            var lastview = DateTime.Now.AddYears(-5);
 
             backgroundworker.ReportProgress(0, $"importing {name} (a:{_added})/f:{_found}/b:{_bad}){AppConsts.CharEllipsis}");
 
@@ -161,7 +161,7 @@ namespace ImgSoh
             _added++;
         }
 
-        public static void ImportFiles(string path, BackgroundWorker backgroundworker)
+        private static void ImportFiles(string path, BackgroundWorker backgroundworker)
         {
             var directoryInfo = new DirectoryInfo(path);
             var fs = directoryInfo.GetFiles("*.*", SearchOption.AllDirectories).ToArray();
@@ -200,31 +200,31 @@ namespace ImgSoh
 
             var imgX = AppImgs.GetNextCheck();
             if (imgX != null) {
-                var shadow = AppImgs.GetShadow();
-                shadow.Remove(imgX.Hash);
-
-                var m1 = float.MaxValue;
-                var m2 = float.MaxValue;
-                Img imgY = null;
-                foreach (var img in shadow.Values) {
-                    var d = VggHelper.GetDistance(imgX.GetVector(), img.GetVector());
-                    if (d < m1) {
-                        m2 = m1;
-                        m1 = d;
-                        imgY = img;
-                    }
-                    else {
-                        if (d < m2) {
-                            m2 = d;
-                        }
+                if (imgX.GetVector().Length != 4096) {
+                    var filename = imgX.GetFileName();
+                    var imagedata = FileHelper.ReadEncryptedFile(filename);
+                    using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
+                    using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                        var vector = VggHelper.CalculateVector(bitmap);
+                        AppImgs.SetVector(imgX.Hash, vector);
                     }
                 }
 
+                var shadow = AppImgs.GetShadow();
+                shadow.Remove(imgX.Hash);
+
+                var mindistance = float.MaxValue;
+                Img imgY = null;
+                foreach (var img in shadow.Values) {
+                    var distance = VggHelper.GetDistance(imgX.GetVector(), img.GetVector());
+                    if (distance < mindistance) {
+                        mindistance = distance;
+                        imgY = img;
+                    }
+                }
 
                 if (imgY != null) {
-                    var mindistance = m1 / m2;
-                    if (!imgX.Next.Equals(imgY.Hash) || Math.Abs(mindistance - imgX.Distance) > 0.0001f)
-                    {
+                    if (!imgX.Next.Equals(imgY.Hash) || Math.Abs(mindistance - imgX.Distance) > 0.0001f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
                         var shortfilename = imgX.GetShortFileName();
                         backgroundworker.ReportProgress(0,

@@ -148,7 +148,7 @@ namespace ImgSoh
                 var shortfilename = panels[index].Img.GetShortFileName();
                 sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
                 sb.Append($" ({panels[index].Img.Distance:F4})");
-                sb.Append($" R{panels[index].Img.Review}");
+                sb.Append($" G{panels[index].Img.Review}");
                 sb.AppendLine();
 
                 sb.Append($"{Helper.SizeToString(panels[index].Size)} ");

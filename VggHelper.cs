@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
@@ -17,13 +18,18 @@ namespace ImgSoh
             _net = CvDnn.ReadNetFromOnnx(AppConsts.FileVgg);
         }
 
-        public static byte[] CalculateVector(Bitmap bitmap)
+        public static IEnumerable<string> GetInfo()
         {
-            byte[] vector;
-            using (var input = new Mat(new[] { 1, 3, 224, 224 }, MatType.CV_32F))
-            using (var b = BitmapHelper.ScaleAndCut(bitmap, 224, 224 / 16)) {
+            return _net.GetLayerNames();
+        }
+
+        private static Mat BitmapToMat(Bitmap bitmap)
+        {
+            var input = new Mat(new[] { 1, 3, 224, 224 }, MatType.CV_32F);
+            using (var b = BitmapHelper.ScaleAndCut(bitmap, 224, 16)) {
                 //b.Save("bitmap.png", ImageFormat.Png);
-                var bitmapdata = b.LockBits(new Rectangle(0, 0, b.Width, b.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+                var bitmapdata = b.LockBits(new Rectangle(0, 0, b.Width, b.Height), ImageLockMode.ReadOnly,
+                    PixelFormat.Format24bppRgb);
                 var stride = bitmapdata.Stride;
                 var data = new byte[Math.Abs(bitmapdata.Stride * bitmapdata.Height)];
                 Marshal.Copy(bitmapdata.Scan0, data, 0, data.Length);
@@ -37,7 +43,7 @@ namespace ImgSoh
                         var bbyte = data[offsetx];
                         offsetx += 3;
 
-                        var red = (rbyte / 255f  - 0.485f) / 0.229f;
+                        var red = (rbyte / 255f - 0.485f) / 0.229f;
                         var green = (gbyte / 255f - 0.456f) / 0.224f;
                         var blue = (bbyte / 255f - 0.406f) / 0.225f;
 
@@ -48,14 +54,35 @@ namespace ImgSoh
 
                     offsety += stride;
                 }
+            }
 
+            return input;
+        }
+
+        public static byte[] CalculateVector(Bitmap bitmap)
+        {
+            byte[] vector;
+            using (var input = BitmapToMat(bitmap)) {
                 _net.SetInput(input);
-                var output = _net.Forward("onnx_node!resnetv27_flatten0_reshape0");
+                //var output = _net.Forward("onnx_node!resnetv27_flatten0_reshape0");
+                var output = _net.Forward("onnx_node!flatten_70");
                 output.GetArray(out float[] buffer);
                 vector = new byte[buffer.Length];
                 for (var i = 0; i < buffer.Length; i++) {
                     vector[i] = (byte)Math.Min(255, (int)(buffer[i] * 255.0 / 10.0));
                 }
+            }
+
+            return vector;
+        }
+
+        public static IEnumerable<float> CalculateFloatVector(Bitmap bitmap)
+        {
+            float[] vector;
+            using (var input = BitmapToMat(bitmap)) {
+                _net.SetInput(input);
+                var output = _net.Forward("onnx_node!flatten_70");
+                output.GetArray(out vector);
             }
 
             return vector;
@@ -71,10 +98,30 @@ namespace ImgSoh
             var magx = 0.0;
             var magy = 0.0;
             for (var n = 0; n < x.Length; n++) {
-                if (x[n] > 0 || y[n] > 0) {
+                if (x[n] > 0) {
                     dot += (double)x[n] * y[n] / (255.0 * 255.0);
                     magx += (double)x[n] * x[n] / (255.0 * 255.0);
                     magy += (double)y[n] * y[n] / (255.0 * 255.0);
+                }
+            }
+
+            return 1f - (float)(dot / (Math.Sqrt(magx) * Math.Sqrt(magy)));
+        }
+
+        public static float GetDistance(float[] x, float[] y)
+        {
+            if (x.Length == 0 || y.Length == 0 || x.Length != y.Length) {
+                return 1f;
+            }
+
+            var dot = 0.0;
+            var magx = 0.0;
+            var magy = 0.0;
+            for (var n = 0; n < x.Length; n++) {
+                if (x[n] > 0 || y[n] > 0) {
+                    dot += (double)x[n] * y[n];
+                    magx += (double)x[n] * x[n];
+                    magy += (double)y[n] * y[n];
                 }
             }
 

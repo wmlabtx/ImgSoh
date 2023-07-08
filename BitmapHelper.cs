@@ -169,7 +169,7 @@ namespace ImgSoh
         public static Bitmap BitmapXor(Bitmap xb, Bitmap yb)
         {
             var xd = xb.LockBits(new Rectangle(0, 0, xb.Width, xb.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
-            byte[] xa = new byte[xd.Stride * xd.Height];
+            var xa = new byte[xd.Stride * xd.Height];
             Marshal.Copy(xd.Scan0, xa, 0, xa.Length);
             xb.UnlockBits(xd);
 
@@ -180,15 +180,15 @@ namespace ImgSoh
 
             for (var i = 0; i < xa.Length - 2; i += 3) {
                 ya[i] = (byte)Math.Min(255, Math.Abs(xa[i] - ya[i]) << 3);
-                ya[i + 1] = (byte)Math.Min(255, Math.Abs(xa[i + 1] - ya[i + 1]) << 2);
-                ya[i + 2] = (byte)Math.Min(255, Math.Abs(xa[i + 2] - ya[i + 2]) << 2);
+                ya[i + 1] = (byte)Math.Min(255, Math.Abs(xa[i + 1] - ya[i + 1]) << 1);
+                ya[i + 2] = (byte)Math.Min(255, Math.Abs(xa[i + 2] - ya[i + 2]) << 1);
                 if (ya[i] == 255 && ya[i + 1] == 255 && ya[i + 2] == 255) {
-                    Bitmap cb = new Bitmap(yb);
+                    var cb = new Bitmap(yb);
                     return cb;
                 }
             }
 
-            Bitmap zb = new Bitmap(yb);
+            var zb = new Bitmap(yb);
             var zd = zb.LockBits(new Rectangle(0, 0, zb.Width, zb.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
             Marshal.Copy(ya, 0, zd.Scan0, ya.Length);
             zb.UnlockBits(zd);
@@ -213,34 +213,6 @@ namespace ImgSoh
             }
 
             return result;
-        }
-
-        private static double CubeRoot(double val)
-        {
-            return Math.Pow(val, 1.0 / 3.0);
-        }
-
-        private static double Fn(int val)
-        {
-            var abs = val / 255.0;
-            return abs < 0.04045 ?
-                abs / 12.92 :
-                Math.Pow((abs + 0.055) / 1.055, 2.4);
-        }
-
-        public static void RGB2LAB(int rb, int gb, int bb, out double l, out double a, out double b)
-        {
-            var rd = Fn(rb);
-            var gd = Fn(gb);
-            var bd = Fn(bb);
-
-            var li = CubeRoot((0.41222147079999993 * rd) + (0.5363325363 * gd) + (0.0514459929 * bd));
-            var mi = CubeRoot((0.2119034981999999 * rd) + (0.6806995450999999 * gd) + (0.1073969566 * bd));
-            var si = CubeRoot((0.08830246189999998 * rd) + (0.2817188376 * gd) + (0.6299787005000002 * bd));
-
-            l = (0.2104542553 * li) + (0.793617785 * mi) - (0.0040720468 * si);
-            a = 1.9779984951 * li - (2.428592205 * mi) + (0.4505937099 * si);
-            b = (0.0259040371 * li) + (0.7827717662 * mi) - (0.808675766 * si);
         }
 
         /*

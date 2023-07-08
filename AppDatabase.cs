@@ -29,9 +29,6 @@ namespace ImgSoh
                         sqlCommand.ExecuteNonQuery();
                     }
                 }
-                catch (SqlException) {
-                    throw;
-                }
                 finally {
                     Monitor.Exit(_sqlLock);
                 }
@@ -50,9 +47,6 @@ namespace ImgSoh
                         sqlCommand.Parameters.AddWithValue($"@{key}", val);
                         sqlCommand.ExecuteNonQuery();
                     }
-                }
-                catch (SqlException) {
-                    throw;
                 }
                 finally {
                     Monitor.Exit(_sqlLock);
@@ -73,9 +67,6 @@ namespace ImgSoh
                         sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
                         sqlCommand.ExecuteNonQuery();
                     }
-                }
-                catch (SqlException) {
-                    throw;
                 }
                 finally {
                     Monitor.Exit(_sqlLock);
@@ -129,9 +120,6 @@ namespace ImgSoh
                         sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
                         sqlCommand.ExecuteNonQuery();
                     }
-                }
-                catch (SqlException) {
-                    throw;
                 }
                 finally {
                     Monitor.Exit(_sqlLock);
@@ -202,14 +190,17 @@ namespace ImgSoh
 
             sb.Length = 0;
             sb.Append("SELECT ");
-            sb.Append($"{AppConsts.AttributeDateTakenLast} "); // 0
+            sb.Append($"{AppConsts.AttributeDateTakenLast}, "); // 0
+            sb.Append($"{AppConsts.AttributePalette} "); // 1
             sb.Append($"FROM {AppConsts.TableVars}");
             sqltext = sb.ToString();
             using (var sqlCommand = new SqlCommand(sqltext, _sqlConnection)) {
                 using (var reader = sqlCommand.ExecuteReader()) {
                     while (reader.Read()) {
                         var dateTakenLast = reader.GetDateTime(0);
+                        var palette = (byte[])reader[1];
                         AppVars.DateTakenLast = dateTakenLast;
+                        AppPalette.Set(palette);
                         break;
                     }
                 }

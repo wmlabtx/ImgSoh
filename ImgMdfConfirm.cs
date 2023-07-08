@@ -10,21 +10,14 @@ namespace ImgSoh
             AppImgs.SetLastView(imgX.Hash, DateTime.Now);
             
             var imgY = AppPanels.GetImgPanel(1).Img;
-            imgY.SetLastView(DateTime.Now);
             AppImgs.SetLastView(imgY.Hash, DateTime.Now);
 
-            if (imgX.Review < imgY.Review) {
-                imgX.IncrementReview();
+            if (imgX.Review == imgY.Review) {
                 AppImgs.IncrementReview(imgX.Hash);
+                AppImgs.IncrementReview(imgY.Hash);
             }
             else {
-                if (imgX.Review == imgY.Review) {
-                    AppImgs.IncrementReview(imgX.Hash);
-                    AppImgs.IncrementReview(imgY.Hash);
-                }
-                else {
-                    AppImgs.IncrementReview(imgY.Hash);
-                }
+                AppImgs.IncrementReview(imgX.Review < imgY.Review ? imgX.Hash : imgY.Hash);
             }
         }
     }
