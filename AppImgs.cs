@@ -9,7 +9,7 @@ namespace ImgSoh
     {
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
         private static readonly object _imgLock = new object();
-        private static long _lastmonth = -1;
+        private static int _idow = 0;
 
         public static void Clear()
         {
@@ -91,12 +91,6 @@ namespace ImgSoh
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
                     _imgList.Remove(img.Hash);
-                    /*
-                    var lc = _imgList.Min(e => e.Value.LastCheck);
-                    foreach (var e in _imgList.Where(e => e.Value.Next.Equals(img.Hash))) { 
-                        e.Value.SetLastCheck(lc);
-                    }
-                    */
                 }
                 finally {
                     Monitor.Exit(_imgLock);
@@ -131,35 +125,40 @@ namespace ImgSoh
         {
             Img imgX = null;
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
-                try {
+                try
+                {
                     if (_imgList.Count > 2) {
+                        _idow++;
+                        if (_idow >= 7) {
+                            _idow = 0;
+                        }
+
                         var minticks = long.MaxValue;
                         var minrev = short.MinValue;
-                        foreach (var img in _imgList.Values) {
-                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext)) {
+                        foreach (var img in _imgList.Values)
+                        {
+                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext) ||
+                                (int)img.LastView.DayOfWeek != _idow) {
                                 continue;
                             }
 
                             var ticks = Math.Min(img.LastView.Ticks, imgnext.LastView.Ticks);
                             var rev = Math.Min(img.Review, imgnext.Review);
-                            var days = (long)TimeSpan.FromTicks(ticks).TotalDays;
-                            if (days == _lastmonth) {
-                                continue;
-                            }
-
-                            if (imgX == null) {
+                            if (imgX == null)
+                            {
                                 imgX = img;
                                 minticks = ticks;
                                 minrev = rev;
                             }
-                            else {
+                            else
+                            {
                                 if (rev < minrev) {
                                     imgX = img;
                                     minticks = ticks;
                                     minrev = rev;
                                 }
                                 else {
-                                    if (rev == minrev && img.Distance < imgX.Distance) {
+                                    if (rev == minrev && ticks < minticks) {
                                         imgX = img;
                                         minticks = ticks;
                                         minrev = rev;
@@ -167,11 +166,10 @@ namespace ImgSoh
                                 }
                             }
                         }
-
-                        _lastmonth = (long)TimeSpan.FromTicks(minticks).TotalDays;
                     }
                 }
-                finally {
+                finally
+                {
                     Monitor.Exit(_imgLock);
                 }
             }
