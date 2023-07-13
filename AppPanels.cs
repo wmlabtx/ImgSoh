@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
 
 namespace ImgSoh
@@ -64,61 +63,14 @@ namespace ImgSoh
             return true;
         }
 
-        private static int _position;
-        private static List<string> _similars;
 
-        public static void SetSimilars(List<string> similars, IProgress<string> progress, string bin)
-        {
-            _similars = similars;
-            SetFirstPosition(progress, bin);
-        }
-
-        public static string GetRightName()
-        {
-            var hash = _similars[_position];
-            return hash;
-        }
-
-        public static void SetFirstPosition(IProgress<string> progress, string bin)
-        {
-            _position = 0;
-            while (!SetImgPanel(1, _similars[_position], bin)) {
-                _similars.RemoveAt(0);
-            }
-
-            UpdateStatus(progress);
-        }
-
-        public static void MoveRightPosition(IProgress<string> progress, string bin)
-        {
-            while (_position < _similars.Count - 1) {
-                _position++;
-                if (SetImgPanel(1, _similars[_position], bin)) {
-                    UpdateStatus(progress);
-                    break;
-                }
-            }
-        }
-
-        public static void MoveLeftPosition(IProgress<string> progress, string bin)
-        {
-            while (_position > 0) {
-                _position--;
-                if (SetImgPanel(1, _similars[_position], bin)) {
-                    UpdateStatus(progress);
-                    break;
-                }
-            }
-        }
-
-        private static void UpdateStatus(IProgress<string> progress)
+        public static void UpdateStatus(IProgress<string> progress)
         {
             var imgX = _imgPanels[0].Img;
             var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-            var similarsFound = _similars.Count;
             var shortFilename = imgX.GetShortFileName();
             var counters = AppImgs.GetCounters();
-            progress?.Report($"{counters}: {shortFilename} [{age} ago] = ({_position}/{similarsFound})");
+            progress?.Report($"{counters}: {shortFilename} [{age} ago]");
         }
     }
 }

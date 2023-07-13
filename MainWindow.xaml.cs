@@ -65,7 +65,7 @@ namespace ImgSoh
 
         private void ImportClick(object sender, RoutedEventArgs e)
         {
-            MainWindow.ImportClick();
+            ImportClick();
         }
 
         private void ExportClick(object sender, RoutedEventArgs e)
@@ -78,19 +78,19 @@ namespace ImgSoh
             RefreshClick();
         }
 
-        private void LeftMoveClick(object sender, RoutedEventArgs e)
+        private void AddToFamilyClick(object sender, RoutedEventArgs e)
         {
-            LeftMoveClick();
+            AddToFamilyClick();
         }
 
-        private void RightMoveClick(object sender, RoutedEventArgs e)
+        private void RemoveFromFamilyClick(object sender, RoutedEventArgs e)
         {
-            RightMoveClick();
+            RemoveFromFamilyClick();
         }
 
-        private void FirstMoveClick(object sender, RoutedEventArgs e)
+        private void MarkAsNotFamilyClick(object sender, RoutedEventArgs e)
         {
-            FirstMoveClick();
+            MarkAsNotFamilyClick();
         }
 
         private void SwapMoveClick(object sender, RoutedEventArgs e)

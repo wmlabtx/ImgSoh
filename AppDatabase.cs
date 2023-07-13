@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Text;
 using System.Threading;
@@ -65,6 +66,116 @@ namespace ImgSoh
                         sqlCommand.Connection = _sqlConnection;
                         sqlCommand.CommandText = $"DELETE FROM {AppConsts.TableImages} WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}";
                         sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        sqlCommand.ExecuteNonQuery();
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static void AddPair(string id1, string id2, bool isfamily)
+        {
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        var sb = new StringBuilder();
+                        sb.Append($"INSERT INTO {AppConsts.TablePairs} (");
+                        sb.Append($"{AppConsts.AttributeId1}, ");
+                        sb.Append($"{AppConsts.AttributeId2}, ");
+                        sb.Append($"{AppConsts.AttributeIsFamily}");
+                        sb.Append(") VALUES (");
+                        sb.Append($"@{AppConsts.AttributeId1}, ");
+                        sb.Append($"@{AppConsts.AttributeId2}, ");
+                        sb.Append($"@{AppConsts.AttributeIsFamily}");
+                        sb.Append(')');
+                        sqlCommand.CommandText = sb.ToString();
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id1);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId2}", id2);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeIsFamily}", isfamily);
+                        sqlCommand.ExecuteNonQuery();
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static SortedList<string, bool> GetPairs(string id)
+        {
+            var result = new SortedList<string, bool>();
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeId2}, "); // 0
+                    sb.Append($"{AppConsts.AttributeIsFamily} "); // 1
+                    sb.Append($"FROM {AppConsts.TablePairs} ");
+                    sb.Append($"WHERE {AppConsts.AttributeId1} = @{AppConsts.AttributeId1}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                var id2 = reader.GetString(0);
+                                var isfamily = reader.GetBoolean(1);
+                                result.Add(id2, isfamily);
+                            }
+                        }
+                    }
+
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return result;
+        }
+
+        public static void DeletePair(string id)
+        {
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = $"DELETE FROM {AppConsts.TablePairs} WHERE {AppConsts.AttributeId1} = @{id} OR {AppConsts.AttributeId2} = @{id}";
+                        sqlCommand.Parameters.AddWithValue($"@{id}", id);
+                        sqlCommand.ExecuteNonQuery();
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static void DeletePair(string id1, string id2)
+        {
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = $"DELETE FROM {AppConsts.TablePairs} WHERE {AppConsts.AttributeId1} = @{id1} AND {AppConsts.AttributeId2} = @{id2}";
+                        sqlCommand.Parameters.AddWithValue($"@{id1}", id1);
+                        sqlCommand.Parameters.AddWithValue($"@{id2}", id2);
                         sqlCommand.ExecuteNonQuery();
                     }
                 }

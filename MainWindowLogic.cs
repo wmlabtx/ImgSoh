@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -148,7 +149,11 @@ namespace ImgSoh
                 var shortfilename = panels[index].Img.GetShortFileName();
                 sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
                 sb.Append($" ({panels[index].Img.Distance:F4})");
-                sb.Append($" G{panels[index].Img.Review}");
+
+                var pairs = AppDatabase.GetPairs(panels[index].Img.Hash);
+                var pairscount = pairs.Count;
+                var familycount = pairs.Count(e => e.Value);
+                sb.Append($" {familycount}/{pairscount}");
                 sb.AppendLine();
 
                 sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -159,12 +164,20 @@ namespace ImgSoh
                 sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
 
                 pLabels[index].Text = sb.ToString();
-                var scb = System.Windows.Media.Brushes.White;
-                if (panels[index].Blur < panels[1 - index].Blur || (Math.Abs(panels[index].Blur - panels[1 - index].Blur) < 0.0001 && panels[index].DateTaken < panels[1 - index].DateTaken)) {
-                    scb = System.Windows.Media.Brushes.Pink;
+                pLabels[index].Background = System.Windows.Media.Brushes.White;
+                if (pairscount > 0) {
+                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                    if (pairs.TryGetValue(panels[1 - index].Img.Hash, out var isfamily)) {
+                        if (isfamily) {
+                            pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                        }
+                        else {
+                            pLabels[index].Background = index == 0 ? 
+                                System.Windows.Media.Brushes.GreenYellow : 
+                                System.Windows.Media.Brushes.Violet;
+                        }
+                    }
                 }
-
-                pLabels[index].Background = scb;
             }
 
             RedrawCanvas();
@@ -245,27 +258,52 @@ namespace ImgSoh
             DrawCanvas();
             EnableElements();
         }
- 
-        private void LeftMoveClick()
+
+        private void AddToFamilyClick()
         {
             DisableElements();
-            AppPanels.MoveLeftPosition(AppVars.Progress, AppConsts.PathDeProtected);
+            var hashX = AppPanels.GetImgPanel(0).Img.Hash;
+            var hashY = AppPanels.GetImgPanel(1).Img.Hash;
+            var pairsX = AppDatabase.GetPairs(hashX);
+            if (!pairsX.ContainsKey(hashY)) {
+                AppDatabase.AddPair(hashX, hashY, true);
+            }
+
+            var pairsY = AppDatabase.GetPairs(hashY);
+            if (!pairsY.ContainsKey(hashX)) {
+                AppDatabase.AddPair(hashY, hashX, true);
+            }
+
             DrawCanvas();
             EnableElements();
         }
 
-        private void RightMoveClick()
+        private void MarkAsNotFamilyClick()
         {
             DisableElements();
-            AppPanels.MoveRightPosition(AppVars.Progress, AppConsts.PathDeProtected);
+            var hashX = AppPanels.GetImgPanel(0).Img.Hash;
+            var hashY = AppPanels.GetImgPanel(1).Img.Hash;
+            var pairsX = AppDatabase.GetPairs(hashX);
+            if (!pairsX.ContainsKey(hashY)) {
+                AppDatabase.AddPair(hashX, hashY, false);
+            }
+
+            var pairsY = AppDatabase.GetPairs(hashY);
+            if (!pairsY.ContainsKey(hashX)) {
+                AppDatabase.AddPair(hashY, hashX, false);
+            }
+
             DrawCanvas();
             EnableElements();
         }
 
-        private void FirstMoveClick()
+        private void RemoveFromFamilyClick()
         {
             DisableElements();
-            AppPanels.SetFirstPosition(AppVars.Progress, AppConsts.PathDeProtected);
+            var hashX = AppPanels.GetImgPanel(0).Img.Hash;
+            var hashY = AppPanels.GetImgPanel(1).Img.Hash;
+            AppDatabase.DeletePair(hashX, hashY);
+            AppDatabase.DeletePair(hashY, hashX);
             DrawCanvas();
             EnableElements();
         }
@@ -292,14 +330,14 @@ namespace ImgSoh
         private void OnKeyDown(Key key)
         {
             switch (key) {
-                case Key.E:
-                    RightMoveClick();
+                case Key.A:
+                    AddToFamilyClick();
                     break;
-                case Key.Q:
-                    LeftMoveClick();
+                case Key.D:
+                    MarkAsNotFamilyClick();
                     break;
-                case Key.F:
-                    FirstMoveClick();
+                case Key.R:
+                    RemoveFromFamilyClick();
                     break;
                 case Key.S:
                     SwapMoveClick();

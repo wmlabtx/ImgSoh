@@ -11,6 +11,7 @@ namespace ImgSoh
             var filename = imgD.GetFileName();
             FileHelper.DeleteToRecycleBin(filename, AppConsts.PathDeProtected);
             AppDatabase.DeleteImage(imgD.Hash);
+            AppDatabase.DeletePair(imgD.Hash);
         }
 
         public static void Delete(int idpanel, IProgress<string> progress)

@@ -45,5 +45,9 @@
         public const string TableVars = "Vars";
         public const string AttributeDateTakenLast = "DateTakenLast";
         public const string AttributePalette = "Palette";
+        public const string TablePairs = "Pairs";
+        public const string AttributeId1 = "Id1";
+        public const string AttributeId2 = "Id2";
+        public const string AttributeIsFamily = "IsFamily";
     }
 }

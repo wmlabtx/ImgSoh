@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 
 namespace ImgSoh
@@ -56,15 +57,11 @@ namespace ImgSoh
         }
 
         public short Review { get; private set; }
+
         public void SetReview(short review)
         {
             Review = review;
             AppDatabase.ImageUpdateProperty(Hash, AppConsts.AttributeReview, review);
-        }
-
-        public void IncrementReview()
-        {
-            SetReview((short)(Review + 1));
         }
 
         public string Next { get; private set; }

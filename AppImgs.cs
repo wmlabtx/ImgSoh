@@ -9,7 +9,7 @@ namespace ImgSoh
     {
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
         private static readonly object _imgLock = new object();
-        private static int _idow = 0;
+        private static int _idow;
 
         public static void Clear()
         {
@@ -101,13 +101,50 @@ namespace ImgSoh
             }
         }
 
-        /*
-        public static DateTime GetMinLastView()
+        public static Img GetNextView()
+        {
+            Img imgX = null;
+            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
+                try
+                {
+                    if (_imgList.Count > 2) {
+                        foreach (var img in _imgList.Values) {
+                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext)) {
+                                continue;
+                            }
+
+                            var dow = img.LastView.Day;
+                            if (dow == _idow) {
+                                continue;
+                            }
+
+                            if (imgX == null || img.LastView < imgX.LastView) {
+                                imgX = img;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_imgLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            if (imgX != null) {
+                _idow = imgX.LastView.Day;
+            }
+
+            return imgX;
+        }
+
+        public static DateTime GetMinLastCheck()
         {
             DateTime lv;
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
-                    lv = _imgList.Count > 0 ? _imgList.Min(e => e.Value.LastView).AddSeconds(-1) : DateTime.Now;
+                    lv = _imgList.Count > 0 ? _imgList.Min(e => e.Value.LastCheck).AddSeconds(-1) : DateTime.Now;
                 }
                 finally {
                     Monitor.Exit(_imgLock);
@@ -118,66 +155,6 @@ namespace ImgSoh
             }
 
             return lv;
-        }
-        */
-
-        public static Img GetNextView()
-        {
-            Img imgX = null;
-            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
-                try
-                {
-                    if (_imgList.Count > 2) {
-                        _idow++;
-                        if (_idow >= 7) {
-                            _idow = 0;
-                        }
-
-                        var minticks = long.MaxValue;
-                        var minrev = short.MinValue;
-                        foreach (var img in _imgList.Values)
-                        {
-                            if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext) ||
-                                (int)img.LastView.DayOfWeek != _idow) {
-                                continue;
-                            }
-
-                            var ticks = Math.Min(img.LastView.Ticks, imgnext.LastView.Ticks);
-                            var rev = Math.Min(img.Review, imgnext.Review);
-                            if (imgX == null)
-                            {
-                                imgX = img;
-                                minticks = ticks;
-                                minrev = rev;
-                            }
-                            else
-                            {
-                                if (rev < minrev) {
-                                    imgX = img;
-                                    minticks = ticks;
-                                    minrev = rev;
-                                }
-                                else {
-                                    if (rev == minrev && ticks < minticks) {
-                                        imgX = img;
-                                        minticks = ticks;
-                                        minrev = rev;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                finally
-                {
-                    Monitor.Exit(_imgLock);
-                }
-            }
-            else {
-                throw new Exception();
-            }
-
-            return imgX;
         }
 
         public static Img GetNextCheck()
@@ -250,44 +227,7 @@ namespace ImgSoh
             return folder;
         }
 
-        public static List<string> GetSimilars(Img imgX)
-        {
-            var similars = new List<string> {
-                imgX.Next
-            };
-
-            /*
-            var shadow = GetShadow();
-            shadow.Remove(imgX.Hash);
-            var vlist = new List<Tuple<string, float>>();
-            var dlist = new List<Tuple<string, float>>();
-            foreach (var e in shadow) {
-                var vd = VggHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
-                vlist.Add(Tuple.Create(e.Key, vd));
-                var dd = (float)Math.Abs(imgX.DateTaken.Subtract(e.Value.DateTaken).TotalDays);
-                dlist.Add(Tuple.Create(e.Key, dd));
-            }
-
-            var vl = vlist.OrderBy(e => e.Item2).ToArray();
-            var dl = dlist.OrderBy(e => e.Item2).ToArray();
-
-            var i = 0;
-            while (i < vl.Length && similars.Count < 100) {
-                if (!similars.Any(e => e == vl[i].Item1)) {
-                    similars.Add(vl[i].Item1);
-                }
-
-                if (!similars.Any(e => e == dl[i].Item1)) {
-                    similars.Add(dl[i].Item1);
-                }
-
-                i++;
-            }
-            */
-
-            return similars;
-        }
-
+        /*
         public static void Populate(IProgress<string> progress)
         {
             var shadow = GetShadow();
@@ -313,6 +253,7 @@ namespace ImgSoh
                 }
             }
         }
+        */
 
         public static string GetCounters()
         {
@@ -321,7 +262,7 @@ namespace ImgSoh
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
                     total = _imgList.Count;
-                    var minRev = _imgList.Values.Min(e => e.Review);
+                    var minRev = _imgList.Values.Min(e => e.Review); 
                     revCount = _imgList.Values.Count(e => e.Review == minRev);
                 }
                 finally {
@@ -334,23 +275,6 @@ namespace ImgSoh
 
             var result = $"{revCount}/{total}";
             return result;
-        }
-
-        public static void IncrementReview(string hash)
-        {
-            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
-                try {
-                    if (_imgList.TryGetValue(hash, out var img)) {
-                        img.IncrementReview();
-                    }
-                }
-                finally {
-                    Monitor.Exit(_imgLock);
-                }
-            }
-            else {
-                throw new Exception();
-            }
         }
 
         public static void SetNext(string hash, string next)
@@ -427,6 +351,43 @@ namespace ImgSoh
                 try {
                     if (_imgList.TryGetValue(hash, out var img)) {
                         img.SetVector(vector);
+                    }
+                }
+                finally {
+                    Monitor.Exit(_imgLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static void SetReview(string hash, short review)
+        {
+            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
+                try {
+                    if (_imgList.TryGetValue(hash, out var img)) {
+                        img.SetReview(review);
+                    }
+                }
+                finally {
+                    Monitor.Exit(_imgLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+        }
+
+        public static void VerifyPairs(string hash)
+        {
+            if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
+                try {
+                    var pairs = AppDatabase.GetPairs(hash);
+                    foreach (var e in pairs) {
+                        if (!_imgList.ContainsKey(e.Key)) {
+                            AppDatabase.DeletePair(e.Key);
+                        }
                     }
                 }
                 finally {

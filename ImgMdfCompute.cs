@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
 using System.IO;
@@ -12,20 +11,6 @@ namespace ImgSoh
         private static int _added;
         private static int _bad;
         private static int _found;
-
-        private static List<string> GetSimilars(Img imgX, IProgress<string> progress)
-        {
-            var filename = imgX.GetFileName();
-            if (!File.Exists(filename)) {
-                var shortname = Path.GetFileName(filename);
-                progress?.Report($"({shortname}) removed");
-                Delete(imgX, progress);
-                return null;
-            }
-
-            var similars = AppImgs.GetSimilars(imgX);
-            return similars;
-        }
 
         private static void ImportFile(string orgfilename, BackgroundWorker backgroundworker)
         {
@@ -210,12 +195,21 @@ namespace ImgSoh
                     }
                 }
 
+                AppImgs.VerifyPairs(imgX.Hash);
+                var pairs = AppDatabase.GetPairs(imgX.Hash);
+                var review = (short)pairs.Count(e => e.Value);
+                AppImgs.SetReview(imgX.Hash, review);
+
                 var shadow = AppImgs.GetShadow();
                 shadow.Remove(imgX.Hash);
 
                 var mindistance = float.MaxValue;
                 Img imgY = null;
                 foreach (var img in shadow.Values) {
+                    if (pairs.ContainsKey(img.Hash)) {
+                        continue;
+                    }
+
                     var distance = VggHelper.GetDistance(imgX.GetVector(), img.GetVector());
                     if (distance < mindistance) {
                         mindistance = distance;
@@ -227,8 +221,10 @@ namespace ImgSoh
                     if (!imgX.Next.Equals(imgY.Hash) || Math.Abs(mindistance - imgX.Distance) > 0.0001f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
                         var shortfilename = imgX.GetShortFileName();
+                        var xreview = AppDatabase.GetPairs(imgX.Hash).Count;
+                        var yreview = AppDatabase.GetPairs(imgY.Hash).Count;
                         backgroundworker.ReportProgress(0,
-                            $"[{age} ago] {shortfilename}: [{imgX.Review}] {imgX.Distance:F4} {AppConsts.CharRightArrow} [{imgY.Review}] {mindistance:F4}");
+                            $"[{age} ago] {shortfilename}: [{xreview}] {imgX.Distance:F4} {AppConsts.CharRightArrow} [{yreview}] {mindistance:F4}");
                         AppImgs.SetDistance(imgX.Hash, mindistance);
                         AppImgs.SetNext(imgX.Hash, imgY.Hash);
                     }
