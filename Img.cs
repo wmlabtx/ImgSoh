@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 
 namespace ImgSoh
@@ -57,7 +56,6 @@ namespace ImgSoh
         }
 
         public short Review { get; private set; }
-
         public void SetReview(short review)
         {
             Review = review;

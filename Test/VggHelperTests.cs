@@ -157,5 +157,34 @@ gab_nosim5 = 0.8175
 gab_nosim6 = 0.8706
              */
         }
+
+        [TestMethod]
+        public void GetDistance2()
+        {
+            VggHelper.LoadNet(null);
+            var images = new[] {
+                "gab_org", "gab_bw", "gab_scale", "gab_flip", "gab_r90", "gab_crop", "gab_toside",
+                "gab_blur", "gab_exp", "gab_logo", "gab_noice", "gab_r3", "gab_r10",
+                "gab_face", "gab_sim1", "gab_sim2",
+                "gab_nosim1", "gab_nosim2", "gab_nosim3", "gab_nosim4", "gab_nosim5", "gab_nosim6"
+            };
+
+            var vectors = new Tuple<string, byte[]>[images.Length];
+            for (var i = 0; i < images.Length; i++) {
+                var name = $"DataSet1\\{images[i]}.jpg";
+                var imagedata = File.ReadAllBytes(name);
+                using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
+                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                    var vector = VggHelper.CalculateVector(bitmap);
+                    vectors[i] = new Tuple<string, byte[]>(name, vector);
+                }
+            }
+
+            for (var i = 0; i < vectors.Length; i++) {
+                var distance = VggHelper.GetDistance(vectors[0].Item2, vectors[i].Item2);
+                var rawdistance = VggHelper.GetRawDistance(vectors[0].Item2, vectors[i].Item2);
+                Debug.WriteLine($"{images[i]} = {distance:F4} ({rawdistance:F2})");
+            }
+        }
     }
 }

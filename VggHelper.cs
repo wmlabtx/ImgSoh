@@ -98,34 +98,29 @@ namespace ImgSoh
             var magx = 0.0;
             var magy = 0.0;
             for (var n = 0; n < x.Length; n++) {
-                if (x[n] > 0) {
-                    dot += (double)x[n] * y[n] / (255.0 * 255.0);
-                    magx += (double)x[n] * x[n] / (255.0 * 255.0);
-                    magy += (double)y[n] * y[n] / (255.0 * 255.0);
-                }
+                dot += (double)x[n] * y[n] / (255.0 * 255.0);
+                magx += (double)x[n] * x[n] / (255.0 * 255.0);
+                magy += (double)y[n] * y[n] / (255.0 * 255.0);
             }
 
             return 1f - (float)(dot / (Math.Sqrt(magx) * Math.Sqrt(magy)));
         }
 
-        public static float GetDistance(float[] x, float[] y)
+        public static float GetRawDistance(byte[] x, byte[] y)
         {
             if (x.Length == 0 || y.Length == 0 || x.Length != y.Length) {
                 return 1f;
             }
 
-            var dot = 0.0;
-            var magx = 0.0;
-            var magy = 0.0;
+            const int Limit = 128;
+            var intdistance = x.Length;
             for (var n = 0; n < x.Length; n++) {
-                if (x[n] > 0 || y[n] > 0) {
-                    dot += (double)x[n] * y[n];
-                    magx += (double)x[n] * x[n];
-                    magy += (double)y[n] * y[n];
+                if ((x[n] <= Limit && y[n] <= Limit) || (x[n] > Limit && y[n] > Limit)) {
+                    intdistance--;
                 }
             }
 
-            return 1f - (float)(dot / (Math.Sqrt(magx) * Math.Sqrt(magy)));
+            return (float)intdistance / x.Length;
         }
     }
 }

@@ -197,8 +197,6 @@ namespace ImgSoh
 
                 AppImgs.VerifyPairs(imgX.Hash);
                 var pairs = AppDatabase.GetPairs(imgX.Hash);
-                var review = (short)pairs.Count(e => e.Value);
-                AppImgs.SetReview(imgX.Hash, review);
 
                 var shadow = AppImgs.GetShadow();
                 shadow.Remove(imgX.Hash);
@@ -211,6 +209,11 @@ namespace ImgSoh
                     }
 
                     var distance = VggHelper.GetDistance(imgX.GetVector(), img.GetVector());
+                    if (distance < img.Distance) {
+                        AppImgs.SetDistance(img.Hash, distance);
+                        AppImgs.SetNext(img.Hash, imgX.Hash);
+                    }
+
                     if (distance < mindistance) {
                         mindistance = distance;
                         imgY = img;
@@ -218,16 +221,15 @@ namespace ImgSoh
                 }
 
                 if (imgY != null) {
-                    if (!imgX.Next.Equals(imgY.Hash) || Math.Abs(mindistance - imgX.Distance) > 0.0001f) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
+                    if (!imgX.Next.Equals(imgY.Hash)) {
+                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = imgX.GetShortFileName();
-                        var xreview = AppDatabase.GetPairs(imgX.Hash).Count;
-                        var yreview = AppDatabase.GetPairs(imgY.Hash).Count;
                         backgroundworker.ReportProgress(0,
-                            $"[{age} ago] {shortfilename}: [{xreview}] {imgX.Distance:F4} {AppConsts.CharRightArrow} [{yreview}] {mindistance:F4}");
-                        AppImgs.SetDistance(imgX.Hash, mindistance);
+                            $"[{age} ago] {shortfilename}: [{imgX.Review}] {imgX.Distance:F4} {AppConsts.CharRightArrow} [{imgY.Review}] {mindistance:F4}");
                         AppImgs.SetNext(imgX.Hash, imgY.Hash);
                     }
+
+                    AppImgs.SetDistance(imgX.Hash, mindistance);
                 }
 
                 AppImgs.SetLastCheck(imgX.Hash, DateTime.Now);

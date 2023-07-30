@@ -88,11 +88,6 @@ namespace ImgSoh
             RemoveFromFamilyClick();
         }
 
-        private void MarkAsNotFamilyClick(object sender, RoutedEventArgs e)
-        {
-            MarkAsNotFamilyClick();
-        }
-
         private void SwapMoveClick(object sender, RoutedEventArgs e)
         {
             SwapMoveClick();

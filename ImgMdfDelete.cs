@@ -18,6 +18,7 @@ namespace ImgSoh
         {
             var imgD = AppPanels.GetImgPanel(idpanel).Img;
             Delete(imgD, progress);
+            Confirm(1 - idpanel);
         }
     }
 } 

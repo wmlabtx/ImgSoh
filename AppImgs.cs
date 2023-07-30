@@ -9,7 +9,6 @@ namespace ImgSoh
     {
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
         private static readonly object _imgLock = new object();
-        private static int _idow;
 
         public static void Clear()
         {
@@ -108,18 +107,16 @@ namespace ImgSoh
                 try
                 {
                     if (_imgList.Count > 2) {
+                        var minlv = DateTime.MaxValue.Ticks;
                         foreach (var img in _imgList.Values) {
                             if (img.Next.Equals(img.Hash) || !_imgList.TryGetValue(img.Next, out var imgnext)) {
                                 continue;
                             }
 
-                            var dow = img.LastView.Day;
-                            if (dow == _idow) {
-                                continue;
-                            }
-
-                            if (imgX == null || img.LastView < imgX.LastView) {
+                            var lv = Math.Min(img.LastView.Ticks, imgnext.LastView.Ticks);
+                            if (imgX == null || lv < minlv || (lv == minlv && img.Distance < imgX.Distance)) {
                                 imgX = img;
+                                minlv = lv;
                             }
                         }
                     }
@@ -130,10 +127,6 @@ namespace ImgSoh
             }
             else {
                 throw new Exception();
-            }
-
-            if (imgX != null) {
-                _idow = imgX.LastView.Day;
             }
 
             return imgX;
@@ -167,10 +160,14 @@ namespace ImgSoh
                             imgX = img;
                             break;
                         }
+                    }
 
-                        if (imgX == null || img.LastCheck < imgX.LastCheck) {
-                            imgX = img;
-                        }
+                    if (imgX == null) {
+                        imgX = _imgList
+                            .OrderBy(e => e.Value.LastView)
+                            .Take(1000)
+                            .OrderBy(e => e.Value.LastCheck)
+                            .First().Value;
                     }
                 }
                 finally {
@@ -257,13 +254,14 @@ namespace ImgSoh
 
         public static string GetCounters()
         {
+            short minrev;
             int total;
             int revCount;
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
                     total = _imgList.Count;
-                    var minRev = _imgList.Values.Min(e => e.Review); 
-                    revCount = _imgList.Values.Count(e => e.Review == minRev);
+                    minrev = _imgList.Values.Min(e => e.Review); 
+                    revCount = _imgList.Values.Count(e => e.Review == minrev);
                 }
                 finally {
                     Monitor.Exit(_imgLock);
@@ -273,7 +271,7 @@ namespace ImgSoh
                 throw new Exception();
             }
 
-            var result = $"{revCount}/{total}";
+            var result = $"{minrev}:{revCount}/{total}";
             return result;
         }
 

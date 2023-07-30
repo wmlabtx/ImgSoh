@@ -78,7 +78,7 @@ namespace ImgSoh
             }
         }
 
-        public static void AddPair(string id1, string id2, bool isfamily)
+        public static void AddPair(string id1, string id2)
         {
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
@@ -87,17 +87,14 @@ namespace ImgSoh
                         var sb = new StringBuilder();
                         sb.Append($"INSERT INTO {AppConsts.TablePairs} (");
                         sb.Append($"{AppConsts.AttributeId1}, ");
-                        sb.Append($"{AppConsts.AttributeId2}, ");
-                        sb.Append($"{AppConsts.AttributeIsFamily}");
+                        sb.Append($"{AppConsts.AttributeId2}");
                         sb.Append(") VALUES (");
                         sb.Append($"@{AppConsts.AttributeId1}, ");
-                        sb.Append($"@{AppConsts.AttributeId2}, ");
-                        sb.Append($"@{AppConsts.AttributeIsFamily}");
+                        sb.Append($"@{AppConsts.AttributeId2}");
                         sb.Append(')');
                         sqlCommand.CommandText = sb.ToString();
                         sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id1);
                         sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId2}", id2);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeIsFamily}", isfamily);
                         sqlCommand.ExecuteNonQuery();
                     }
                 }
@@ -110,15 +107,14 @@ namespace ImgSoh
             }
         }
 
-        public static SortedList<string, bool> GetPairs(string id)
+        public static SortedList<string, object> GetPairs(string id)
         {
-            var result = new SortedList<string, bool>();
+            var result = new SortedList<string, object>();
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
                     var sb = new StringBuilder();
                     sb.Append("SELECT ");
-                    sb.Append($"{AppConsts.AttributeId2}, "); // 0
-                    sb.Append($"{AppConsts.AttributeIsFamily} "); // 1
+                    sb.Append($"{AppConsts.AttributeId2} "); // 0
                     sb.Append($"FROM {AppConsts.TablePairs} ");
                     sb.Append($"WHERE {AppConsts.AttributeId1} = @{AppConsts.AttributeId1}");
                     var sqltext = sb.ToString();
@@ -129,8 +125,7 @@ namespace ImgSoh
                         using (var reader = sqlCommand.ExecuteReader()) {
                             while (reader.Read()) {
                                 var id2 = reader.GetString(0);
-                                var isfamily = reader.GetBoolean(1);
-                                result.Add(id2, isfamily);
+                                result.Add(id2, null);
                             }
                         }
                     }
