@@ -6,12 +6,8 @@ namespace ImgSoh
     {
         public static void Confirm(int idpanel)
         {
-            var imgX = AppPanels.GetImgPanel(idpanel).Img;
-            AppImgs.SetLastView(imgX.Hash, DateTime.Now);
-            var review = (short)(imgX.Review + 1);
-            AppImgs.SetReview(imgX.Hash, review);
-            var lc = AppImgs.GetMinLastCheck();
-            AppImgs.SetLastCheck(imgX.Hash, lc);
+            var hash = AppPanels.GetImgPanel(idpanel).Hash;
+            AppDatabase.ImgUpdateProperty(hash, AppConsts.AttributeLastView, DateTime.Now);
         }
     }
 } 

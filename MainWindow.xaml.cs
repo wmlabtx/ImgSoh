@@ -88,11 +88,6 @@ namespace ImgSoh
             RemoveFromFamilyClick();
         }
 
-        private void SwapMoveClick(object sender, RoutedEventArgs e)
-        {
-            SwapMoveClick();
-        }
-
         private void OnKeyDown(object sender, KeyEventArgs e)
         {
             OnKeyDown(e.Key);

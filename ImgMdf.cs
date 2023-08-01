@@ -6,9 +6,7 @@ namespace ImgSoh
     {
         public static void LoadImages(IProgress<string> progress)
         {
-            AppImgs.Clear();
             VggHelper.LoadNet(progress);
-            AppDatabase.LoadImages(progress);
         }
     }
 }

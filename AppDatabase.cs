@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Data.SqlClient;
+using System.Drawing;
 using System.Text;
 using System.Threading;
 
@@ -18,7 +19,7 @@ namespace ImgSoh
             _sqlConnection.Open();
         }
 
-        public static void ImageUpdateProperty(string hash, string key, object val)
+        public static void ImgUpdateProperty(string hash, string key, object val)
         {
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
@@ -39,34 +40,39 @@ namespace ImgSoh
             }
         }
 
-        public static void VarsUpdateProperty(string key, object val)
-        {
-            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
-                try {
-                    var sqltext = $"UPDATE {AppConsts.TableVars} SET {key} = @{key}";
-                    using (var sqlCommand = new SqlCommand(sqltext, _sqlConnection)) {
-                        sqlCommand.Parameters.AddWithValue($"@{key}", val);
-                        sqlCommand.ExecuteNonQuery();
-                    }
-                }
-                finally {
-                    Monitor.Exit(_sqlLock);
-                }
-            }
-            else {
-                throw new Exception();
-            }
-        }
-
-        public static void DeleteImage(string hash)
+        public static void DeleteImg(string hash)
         {
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                        sqlCommand.Connection = _sqlConnection;
-                        sqlCommand.CommandText = $"DELETE FROM {AppConsts.TableImages} WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}";
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
-                        sqlCommand.ExecuteNonQuery();
+                        var transaction = _sqlConnection.BeginTransaction();
+                        try {
+                            sqlCommand.Connection = _sqlConnection;
+                            sqlCommand.CommandText =
+                                $"DELETE FROM {AppConsts.TableImages} WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}";
+                            sqlCommand.Parameters.Clear();
+                            sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                            sqlCommand.Transaction = transaction;
+                            sqlCommand.ExecuteNonQuery();
+
+                            sqlCommand.Connection = _sqlConnection;
+                            sqlCommand.CommandText =
+                                $"DELETE FROM {AppConsts.TablePairs} WHERE {AppConsts.AttributeId1} = @{hash} OR {AppConsts.AttributeId2} = @{hash}";
+                            sqlCommand.Parameters.Clear();
+                            sqlCommand.Parameters.AddWithValue($"@{hash}", hash);
+                            sqlCommand.Transaction = transaction;
+                            sqlCommand.ExecuteNonQuery();
+
+                            transaction.Commit();
+                        }
+                        catch {
+                            try {
+                                transaction.Rollback();
+                            }
+                            catch {
+                                // ignored
+                            }
+                        }
                     }
                 }
                 finally {
@@ -78,24 +84,73 @@ namespace ImgSoh
             }
         }
 
-        public static void AddPair(string id1, string id2)
+        public static int ImgCount()
         {
+            int count;
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
                         sqlCommand.Connection = _sqlConnection;
-                        var sb = new StringBuilder();
-                        sb.Append($"INSERT INTO {AppConsts.TablePairs} (");
-                        sb.Append($"{AppConsts.AttributeId1}, ");
-                        sb.Append($"{AppConsts.AttributeId2}");
-                        sb.Append(") VALUES (");
-                        sb.Append($"@{AppConsts.AttributeId1}, ");
-                        sb.Append($"@{AppConsts.AttributeId2}");
-                        sb.Append(')');
-                        sqlCommand.CommandText = sb.ToString();
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id1);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId2}", id2);
-                        sqlCommand.ExecuteNonQuery();
+                        sqlCommand.CommandText = $"SELECT COUNT(*) FROM {AppConsts.TableImages}";
+                        count = (int)sqlCommand.ExecuteScalar();
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return count;
+        }
+
+        public static void AddPair(string id1, string id2, bool isFamily)
+        {
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        var transaction = _sqlConnection.BeginTransaction();
+                        try {
+                            sqlCommand.Connection = _sqlConnection;
+                            sqlCommand.CommandText =
+                                $"DELETE FROM {AppConsts.TablePairs} WHERE ({AppConsts.AttributeId1} = @{id1} AND {AppConsts.AttributeId2} = @{id2}) OR ({AppConsts.AttributeId1} = @{id2} AND {AppConsts.AttributeId2} = @{id1})";
+                            sqlCommand.Parameters.Clear();
+                            sqlCommand.Parameters.AddWithValue($"@{id1}", id1);
+                            sqlCommand.Parameters.AddWithValue($"@{id2}", id2);
+                            sqlCommand.Transaction = transaction;
+                            sqlCommand.ExecuteNonQuery();
+
+                            sqlCommand.Connection = _sqlConnection;
+                            var sb = new StringBuilder();
+                            sb.Append($"INSERT INTO {AppConsts.TablePairs} (");
+                            sb.Append($"{AppConsts.AttributeId1}, ");
+                            sb.Append($"{AppConsts.AttributeId2}, ");
+                            sb.Append($"{AppConsts.AttributeIsFamily} ");
+                            sb.Append(") VALUES (");
+                            sb.Append($"@{AppConsts.AttributeId1}, ");
+                            sb.Append($"@{AppConsts.AttributeId2}, ");
+                            sb.Append($"@{AppConsts.AttributeIsFamily}");
+                            sb.Append(')');
+                            sqlCommand.CommandText = sb.ToString();
+                            sqlCommand.Parameters.Clear();
+                            sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id1);
+                            sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId2}", id2);
+                            sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeIsFamily}", isFamily);
+                            sqlCommand.Transaction = transaction;
+                            sqlCommand.ExecuteNonQuery();
+
+                            transaction.Commit();
+                        }
+                        catch {
+                            try {
+                                transaction.Rollback();
+                            }
+                            catch {
+                                // ignored
+                            }
+                        }
                     }
                 }
                 finally {
@@ -107,29 +162,28 @@ namespace ImgSoh
             }
         }
 
-        public static SortedList<string, object> GetPairs(string id)
+        public static SortedList<string, byte[]> GetVectors()
         {
-            var result = new SortedList<string, object>();
+            var result = new SortedList<string, byte[]>();
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
                     var sb = new StringBuilder();
                     sb.Append("SELECT ");
-                    sb.Append($"{AppConsts.AttributeId2} "); // 0
-                    sb.Append($"FROM {AppConsts.TablePairs} ");
-                    sb.Append($"WHERE {AppConsts.AttributeId1} = @{AppConsts.AttributeId1}");
+                    sb.Append($"{AppConsts.AttributeHash}, "); // 0
+                    sb.Append($"{AppConsts.AttributeVector} "); // 1
+                    sb.Append($"FROM {AppConsts.TableImages}");
                     var sqltext = sb.ToString();
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
                         sqlCommand.Connection = _sqlConnection;
                         sqlCommand.CommandText = sqltext;
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeId1}", id);
                         using (var reader = sqlCommand.ExecuteReader()) {
                             while (reader.Read()) {
-                                var id2 = reader.GetString(0);
-                                result.Add(id2, null);
+                                var hash = reader.GetString(0);
+                                var vector = (byte[])reader[1];
+                                result.Add(hash, vector);
                             }
                         }
                     }
-
                 }
                 finally {
                     Monitor.Exit(_sqlLock);
@@ -142,15 +196,27 @@ namespace ImgSoh
             return result;
         }
 
-        public static void DeletePair(string id)
+        public static SortedList<string, DateTime> GetHashes()
         {
+            var result = new SortedList<string, DateTime>();
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeHash}, "); // 0
+                    sb.Append($"{AppConsts.AttributeLastView} "); // 1
+                    sb.Append($"FROM {AppConsts.TableImages}");
+                    var sqltext = sb.ToString();
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
                         sqlCommand.Connection = _sqlConnection;
-                        sqlCommand.CommandText = $"DELETE FROM {AppConsts.TablePairs} WHERE {AppConsts.AttributeId1} = @{id} OR {AppConsts.AttributeId2} = @{id}";
-                        sqlCommand.Parameters.AddWithValue($"@{id}", id);
-                        sqlCommand.ExecuteNonQuery();
+                        sqlCommand.CommandText = sqltext;
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                var hash = reader.GetString(0);
+                                var lastView = reader.GetDateTime(1);
+                                result.Add(hash, lastView);
+                            }
+                        }
                     }
                 }
                 finally {
@@ -160,18 +226,35 @@ namespace ImgSoh
             else {
                 throw new Exception();
             }
+
+            return result;
         }
 
-        public static void DeletePair(string id1, string id2)
+        public static SortedList<string, bool> GetPairs(string hash)
         {
+            var result = new SortedList<string, bool>();
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeId1}, "); // 0
+                    sb.Append($"{AppConsts.AttributeId2}, "); // 1
+                    sb.Append($"{AppConsts.AttributeIsFamily} "); // 2
+                    sb.Append($"FROM {AppConsts.TablePairs} ");
+                    sb.Append($"WHERE {AppConsts.AttributeId1} = @{hash} OR {AppConsts.AttributeId2} = @{hash}");
+                    var sqltext = sb.ToString();
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
                         sqlCommand.Connection = _sqlConnection;
-                        sqlCommand.CommandText = $"DELETE FROM {AppConsts.TablePairs} WHERE {AppConsts.AttributeId1} = @{id1} AND {AppConsts.AttributeId2} = @{id2}";
-                        sqlCommand.Parameters.AddWithValue($"@{id1}", id1);
-                        sqlCommand.Parameters.AddWithValue($"@{id2}", id2);
-                        sqlCommand.ExecuteNonQuery();
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{hash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                var id1 = reader.GetString(0);
+                                var id2 = reader.GetString(1);
+                                var isFamily = reader.GetBoolean(2);
+                                result.Add(id1.Equals(hash, StringComparison.Ordinal) ? id2 : id1, isFamily);
+                            }
+                        }
                     }
                 }
                 finally {
@@ -181,9 +264,50 @@ namespace ImgSoh
             else {
                 throw new Exception();
             }
+
+            return result;
         }
 
-        public static void AddImage(Img img)
+        public static List<Tuple<string, string>> GetPairs()
+        {
+            var result = new List<Tuple<string, string>>();
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeId1}, "); // 0
+                    sb.Append($"{AppConsts.AttributeId2} "); // 1
+                    sb.Append($"FROM {AppConsts.TablePairs}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                var id1 = reader.GetString(0);
+                                var id2 = reader.GetString(1);
+                                result.Add(Tuple.Create(id1, id2));
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return result;
+        }
+
+        public static void AddImg(
+            string hash, 
+            string folder, 
+            byte[] vector, 
+            DateTime lastView, 
+            RotateFlipType orientation)
         {
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
@@ -193,37 +317,22 @@ namespace ImgSoh
                         sb.Append($"INSERT INTO {AppConsts.TableImages} (");
                         sb.Append($"{AppConsts.AttributeHash}, ");
                         sb.Append($"{AppConsts.AttributeFolder}, ");
-                        sb.Append($"{AppConsts.AttributeDateTaken}, ");
                         sb.Append($"{AppConsts.AttributeVector}, ");
                         sb.Append($"{AppConsts.AttributeLastView}, ");
-                        sb.Append($"{AppConsts.AttributeOrientation}, ");
-                        sb.Append($"{AppConsts.AttributeDistance}, ");
-                        sb.Append($"{AppConsts.AttributeLastCheck}, ");
-                        sb.Append($"{AppConsts.AttributeReview}, ");
-                        sb.Append($"{AppConsts.AttributeNext}");
+                        sb.Append($"{AppConsts.AttributeOrientation}");
                         sb.Append(") VALUES (");
                         sb.Append($"@{AppConsts.AttributeHash}, ");
                         sb.Append($"@{AppConsts.AttributeFolder}, ");
-                        sb.Append($"@{AppConsts.AttributeDateTaken}, ");
                         sb.Append($"@{AppConsts.AttributeVector}, ");
                         sb.Append($"@{AppConsts.AttributeLastView}, ");
-                        sb.Append($"@{AppConsts.AttributeOrientation}, ");
-                        sb.Append($"@{AppConsts.AttributeDistance}, ");
-                        sb.Append($"@{AppConsts.AttributeLastCheck}, ");
-                        sb.Append($"@{AppConsts.AttributeReview}, ");
-                        sb.Append($"@{AppConsts.AttributeNext}");
+                        sb.Append($"@{AppConsts.AttributeOrientation}");
                         sb.Append(')');
                         sqlCommand.CommandText = sb.ToString();
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFolder}", img.Folder);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDateTaken}", img.DateTaken);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVector}", img.GetVector());
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", img.LastView);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeOrientation}", Helper.RotateFlipTypeToByte(img.Orientation));
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDistance}", img.Distance);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeReview}", img.Review);
-                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFolder}", folder);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVector}", vector);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", lastView);
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeOrientation}", Helper.RotateFlipTypeToByte(orientation));
                         sqlCommand.ExecuteNonQuery();
                     }
                 }
@@ -236,83 +345,216 @@ namespace ImgSoh
             }
         }
 
-        public static void LoadImages(IProgress<string> progress)
+        public static bool TryGetImgFolder(string hash, out string folder)
         {
-            var sb = new StringBuilder();
-            sb.Append("SELECT ");
-            sb.Append($"{AppConsts.AttributeHash}, "); // 0
-            sb.Append($"{AppConsts.AttributeFolder}, "); // 1
-            sb.Append($"{AppConsts.AttributeDateTaken}, "); // 2
-            sb.Append($"{AppConsts.AttributeVector}, "); // 3
-            sb.Append($"{AppConsts.AttributeLastView}, "); // 4
-            sb.Append($"{AppConsts.AttributeOrientation}, "); // 5
-            sb.Append($"{AppConsts.AttributeDistance}, "); // 6
-            sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
-            sb.Append($"{AppConsts.AttributeReview}, "); // 8
-            sb.Append($"{AppConsts.AttributeNext} "); // 9
-            sb.Append($"FROM {AppConsts.TableImages}");
-            var sqltext = sb.ToString();
-            using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                sqlCommand.Connection = _sqlConnection;
-                sqlCommand.CommandText = sqltext;
-                using (var reader = sqlCommand.ExecuteReader()) {
-                    var dtn = DateTime.Now;
-                    while (reader.Read()) {
-                        var hash = reader.GetString(0);
-                        var folder = reader.GetString(1);
-                        var datetaken = reader.GetDateTime(2);
-                        var vector = (byte[])reader[3];
-                        var lastview = reader.GetDateTime(4);
-                        var orientation = Helper.ByteToRotateFlipType(reader.GetByte(5));
-                        var distance = reader.GetFloat(6);
-                        var lastcheck = reader.GetDateTime(7);
-                        var review = reader.GetInt16(8);
-                        var next = reader.GetString(9);
-                        var img = new Img(
-                            hash: hash,
-                            folder: folder,
-                            datetaken: datetaken,
-                            vector: vector,
-                            lastview: lastview,
-                            orientation: orientation,
-                            distance: distance,
-                            lastcheck: lastcheck,
-                            review: review,
-                            next: next
-                            );
-
-                        AppImgs.Add(img);
-
-                        if (DateTime.Now.Subtract(dtn).TotalMilliseconds > AppConsts.TimeLapse) {
-                            dtn = DateTime.Now;
-                            var count = AppImgs.Count();
-                            progress?.Report($"Loading images ({count}){AppConsts.CharEllipsis}");
+            folder = string.Empty;
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeFolder} "); // 0
+                    sb.Append($"FROM {AppConsts.TableImages} ");
+                    sb.Append($"WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                folder = reader.GetString(0);
+                                return true;
+                            }
                         }
                     }
                 }
-            }
-
-            progress?.Report("Loading vars...");
-
-            sb.Length = 0;
-            sb.Append("SELECT ");
-            sb.Append($"{AppConsts.AttributeDateTakenLast}, "); // 0
-            sb.Append($"{AppConsts.AttributePalette} "); // 1
-            sb.Append($"FROM {AppConsts.TableVars}");
-            sqltext = sb.ToString();
-            using (var sqlCommand = new SqlCommand(sqltext, _sqlConnection)) {
-                using (var reader = sqlCommand.ExecuteReader()) {
-                    while (reader.Read()) {
-                        var dateTakenLast = reader.GetDateTime(0);
-                        var palette = (byte[])reader[1];
-                        AppVars.DateTakenLast = dateTakenLast;
-                        AppPalette.Set(palette);
-                        break;
-                    }
+                finally {
+                    Monitor.Exit(_sqlLock);
                 }
             }
+            else {
+                throw new Exception();
+            }
 
-            progress?.Report("Database loaded");
+            return false;
+        }
+
+        public static bool TryGetImgLastView(string hash, out DateTime lastView)
+        {
+            lastView = DateTime.MinValue;
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeLastView} "); // 0
+                    sb.Append($"FROM {AppConsts.TableImages} ");
+                    sb.Append($"WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                lastView = reader.GetDateTime(0);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return false;
+        }
+
+        public static bool TryGetImgFolderOrientationLastView(string hash, out string folder, out RotateFlipType orientation, out DateTime lastView)
+        {
+            folder = string.Empty;
+            orientation = RotateFlipType.RotateNoneFlipNone;
+            lastView = DateTime.MinValue;
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeFolder}, "); // 0
+                    sb.Append($"{AppConsts.AttributeOrientation}, "); // 1
+                    sb.Append($"{AppConsts.AttributeLastView} "); // 2
+                    sb.Append($"FROM {AppConsts.TableImages} ");
+                    sb.Append($"WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                folder = reader.GetString(0);
+                                orientation = Helper.ByteToRotateFlipType(reader.GetByte(1));
+                                lastView = reader.GetDateTime(2);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return false;
+        }
+
+        public static bool TryGetImgFolderLastView(string hash, out string folder, out DateTime lastView)
+        {
+            folder = string.Empty;
+            lastView = DateTime.MinValue;
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeFolder}, "); // 0
+                    sb.Append($"{AppConsts.AttributeLastView} "); // 1
+                    sb.Append($"FROM {AppConsts.TableImages} ");
+                    sb.Append($"WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                folder = reader.GetString(0);
+                                lastView = reader.GetDateTime(1);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return false;
+        }
+
+        public static bool TryGetImgVectorLastView(string hash, out string folder, out byte[] vector, out DateTime lastView)
+        {
+            folder = string.Empty;
+            vector = null;
+            lastView = DateTime.MinValue;
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sb = new StringBuilder();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeFolder}, "); // 0
+                    sb.Append($"{AppConsts.AttributeVector}, "); // 1
+                    sb.Append($"{AppConsts.AttributeLastView} "); // 2
+                    sb.Append($"FROM {AppConsts.TableImages} ");
+                    sb.Append($"WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}");
+                    var sqltext = sb.ToString();
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                folder = reader.GetString(0);
+                                vector = (byte[])reader[1];
+                                lastView = reader.GetDateTime(2);
+                                return true;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return false;
+        }
+
+        public static string GetNextView()
+        {
+            if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
+                try {
+                    var sqltext = $"SELECT TOP(1) {AppConsts.AttributeHash} FROM {AppConsts.TableImages} ORDER BY {AppConsts.AttributeLastView}";
+                    using (var sqlCommand = _sqlConnection.CreateCommand()) {
+                        sqlCommand.Connection = _sqlConnection;
+                        sqlCommand.CommandText = sqltext;
+                        using (var reader = sqlCommand.ExecuteReader()) {
+                            while (reader.Read()) {
+                                var hash = reader.GetString(0);
+                                return hash;
+                            }
+                        }
+                    }
+                }
+                finally {
+                    Monitor.Exit(_sqlLock);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return null;
         }
     }
 }

@@ -57,9 +57,7 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AppPaletteTests.cs" />
     <Compile Include="EncryptionHelperTests.cs" />
-    <Compile Include="LabHelperTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="VggHelperTests.cs" />
   </ItemGroup>

@@ -122,16 +122,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="AppPalette.cs" />
-    <Compile Include="ColorLAB.cs" />
-    <Compile Include="ImgMdfAdd.cs" />
     <Compile Include="ImgMdfCompute.cs" />
     <Compile Include="ImgMdfConfirm.cs" />
     <Compile Include="ImgMdfDelete.cs" />
     <Compile Include="ImgMdfEdit.cs" />
     <Compile Include="ImgMdfExport.cs" />
     <Compile Include="ImgMdfFind.cs" />
-    <Compile Include="LabHelper.cs" />
     <Compile Include="MainWindowLogic.cs" />
     <Compile Include="VggHelper.cs" />
     <Page Include="MainWindow.xaml">
@@ -150,7 +146,7 @@
     <Compile Include="BitmapHelper.cs" />
     <Compile Include="EncryptionHelper.cs" />
     <Compile Include="FileHelper.cs" />
-    <Compile Include="GeneralHelper.cs" />
+    <Compile Include="Helper.cs" />
     <Compile Include="Img.cs" />
     <Compile Include="ImgMdf.cs" />
     <Compile Include="ImgPanel.cs" />

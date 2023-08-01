@@ -1,22 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-
-namespace ImgSoh
+﻿namespace ImgSoh
 {
     public static class AppImgs
     {
-        private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
-        private static readonly object _imgLock = new object();
-
-        public static void Clear()
-        {
-            _imgList.Clear();
-        }
-
+        /*
         public static int Count()
         {
+
+
             int count;
             if (Monitor.TryEnter(_imgLock, AppConsts.LockTimeout)) {
                 try {
@@ -224,7 +214,6 @@ namespace ImgSoh
             return folder;
         }
 
-        /*
         public static void Populate(IProgress<string> progress)
         {
             var shadow = GetShadow();
@@ -250,7 +239,6 @@ namespace ImgSoh
                 }
             }
         }
-        */
 
         public static string GetCounters()
         {
@@ -396,5 +384,6 @@ namespace ImgSoh
                 throw new Exception();
             }
         }
+        */
     }
 }

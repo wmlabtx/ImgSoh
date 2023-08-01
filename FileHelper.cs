@@ -1,5 +1,4 @@
-﻿using System;
-using System.IO;
+﻿using System.IO;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -57,56 +56,6 @@ namespace ImgSoh
             var password = Path.GetFileNameWithoutExtension(filename);
             var encryptedData = EncryptionHelper.Encrypt(data, password);
             File.WriteAllBytes(filename, encryptedData);
-        }
-
-        public static void DeleteToRecycleBin(string filename, string bin)
-        {
-            try
-            {
-                if (!File.Exists(filename)) {
-                    return;
-                }
-
-                var now = DateTime.Now;
-                File.SetAttributes(filename, FileAttributes.Normal);
-                var name = Path.GetFileNameWithoutExtension(filename);
-                var extension = Path.GetExtension(filename);
-                string deletedFilename;
-                var counter = 0;
-                do {
-                    deletedFilename = counter == 0 ? 
-                        $"{bin}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}.{name}{extension}" : 
-                        $"{bin}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}.{name}({counter}){extension}";
-
-                    counter++;
-                }
-                while (File.Exists(deletedFilename));
-                var directory = Path.GetDirectoryName(deletedFilename);
-                if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) {
-                    Directory.CreateDirectory(directory);
-                }
-
-                File.Move(filename, deletedFilename);
-            }
-            catch (UnauthorizedAccessException) {
-            }
-            catch (IOException) {
-            }
-        }
-
-        public static void MoveCorruptedFile(string filename, string bin)
-        {
-            var badName = Path.GetFileName(filename);
-            var badFilename = $"{bin}\\{badName}";
-            if (badFilename.Equals(filename, StringComparison.OrdinalIgnoreCase)) {
-                return;
-            }
-
-            if (File.Exists(badFilename)) {
-                DeleteToRecycleBin(badFilename, bin);
-            }
-
-            File.Move(filename, badFilename);
         }
     }
 }

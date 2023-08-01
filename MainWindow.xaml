@@ -24,9 +24,7 @@
             </MenuItem>
             <MenuItem Header="Family">
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />
-                <MenuItem Header="Remove (R)" Click="RemoveFromFamilyClick" />
-                <Separator />
-                <MenuItem Header="Swap (S)" Click="SwapMoveClick" />
+                <MenuItem Header="Remove (D)" Click="RemoveFromFamilyClick" />
             </MenuItem>
         </Menu>
         <StatusBar DockPanel.Dock="Bottom">

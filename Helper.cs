@@ -199,5 +199,22 @@ namespace ImgSoh
                     return RotateFlipType.RotateNoneFlipNone;
             }
         }
+
+        public static string GetFileName(string folder, string hash)
+        {
+            return $"{AppConsts.PathHp}\\{folder[0]}\\{folder[1]}\\{hash}{AppConsts.MzxExtension}";
+        }
+
+        public static string GetShortFileName(string folder, string hash)
+        {
+            return $"{folder}\\{hash.Substring(0, 4)}.{hash.Substring(4, 4)}.{hash.Substring(8, 4)}";
+        }
+
+        public static string GetFolder()
+        {
+            var iFolder = AppVars.RandomNext(256);
+            var folder = $"{iFolder:x2}";
+            return folder;
+        }
     }
 }

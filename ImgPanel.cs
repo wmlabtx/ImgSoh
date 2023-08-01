@@ -5,27 +5,23 @@ namespace ImgSoh
 {
     public class ImgPanel
     {
-        public Img Img { get; }
+        public string Hash { get; }
+        public string Folder { get; }
+        public DateTime LastView { get; }
         public long Size { get; }
         public Bitmap Bitmap { get; private set; }
         public string Format { get; }
         public DateTime DateTaken { get; }
-        public double Blur { get; }
 
-        public ImgPanel(Img img, long size, Bitmap bitmap, string format, DateTime dateTaken, double blur)
+        public ImgPanel(string hash, string folder, DateTime lastView, long size, Bitmap bitmap, string format, DateTime dateTaken)
         {
-            Img = img;
+            Hash = hash;
+            Folder = folder;
+            LastView = lastView;
             Size = size;
             Bitmap = bitmap;
             Format = format;
             DateTaken = dateTaken;
-            Blur = blur;
-        }
-
-        public void SetBitmap(Bitmap bmp)
-        {
-            Bitmap.Dispose();
-            Bitmap = bmp;
         }
     }
 }
