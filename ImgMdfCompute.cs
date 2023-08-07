@@ -12,8 +12,18 @@ namespace ImgSoh
         private static int _added;
         private static int _bad;
         private static int _found;
+        private static readonly List<string> _importedfamily = new List<string>();
 
-        private static void ImportFile(string orgfilename, BackgroundWorker backgroundworker)
+        private static void AddImportedFamily(string hash)
+        {
+            foreach (var e in _importedfamily) {
+                AppDatabase.AddPair(hash, e, true);
+            }
+
+            _importedfamily.Add(hash);
+        }
+
+        private static void ImportFile(string orgfilename, bool doImportFamily, BackgroundWorker backgroundworker)
         {
             var name = Path.GetFileNameWithoutExtension(orgfilename);
             var lastView = DateTime.Now.AddYears(-5);
@@ -65,6 +75,10 @@ namespace ImgSoh
 
                     AppDatabase.ImgUpdateProperty(hash, AppConsts.AttributeLastView, lastView);
                     DeleteFile(orgfilename);
+                    if (doImportFamily) {
+                        AddImportedFamily(hash);
+                    }
+
                     _found++;
                     return;
                 }
@@ -122,6 +136,10 @@ namespace ImgSoh
                 orientation: RotateFlipType.RotateNoneFlipNone
                 );
 
+            if (doImportFamily) {
+                AddImportedFamily(hash);
+            }
+
             _added++;
         }
 
@@ -146,7 +164,7 @@ namespace ImgSoh
             foreach (var e in fs) {
                 var orgfilename = e.FullName;
                 if (!Path.GetExtension(orgfilename).Equals(AppConsts.CorruptedExtension, StringComparison.OrdinalIgnoreCase)) {
-                    ImportFile(orgfilename, backgroundworker);
+                    ImportFile(orgfilename, !path.Equals(AppConsts.PathHp), backgroundworker);
                     count++;
                     if (count == AppConsts.MaxImportFiles) {
                         break;
@@ -169,6 +187,7 @@ namespace ImgSoh
                 _added = 0;
                 _found = 0;
                 _bad = 0;
+                _importedfamily.Clear();
                 ImportFiles(AppConsts.PathHp, backgroundworker);
                 ImportFiles(AppConsts.PathRw, backgroundworker);
                 ImportFiles(AppConsts.PathRwProtected, backgroundworker);

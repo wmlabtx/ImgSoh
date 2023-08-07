@@ -10,7 +10,7 @@ namespace ImgSoh
         public static void Find(string hashX, IProgress<string> progress)
         {
             do {
-                var totalcount = AppDatabase.ImgCount();
+                var totalcount = AppDatabase.ImgCount(false);
                 if (totalcount < 2) {
                     progress?.Report($"totalcount = {totalcount}");
                     return;
@@ -137,8 +137,9 @@ namespace ImgSoh
                 if (!string.IsNullOrEmpty(hashY)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(lastView));
                     var shortfilename = Helper.GetShortFileName(folderX, hashX);
-                    var imgcount = AppDatabase.ImgCount();
-                    progress.Report($"{imgcount}: [{age} ago] {shortfilename}: {family.Count}/{notfamily.Count}");
+                    var imgcount = AppDatabase.ImgCount(false);
+                    var newimgcount = AppDatabase.ImgCount(true);
+                    progress.Report($"{newimgcount}/{imgcount}: [{age} ago] {shortfilename}: {family.Count}/{notfamily.Count}");
 
                     if (!AppPanels.SetImgPanel(1, hashY)) {
                         Delete(hashY, progress);

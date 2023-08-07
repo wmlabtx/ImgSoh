@@ -84,14 +84,16 @@ namespace ImgSoh
             }
         }
 
-        public static int ImgCount()
+        public static int ImgCount(bool newimages)
         {
             int count;
             if (Monitor.TryEnter(_sqlLock, AppConsts.LockTimeout)) {
                 try {
                     using (var sqlCommand = _sqlConnection.CreateCommand()) {
                         sqlCommand.Connection = _sqlConnection;
-                        sqlCommand.CommandText = $"SELECT COUNT(*) FROM {AppConsts.TableImages}";
+                        sqlCommand.CommandText = newimages ?
+                            $"SELECT COUNT(*) FROM {AppConsts.TableImages} WHERE YEAR({AppConsts.AttributeLastView}) < 2023" :
+                            $"SELECT COUNT(*) FROM {AppConsts.TableImages}";
                         count = (int)sqlCommand.ExecuteScalar();
                     }
                 }
@@ -102,7 +104,6 @@ namespace ImgSoh
             else {
                 throw new Exception();
             }
-
             return count;
         }
 
