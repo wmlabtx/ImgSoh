@@ -21,33 +21,59 @@ namespace ImgSoh
                     var hashes = AppDatabase.GetHashes();
                     progress.Report($"Loading pairs{AppConsts.CharEllipsis}");
                     var pairs = AppDatabase.GetPairs();
-                    var virgins = new SortedList<string, DateTime>(hashes);
-                    string hashWhore = null;
-                    var lastViewWhore = DateTime.MaxValue;
+                    var groups = new SortedList<string, DateTime>[3];
+                    groups[0] = new SortedList<string, DateTime>();
+                    groups[1] = new SortedList<string, DateTime>();
+                    groups[2] = new SortedList<string, DateTime>(hashes);
                     foreach (var p in pairs) {
-                        if (virgins.ContainsKey(p.Item1)) {
-                            virgins.Remove(p.Item1);
-                            var lastViewHash = hashes[p.Item1];
-                            if (hashWhore == null || lastViewHash < lastViewWhore) {
-                                hashWhore = p.Item1;
-                                lastViewWhore = lastViewHash;
-                            }
+                        if (groups[2].ContainsKey(p.Item1)) {
+                            groups[2].Remove(p.Item1);
                         }
 
-                        if (virgins.ContainsKey(p.Item2)) {
-                            virgins.Remove(p.Item2);
-                            var lastViewHash = hashes[p.Item2];
-                            if (hashWhore == null || lastViewHash < lastViewWhore) {
-                                hashWhore = p.Item2;
-                                lastViewWhore = lastViewHash;
+                        if (!hashes.TryGetValue(p.Item1, out var lastView1)) {
+                            AppDatabase.DeletePair(p.Item1);
+                            continue;
+                        }
+
+                        if (!hashes.TryGetValue(p.Item2, out var lastView2)) {
+                            AppDatabase.DeletePair(p.Item2);
+                            continue;
+                        }
+
+                        if (p.Item3) {
+                            if (groups[1].ContainsKey(p.Item1)) {
+                                groups[1].Remove(p.Item1);
+                            }
+
+                            if (!groups[0].ContainsKey(p.Item1)) {
+                                groups[0].Add(p.Item1, lastView1);
+                            }
+
+                            if (groups[1].ContainsKey(p.Item2)) {
+                                groups[1].Remove(p.Item2);
+                            }
+
+                            if (!groups[0].ContainsKey(p.Item2)) {
+                                groups[0].Add(p.Item2, lastView2);
+                            }
+                        }
+                        else {
+                            if (!groups[0].ContainsKey(p.Item1) && !groups[1].ContainsKey(p.Item1)) {
+                                groups[1].Add(p.Item1, lastView1);
+                            }
+
+                            if (!groups[0].ContainsKey(p.Item2) && !groups[1].ContainsKey(p.Item2)) {
+                                groups[1].Add(p.Item2, lastView2);
                             }
                         }
                     }
 
-                    var random = AppVars.RandomNext(2);
-                    hashX = random == 0 ? 
-                        virgins.OrderBy(e => e.Value).FirstOrDefault().Key : 
-                        hashWhore;
+                    var groupindex = AppVars.RandomNext(3);
+                    while (groups[groupindex].Count  == 0) {
+                        groupindex = AppVars.RandomNext(3);
+                    }
+
+                    hashX = groups[groupindex].OrderBy(e => e.Value).FirstOrDefault().Key;
                 }
 
                 if (!AppPanels.SetImgPanel(0, hashX)) {
@@ -139,7 +165,8 @@ namespace ImgSoh
                     var shortfilename = Helper.GetShortFileName(folderX, hashX);
                     var imgcount = AppDatabase.ImgCount(false);
                     var newimgcount = AppDatabase.ImgCount(true);
-                    progress.Report($"{newimgcount}/{imgcount}: [{age} ago] {shortfilename}: {family.Count}/{notfamily.Count}");
+                    var paircount = AppDatabase.PairCount();
+                    progress.Report($"{newimgcount}/p{paircount}/{imgcount}: [{age} ago] {shortfilename}: {family.Count}/{notfamily.Count}");
 
                     if (!AppPanels.SetImgPanel(1, hashY)) {
                         Delete(hashY, progress);
