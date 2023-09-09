@@ -8,7 +8,8 @@ namespace ImgSoh
         public static void Export(int idpanel, IProgress<string> progress)
         {
             var hash = AppPanels.GetImgPanel(idpanel).Hash;
-            if (AppDatabase.TryGetImgFolder(hash, out var folder)) {
+            if (AppDatabase.TryGetImg(hash, out var img)) {
+                var folder = img.Folder;
                 var filename = Helper.GetFileName(folder, hash);
                 var imagedata = FileHelper.ReadFile(filename);
                 if (imagedata == null) {

@@ -12,16 +12,6 @@ namespace ImgSoh
         private static int _added;
         private static int _bad;
         private static int _found;
-        private static readonly List<string> _importedfamily = new List<string>();
-
-        private static void AddImportedFamily(string hash)
-        {
-            foreach (var e in _importedfamily) {
-                AppDatabase.AddPair(hash, e, true);
-            }
-
-            _importedfamily.Add(hash);
-        }
 
         private static void ImportFile(string orgfilename, bool doImportFamily, BackgroundWorker backgroundworker)
         {
@@ -52,8 +42,10 @@ namespace ImgSoh
             }
 
             var hash = FileHelper.GetHash(imagedata);
-            var found = AppDatabase.TryGetImgFolder(hash, out var folderFound);
+            var found = AppDatabase.TryGetImg(hash, out var imgFound);
             if (found) {
+                var folderFound = imgFound.Folder;
+
                 // we have a record with the same hash...
                 var filenamefound = Helper.GetFileName(folderFound, hash);
                 if (File.Exists(filenamefound)) {
@@ -73,10 +65,10 @@ namespace ImgSoh
                         File.SetLastWriteTime(filenamefound, lastmodified);
                     }
 
-                    AppDatabase.ImgUpdateProperty(hash, AppConsts.AttributeLastView, lastView);
+                    AppDatabase.ImgUpdateLastView(hash, lastView);
                     DeleteFile(orgfilename);
                     if (doImportFamily) {
-                        AddImportedFamily(hash);
+                        //AddImportedFamily(hash);
                     }
 
                     _found++;
@@ -105,6 +97,12 @@ namespace ImgSoh
                 }
             }
 
+            if (vector == null) {
+                DeleteFile(orgfilename);
+                _bad++;
+                return;
+            }
+
             var folder = Helper.GetFolder();
             var newfilename = Helper.GetFileName(folder, hash);
             if (!orgfilename.Equals(newfilename)) {
@@ -128,16 +126,22 @@ namespace ImgSoh
                 DeleteFile(orgfilename);
             }
 
-            AppDatabase.AddImg(
-                hash:hash, 
-                folder:folder, 
+            var imgnew = new Img(
+                hash: hash,
+                folder: folder,
                 vector: vector,
-                lastView: lastView,
-                orientation: RotateFlipType.RotateNoneFlipNone
-                );
+                orientation: RotateFlipType.RotateNoneFlipNone,
+                lastview: lastView,
+                next: hash,
+                distance: 1f,
+                lastcheck: lastView,
+                verified: false
+            );
+
+            AppDatabase.AddImg(imgnew);
 
             if (doImportFamily) {
-                AddImportedFamily(hash);
+                //AddImportedFamily(hash);
             }
 
             _added++;
@@ -148,11 +152,10 @@ namespace ImgSoh
             var directoryInfo = new DirectoryInfo(path);
             var fs = directoryInfo.GetFiles("*.*", SearchOption.AllDirectories).ToArray();
             if (path.Equals(AppConsts.PathHp)) {
-                var hashes = AppDatabase.GetHashes();
                 var fsmissing = new List<FileInfo>();
                 foreach (var e in fs) {
                     var name = Path.GetFileNameWithoutExtension(e.FullName);
-                    if (!hashes.ContainsKey(name)) {
+                    if (!AppDatabase.TryGetImg(name, out _)) {
                         fsmissing.Add(e);
                     }
                 }
@@ -187,66 +190,72 @@ namespace ImgSoh
                 _added = 0;
                 _found = 0;
                 _bad = 0;
-                _importedfamily.Clear();
+                //_importedfamily.Clear();
                 ImportFiles(AppConsts.PathHp, backgroundworker);
                 ImportFiles(AppConsts.PathRw, backgroundworker);
                 ImportFiles(AppConsts.PathRwProtected, backgroundworker);
                 AppVars.ImportRequested = false;
             }
 
-            /*
-            var hashX = AppDatabase.GetNextCheck();
-            if (!string.IsNullOrEmpty(hashX)) {
-                if (AppDatabase.TryGetImgCompute(hashX,
-                        out var folderX,
-                        out var vectorX,
-                        out var lastViewX,
-                        out var distanceX, 
-                        out var nextX)) {
+            var imgX = AppDatabase.GetNextCheck();
+            if (imgX.GetVector().Length != 4096) {
+                var filename = Helper.GetFileName(imgX.Folder, imgX.Hash);
+                var imagedata = FileHelper.ReadEncryptedFile(filename);
+                using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
+                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                    var vector = VggHelper.CalculateVector(bitmap);
+                    imgX = AppDatabase.ImgUpdateVector(imgX.Hash, vector);
+                }
+            }
 
-                    if (vectorX.Length != 4096) {
-                        var filename = Helper.GetFileName(folderX, hashX);
-                        var imagedata = FileHelper.ReadEncryptedFile(filename);
-                        using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
-                        using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                            vectorX = VggHelper.CalculateVector(bitmap);
-                            AppDatabase.ImgUpdateProperty(hashX, AppConsts.AttributeVector, vectorX);
+            var pairs = AppDatabase.GetPairs(imgX.Hash);
+            var vectors = AppDatabase.GetVectors();
+            vectors.Remove(imgX.Hash);
+            foreach (var e in pairs) {
+                vectors.Remove(e.Key);
+            }
+
+            var hashesY = new string[] { null, null };
+            var mindistance = float.MaxValue;
+            var minlv = DateTime.MaxValue;
+            var vectorX = imgX.GetVector();
+            foreach (var e in vectors) {
+                if (pairs.ContainsKey(e.Key)) {
+                    if (AppDatabase.TryGetImg(e.Key, out var img)) {
+                        if (img.LastView < minlv) {
+                            hashesY[0] = e.Key;
+                            minlv = img.LastView;
                         }
                     }
                 }
-
-                var pairs = AppDatabase.GetPairs(hashX);
-                var vectors = AppDatabase.GetVectors();
-                vectors.Remove(hashX);
-                foreach (var e in pairs.Keys) {
-                    vectors.Remove(e);
-                }
-
-                var mindistance = float.MaxValue;
-                string hashY = null;
-                foreach (var e in vectors) {
+                else {
                     var distance = VggHelper.GetDistance(vectorX, e.Value);
                     if (distance < mindistance) {
+                        hashesY[1] = e.Key;
                         mindistance = distance;
-                        hashY = e.Key;
                     }
                 }
-
-                if (hashY != null) {
-                    if (!nextX.Equals(hashY)) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(lastViewX));
-                        var shortfilename = Helper.GetShortFileName(folderX, hashX);
-                        backgroundworker.ReportProgress(0,
-                            $"[{age} ago] {shortfilename}: {distanceX:F4} {AppConsts.CharRightArrow} {mindistance:F4}");
-                        AppDatabase.ImgUpdateProperty(hashX, AppConsts.AttributeNext, hashY);
-                    }
-
-                    AppDatabase.ImgUpdateProperty(hashX, AppConsts.AttributeDistance, mindistance);
-                }
-
-                AppDatabase.ImgUpdateProperty(hashX, AppConsts.AttributeLastCheck, DateTime.Now);
             }
-            */
+
+            if (hashesY[0] != null || hashesY[1] != null) {
+                int mode;
+                do {
+                    mode = AppVars.RandomNext(2);
+                } while (hashesY[mode] == null);
+
+                if (!imgX.Next.Equals(hashesY[mode])) {
+                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                    var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename}");
+                    AppDatabase.ImgUpdateNext(imgX.Hash, hashesY[mode]);
+                }
+
+                if (mode == 1) {
+                    AppDatabase.ImgUpdateDistance(imgX.Hash, mindistance);
+                }
+            }
+
+            AppDatabase.ImgUpdateLastCheck(imgX.Hash, DateTime.Now);
         }
     }
 }

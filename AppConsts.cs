@@ -26,16 +26,20 @@
 
         public const int LockTimeout = 10000;
         public const double WindowMargin = 5.0;
+        public const double TimeLapse = 500.0;
 
         public const string TableImages = "Images";
         public const string AttributeHash = "Hash";
         public const string AttributeFolder = "Folder";
-        public const string AttributeLastView = "LastView";
         public const string AttributeVector = "Vector";
         public const string AttributeOrientation = "Orientation";
+        public const string AttributeLastView = "LastView";
+        public const string AttributeNext = "Next";
+        public const string AttributeDistance = "Distance";
+        public const string AttributeLastCheck = "LastCheck";
+        public const string AttributeVerified = "Verified";
         public const string TablePairs = "Pairs";
         public const string AttributeId1 = "Id1";
         public const string AttributeId2 = "Id2";
-        public const string AttributeIsFamily = "IsFamily";
     }
 }

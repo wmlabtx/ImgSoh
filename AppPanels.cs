@@ -1,6 +1,4 @@
-﻿using System;
-using System.Drawing;
-using System.IO;
+﻿using System.IO;
 
 namespace ImgSoh
 {
@@ -15,11 +13,11 @@ namespace ImgSoh
 
         public static bool SetImgPanel(int idPanel, string hash)
         {
-            if (!AppDatabase.TryGetImgFolderOrientationLastView(hash, out var folder, out var orientation, out var lastView)) {
+            if (!AppDatabase.TryGetImg(hash, out var img)) {
                 return false;
             }
 
-            var filename = Helper.GetFileName(folder, hash);
+            var filename = Helper.GetFileName(img.Folder, hash);
             var lastmodified = File.GetLastWriteTime(filename);
             var imagedata = FileHelper.ReadEncryptedFile(filename);
             if (imagedata == null) {
@@ -33,7 +31,7 @@ namespace ImgSoh
 
                 var format = magickImage.Format.ToString().ToLower();
                 var datetaken = BitmapHelper.GetDateTaken(magickImage, lastmodified);
-                var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, orientation);
+                var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, img.Orientation);
                 if (bitmap != null) {
                     if (AppVars.ShowXOR && idPanel == 1 && _imgPanels[0].Bitmap.Width == bitmap.Width && _imgPanels[0].Bitmap.Height == bitmap.Height) {
                         var bitmapxor = BitmapHelper.BitmapXor(_imgPanels[0].Bitmap, bitmap);
@@ -43,8 +41,9 @@ namespace ImgSoh
 
                     var imgpanel = new ImgPanel(
                         hash: hash,
-                        folder: folder,
-                        lastView: lastView,
+                        folder: img.Folder,
+                        lastView: img.LastView,
+                        verified: img.Verified,
                         size: imagedata.LongLength,
                         bitmap: bitmap,
                         format: format,

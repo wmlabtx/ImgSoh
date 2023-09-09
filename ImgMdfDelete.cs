@@ -7,7 +7,8 @@ namespace ImgSoh
     {
         private static void Delete(string hashD, IProgress<string> progress)
         {
-            if (AppDatabase.TryGetImgFolder(hashD, out var folderD)) {
+            if (AppDatabase.TryGetImg(hashD, out var imgD)) {
+                var folderD = imgD.Folder;
                 var shortname = Helper.GetShortFileName(folderD, hashD);
                 progress.Report($"Delete {shortname}");
                 var filename = Helper.GetFileName(folderD, hashD);
@@ -62,7 +63,10 @@ namespace ImgSoh
         {
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
             Delete(hashD, progress);
-            Confirm(1 - idpanel);
+            Confirm(1 - idpanel, false);
+            var hashV = AppPanels.GetImgPanel(1 - idpanel).Hash;
+            var lc = DateTime.Now.AddYears(-5);
+            AppDatabase.ImgUpdateLastCheck(hashV, lc);
         }
     }
 } 

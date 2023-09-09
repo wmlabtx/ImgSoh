@@ -1,8 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
+
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,8 +52,10 @@ namespace ImgSoh
 
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
-            await Task.Run(() => { ImgMdf.LoadImages(AppVars.Progress); }).ConfigureAwait(true);
-            //await Task.Run(() => { AppImgs.Populate(AppVars.Progress); }).ConfigureAwait(true);
+            
+            await Task.Run(() => { VggHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
+            //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
 
             DrawCanvas();
@@ -103,8 +104,8 @@ namespace ImgSoh
         private async void ButtonLeftNextMouseClick()
         {
             DisableElements();
-            await Task.Run(() => { ImgMdf.Confirm(1); }).ConfigureAwait(true);
-            await Task.Run(() => { ImgMdf.Confirm(0); }).ConfigureAwait(true);
+            await Task.Run(() => { ImgMdf.Confirm(1, false); }).ConfigureAwait(true);
+            await Task.Run(() => { ImgMdf.Confirm(0, true); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
@@ -142,7 +143,6 @@ namespace ImgSoh
                 return;
             }
 
-            var pairsX = new SortedList<string, bool>();
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
@@ -152,14 +152,11 @@ namespace ImgSoh
                 var shortfilename = Helper.GetShortFileName(panels[index].Folder, panels[index].Hash);
                 sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                var pairs = AppDatabase.GetPairs(panels[index].Hash);
-                if (index == 0) {
-                    pairsX = new SortedList<string, bool>(pairs);
+                var pairscount = AppDatabase.GetPairs(panels[index].Hash).Count;
+                if (pairscount > 0) {
+                    sb.Append($" [{pairscount}]");
                 }
 
-                var familycount = pairs.Count(e => e.Value);
-                var notfamilycount = pairs.Count - familycount;
-                sb.Append($" {familycount}/{notfamilycount}");
                 sb.AppendLine();
 
                 sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -171,16 +168,13 @@ namespace ImgSoh
 
                 pLabels[index].Text = sb.ToString();
                 pLabels[index].Background = System.Windows.Media.Brushes.White;
-                if (pairs.Count > 0) {
-                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                    if (index == 1) {
-                        if (pairsX.TryGetValue(panels[index].Hash, out bool isFamily)) {
-                            if (isFamily) {
-                                pLabels[0].Background = System.Windows.Media.Brushes.LightGreen;
-                                pLabels[1].Background = System.Windows.Media.Brushes.LightGreen;
-                            }
-                        }
+                if (panels[index].Verified) {
+                    if (pairscount > 0) {
+                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                     }
+                }
+                else {
+                    pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                 }
             }
 
@@ -263,29 +257,6 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private void AddPair(bool isFamily)
-        {
-            var hashX = AppPanels.GetImgPanel(0).Hash;
-            var hashY = AppPanels.GetImgPanel(1).Hash;
-            AppDatabase.AddPair(hashX, hashY, isFamily);
-        }
-
-        private void AddToFamilyClick()
-        {
-            DisableElements();
-            AddPair(true);
-            DrawCanvas();
-            EnableElements();
-        }
-
-        private void RemoveFromFamilyClick()
-        {
-            DisableElements();
-            AddPair(false);
-            DrawCanvas();
-            EnableElements();
-        }
-
         private void ToggleXorClick()
         {
             DisableElements();
@@ -300,10 +271,10 @@ namespace ImgSoh
         {
             switch (key) {
                 case Key.A:
-                    AddToFamilyClick();
+                    //AddToFamilyClick();
                     break;
                 case Key.D:
-                    RemoveFromFamilyClick();
+                    //RemoveFromFamilyClick();
                     break;
                 case Key.V:
                     ToggleXorClick();

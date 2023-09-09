@@ -7,11 +7,12 @@ namespace ImgSoh
     {
         public static void Rotate(string hash, RotateFlipType rft, IProgress<string> progress)
         {
-            if (!AppDatabase.TryGetImgFolder(hash, out var folder)) {
+            if (!AppDatabase.TryGetImg(hash, out var img)) {
                 progress.Report($"Image {hash} not found");
                 return;
             }
 
+            var folder = img.Folder;
             var filename = Helper.GetFileName(folder, hash);
             var shortfilename = Helper.GetShortFileName(folder, hash);
             var imagedata = FileHelper.ReadEncryptedFile(filename);
@@ -32,9 +33,9 @@ namespace ImgSoh
                         return;
                     }
 
-                    AppDatabase.ImgUpdateProperty(hash, AppConsts.AttributeOrientation, Helper.RotateFlipTypeToByte(rft));
+                    AppDatabase.ImgUpdateOrientation(hash, rft);
                     var rvector = VggHelper.CalculateVector(bitmap);
-                    AppDatabase.ImgUpdateProperty(hash, AppConsts.AttributeVector, rvector);
+                    AppDatabase.ImgUpdateVector(hash, rvector);
                 }
             }
         }
