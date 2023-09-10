@@ -432,24 +432,6 @@ namespace ImgSoh
             return result;
         }
 
-        /*
-        private static void DeletePair(string id)
-        {
-            lock (_sqlLock) {
-                using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                    sqlCommand.Connection = _sqlConnection;
-                    sqlCommand.CommandText =
-                        $"DELETE FROM {AppConsts.TablePairs} WHERE ({AppConsts.AttributeId1} = @{id} OR {AppConsts.AttributeId2} = @{id})";
-                    sqlCommand.Parameters.Clear();
-                    sqlCommand.Parameters.AddWithValue($"@{id}", id);
-                    sqlCommand.ExecuteNonQuery();
-                }
-
-                _pairList.RemoveAll(e => e.Item1.Equals(id) || e.Item2.Equals(id));
-            }
-        }
-        */
-
         public static SortedList<string, string> GetPairs(string hash)
         {
             var result = new SortedList<string, string>();
@@ -659,19 +641,13 @@ namespace ImgSoh
 
         public static void Confirm(string hash)
         {
+            var pairs = GetPairs(hash);
             lock (_sqlLock) {
-                var vectorX = _imgList[hash].GetVector();
-                var distances = new List<Tuple<string, float>>();
-                foreach (var img in _imgList.Values) {
-                    var distance = VggHelper.GetDistance(vectorX, img.GetVector());
-                    distances.Add(Tuple.Create(img.Hash, distance));
-                }
-
-                var vicinity = distances.OrderBy(e => e.Item2).Take(50).Select(e => e.Item1).ToArray();
                 var random = AppVars.RandomNext(60);
                 var shift = DateTime.Now.AddSeconds(-random);
-                foreach (var e in vicinity) {
-                    ImgUpdateLastView(e, shift);
+                ImgUpdateLastView(hash, shift);
+                foreach (var e in pairs) {
+                    ImgUpdateLastView(e.Key, shift);
                     shift = shift.AddSeconds(-1);
                 }
             }
