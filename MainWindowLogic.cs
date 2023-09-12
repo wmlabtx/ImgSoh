@@ -1,6 +1,5 @@
 ﻿using System;
 using System.ComponentModel;
-
 using System.Drawing;
 using System.Text;
 using System.Threading;
@@ -146,35 +145,43 @@ namespace ImgSoh
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
-                pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
-
-                var sb = new StringBuilder();
-                var shortfilename = Helper.GetShortFileName(panels[index].Folder, panels[index].Hash);
-                sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
-
-                var pairscount = AppDatabase.GetPairs(panels[index].Hash).Count;
-                if (pairscount > 0) {
-                    sb.Append($" [{pairscount}]");
-                }
-
-                sb.AppendLine();
-
-                sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
-                sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
-                sb.AppendLine();
-
-                sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(panels[index].LastView))} ago ");
-                sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
-
-                pLabels[index].Text = sb.ToString();
-                pLabels[index].Background = System.Windows.Media.Brushes.White;
-                if (panels[index].Verified) {
-                    if (pairscount > 0) {
-                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                if (AppDatabase.TryGetImg(panels[index].Hash, out var imgC)) {
+                    pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
+                    var sb = new StringBuilder();
+                    var shortfilename = Helper.GetShortFileName(imgC.Folder, panels[index].Hash);
+                    sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
+                    var familycount = imgC.FamilyCount;
+                    var alienscount = imgC.AliensCount;
+                    if (familycount > 0 || alienscount > 0) {
+                        sb.Append($" [{familycount}/{alienscount}]");
                     }
-                }
-                else {
-                    pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+
+                    sb.AppendLine();
+
+                    sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
+                    sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
+                    sb.AppendLine();
+
+                    sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgC.LastView))} ago ");
+                    sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
+
+                    pLabels[index].Text = sb.ToString();
+                    pLabels[index].Background = System.Windows.Media.Brushes.White;
+                    if (imgC.Verified) {
+                        if (familycount > 0 || alienscount > 0) {
+                            if (imgC.IsInFamily(panels[1 - index].Hash)) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                            }
+                            else {
+                                pLabels[index].Background = index == 0
+                                    ? System.Windows.Media.Brushes.Bisque
+                                    : System.Windows.Media.Brushes.LightSkyBlue;
+                            }
+                        }
+                    }
+                    else {
+                        pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                    }
                 }
             }
 
@@ -267,14 +274,40 @@ namespace ImgSoh
             EnableElements();
         }
 
+        private void FamilyClick(bool isFamily)
+        {
+            DisableElements();
+            var hashX = AppPanels.GetImgPanel(0).Hash;
+            if (AppDatabase.TryGetImg(hashX, out var imgX)) {
+                var hashY = AppPanels.GetImgPanel(1).Hash;
+                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
+                    if (isFamily) {
+                        imgX.RemoveFromAliens(hashY);
+                        imgX.AddToFamily(hashY);
+                        imgY.RemoveFromAliens(hashX);
+                        imgY.AddToFamily(hashX);
+                    }
+                    else {
+                        imgX.RemoveFromFamily(hashY);
+                        imgX.AddToAliens(hashY);
+                        imgY.RemoveFromFamily(hashX);
+                        imgY.AddToAliens(hashX);
+                    }
+                }
+            }
+
+            DrawCanvas();
+            EnableElements();
+        }
+
         private void OnKeyDown(Key key)
         {
             switch (key) {
                 case Key.A:
-                    //AddToFamilyClick();
+                    FamilyClick(true);
                     break;
                 case Key.D:
-                    //RemoveFromFamilyClick();
+                    FamilyClick(false);
                     break;
                 case Key.V:
                     ToggleXorClick();

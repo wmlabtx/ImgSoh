@@ -41,9 +41,6 @@ namespace ImgSoh
 
                     var imgpanel = new ImgPanel(
                         hash: hash,
-                        folder: img.Folder,
-                        lastView: img.LastView,
-                        verified: img.Verified,
                         size: imagedata.LongLength,
                         bitmap: bitmap,
                         format: format,

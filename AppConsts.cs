@@ -38,8 +38,7 @@
         public const string AttributeDistance = "Distance";
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
-        public const string TablePairs = "Pairs";
-        public const string AttributeId1 = "Id1";
-        public const string AttributeId2 = "Id2";
+        public const string AttributeFamily = "Family";
+        public const string AttributeAliens = "Aliens";
     }
 }

@@ -13,6 +13,26 @@ namespace ImgSoh
         private static int _bad;
         private static int _found;
 
+        private static readonly List<string> _importedfamily = new List<string>();
+        private static void AddImportedFamily(Img imgX)
+        {
+            foreach (var hashY in _importedfamily) {
+                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
+                    if (!imgX.Hash.Equals(hashY)) {
+                        imgX.RemoveFromAliens(hashY);
+                        imgX.AddToFamily(hashY);
+                        imgY.RemoveFromAliens(imgX.Hash);
+                        imgY.AddToFamily(imgX.Hash);
+                    }
+                }
+            }
+
+            _importedfamily.Add(imgX.Hash);
+            while (_importedfamily.Count > 5) {
+                _importedfamily.RemoveAt(0);
+            }
+        }
+
         private static void ImportFile(string orgfilename, bool doImportFamily, BackgroundWorker backgroundworker)
         {
             var name = Path.GetFileNameWithoutExtension(orgfilename);
@@ -65,10 +85,10 @@ namespace ImgSoh
                         File.SetLastWriteTime(filenamefound, lastmodified);
                     }
 
-                    AppDatabase.ImgUpdateLastView(hash, lastView);
+                    imgFound.SetLastView(lastView);
                     DeleteFile(orgfilename);
                     if (doImportFamily) {
-                        //AddImportedFamily(hash);
+                        AddImportedFamily(imgFound);
                     }
 
                     _found++;
@@ -76,7 +96,7 @@ namespace ImgSoh
                 }
 
                 // ...but file is missing
-                AppDatabase.DeleteImg(hash);
+                AppDatabase.ImgDelete(hash);
             }
 
             byte[] vector;
@@ -135,13 +155,15 @@ namespace ImgSoh
                 next: hash,
                 distance: 1f,
                 lastcheck: lastView,
-                verified: false
+                verified: false,
+                family: new SortedSet<string>(),
+                aliens: new SortedSet<string>()
             );
 
             AppDatabase.AddImg(imgnew);
 
             if (doImportFamily) {
-                //AddImportedFamily(hash);
+                AddImportedFamily(imgnew);
             }
 
             _added++;
@@ -190,72 +212,68 @@ namespace ImgSoh
                 _added = 0;
                 _found = 0;
                 _bad = 0;
-                //_importedfamily.Clear();
+                _importedfamily.Clear();
                 ImportFiles(AppConsts.PathHp, backgroundworker);
                 ImportFiles(AppConsts.PathRw, backgroundworker);
                 ImportFiles(AppConsts.PathRwProtected, backgroundworker);
                 AppVars.ImportRequested = false;
             }
 
-            var imgX = AppDatabase.GetNextCheck();
-            if (imgX.GetVector().Length != 4096) {
-                var filename = Helper.GetFileName(imgX.Folder, imgX.Hash);
-                var imagedata = FileHelper.ReadEncryptedFile(filename);
-                using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
-                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    var vector = VggHelper.CalculateVector(bitmap);
-                    imgX = AppDatabase.ImgUpdateVector(imgX.Hash, vector);
-                }
-            }
-
-            var pairs = AppDatabase.GetPairs(imgX.Hash);
-            var vectors = AppDatabase.GetVectors();
-            vectors.Remove(imgX.Hash);
-            foreach (var e in pairs) {
-                vectors.Remove(e.Key);
-            }
-
-            var hashesY = new string[] { null, null };
-            var mindistance = float.MaxValue;
-            var minlv = DateTime.MaxValue;
-            var vectorX = imgX.GetVector();
-            foreach (var e in vectors) {
-                if (pairs.ContainsKey(e.Key)) {
-                    if (AppDatabase.TryGetImg(e.Key, out var img)) {
-                        if (img.LastView < minlv) {
-                            hashesY[0] = e.Key;
-                            minlv = img.LastView;
-                        }
+            var hashX = AppDatabase.GetNextCheck();
+            if (AppDatabase.TryGetImg(hashX, out var imgX)) {
+                if (imgX.GetVector().Length != 4096) {
+                    var filename = Helper.GetFileName(imgX.Folder, imgX.Hash);
+                    var imagedata = FileHelper.ReadEncryptedFile(filename);
+                    using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
+                    using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                        var vector = VggHelper.CalculateVector(bitmap);
+                        imgX.SetVector(vector);
                     }
                 }
-                else {
+
+                var vectors = AppDatabase.GetVectors();
+                vectors.Remove(hashX);
+                foreach (var hash in imgX.FamilyArray) {
+                    if (vectors.ContainsKey(hash)) {
+                        vectors.Remove(hash);
+                    }
+                    else {
+                        imgX.RemoveFromFamily(hash);
+                    }
+                }
+
+                foreach (var hash in imgX.AliensArray) {
+                    if (vectors.ContainsKey(hash)) {
+                        vectors.Remove(hash);
+                    }
+                    else {
+                        imgX.RemoveFromAliens(hash);
+                    }
+                }
+
+                string hashY = null;
+                var mindistance = float.MaxValue;
+                var vectorX = imgX.GetVector();
+                foreach (var e in vectors) {
                     var distance = VggHelper.GetDistance(vectorX, e.Value);
                     if (distance < mindistance) {
-                        hashesY[1] = e.Key;
                         mindistance = distance;
+                        hashY = e.Key;
                     }
                 }
-            }
 
-            if (hashesY[0] != null || hashesY[1] != null) {
-                int mode;
-                do {
-                    mode = AppVars.RandomNext(2);
-                } while (hashesY[mode] == null);
-
-                if (!imgX.Next.Equals(hashesY[mode])) {
-                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                    var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename}");
-                    AppDatabase.ImgUpdateNext(imgX.Hash, hashesY[mode]);
+                if (!string.IsNullOrEmpty(hashY)) {
+                    if (!imgX.Next.Equals(hashY)) {
+                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {mindistance:F4}");
+                        imgX.SetNext(hashY);
+                        imgX.SetDistance(mindistance);
+                    }
                 }
 
-                if (mode == 1) {
-                    AppDatabase.ImgUpdateDistance(imgX.Hash, mindistance);
-                }
+                imgX.SetLastCheck(DateTime.Now);
             }
-
-            AppDatabase.ImgUpdateLastCheck(imgX.Hash, DateTime.Now);
         }
     }
 }

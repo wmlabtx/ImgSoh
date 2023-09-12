@@ -35,7 +35,7 @@ namespace ImgSoh
                     }
                 }
 
-                AppDatabase.DeleteImg(hashD);
+                AppDatabase.ImgDelete(hashD);
                 File.Delete(filename);
             }
         }
@@ -64,9 +64,6 @@ namespace ImgSoh
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
             Delete(hashD, progress);
             Confirm(1 - idpanel, false);
-            var hashV = AppPanels.GetImgPanel(1 - idpanel).Hash;
-            var lc = DateTime.Now.AddYears(-5);
-            AppDatabase.ImgUpdateLastCheck(hashV, lc);
         }
     }
 } 

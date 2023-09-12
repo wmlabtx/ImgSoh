@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 
 namespace ImgSoh
@@ -215,6 +217,24 @@ namespace ImgSoh
             var iFolder = AppVars.RandomNext(256);
             var folder = $"{iFolder:x2}";
             return folder;
+        }
+
+        public static string SortedSetToString(IEnumerable<string> set)
+        {
+            var result = string.Join(string.Empty, set.Select(e => e).ToArray());
+            return result;
+        }
+
+        public static SortedSet<string> StringToSortedSet(string str)
+        {
+            var result = new SortedSet<string>();
+            var offset = 0;
+            while (offset + 12 <= str.Length) {
+                result.Add(str.Substring(offset, 12));
+                offset += 12;
+            }
+
+            return result;
         }
     }
 }
