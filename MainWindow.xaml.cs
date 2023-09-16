@@ -80,12 +80,12 @@ namespace ImgSoh
 
         private void AddToFamilyClick(object sender, RoutedEventArgs e)
         {
-            FamilyClick(true);
+            CombineToFamily();
         }
 
         private void RemoveFromFamilyClick(object sender, RoutedEventArgs e)
         {
-            FamilyClick(false);
+            DetachFromFamily();
         }
 
         private void OnKeyDown(object sender, KeyEventArgs e)

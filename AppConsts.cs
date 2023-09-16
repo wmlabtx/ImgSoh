@@ -8,7 +8,6 @@
         public const string FileVgg = PathRoot + @"\" + FolderDb +@"\" + "vgg16.onnx";
         public const string FileDatabase = PathRoot + @"\" + FolderDb + @"\" + "images.mdf";
         private const string FolderRw = "Rw";
-        public const string PathRw = PathRoot + @"\" + FolderRw;
         public const string PathRwProtected = PathRootProtected + @"\" + FolderRw;
         private const string FolderHp = "Hp";
         public const string PathHp = PathRoot + @"\" + FolderHp;
@@ -39,6 +38,6 @@
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeFamily = "Family";
-        public const string AttributeAliens = "Aliens";
+        public const string AttributeHistory = "History";
     }
 }

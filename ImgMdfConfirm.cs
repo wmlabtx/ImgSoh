@@ -1,21 +1,36 @@
-﻿namespace ImgSoh
+﻿using System;
+
+namespace ImgSoh
 {
     public static partial class ImgMdf
     {
-        public static void Confirm(int idpanel, bool setVerified)
+        public static void Confirm()
+        {
+            var hashX = AppPanels.GetImgPanel(0).Hash;
+            if (AppDatabase.TryGetImg(hashX, out var imgX)) {
+                var hashY = AppPanels.GetImgPanel(1).Hash;
+                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
+                    imgX.AddToHistory(hashY);
+                    imgX.SetLastView(DateTime.Now);
+                    imgX.SetVerified(true);
+                    imgX.SetNext(string.Empty);
+                    
+                    imgY.AddToHistory(hashX);
+                    imgY.SetLastView(DateTime.Now.AddMinutes(-1));
+                    imgY.SetNext(string.Empty);
+                }
+            }
+        }
+
+        private static void ConfirmOpposite(int idpanel)
         {
             var hashX = AppPanels.GetImgPanel(idpanel).Hash;
-            AppDatabase.Confirm(hashX, setVerified);
-
-            var hashY = AppPanels.GetImgPanel(1 - idpanel).Hash;
             if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
-                    if (!imgX.IsInFamily(hashY) && !imgX.IsInAliens(hashY)) {
-                        imgX.AddToAliens(hashY);
-                        imgY.RemoveFromFamily(hashX);
-                        imgY.AddToAliens(hashX);
-                    }
+                if (imgX.Verified) {
+                    imgX.SetLastView(DateTime.Now);
                 }
+
+                imgX.SetNext(string.Empty);
             }
         }
     }

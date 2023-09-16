@@ -64,51 +64,34 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVerified, verified);
         }
 
-        private readonly SortedSet<string> _family;
-        public int FamilyCount => _family.Count;
-        public string Family => Helper.SortedSetToString(_family);
-        public string[] FamilyArray => _family.ToArray();
-
-        public bool IsInFamily(string hash)
+        public int Family { get; private set; }
+        public void SetFamily(int family)
         {
-            return _family.Contains(hash);
+            Family = family;
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, family);
         }
 
-        public void AddToFamily(string hash)
+        private readonly SortedSet<string> _history;
+        public int HistoryCount => _history.Count;
+        public string[] HistoryArray => _history.ToArray();
+        public string History => Helper.SortedSetToString(_history);
+
+        public bool IsInHistory(string hash)
         {
-            if (_family.Add(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, Helper.SortedSetToString(_family));
+            return _history.Contains(hash);
+        }
+
+        public void AddToHistory(string hash)
+        {
+            if (_history.Add(hash)) {
+                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
             }
         }
 
-        public void RemoveFromFamily(string hash)
+        public void RemoveFromHistory(string hash)
         {
-            if (_family.Remove(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, Helper.SortedSetToString(_family));
-            }
-        }
-
-        private readonly SortedSet<string> _aliens;
-        public int AliensCount => _aliens.Count;
-        public string Aliens => Helper.SortedSetToString(_aliens);
-        public string[] AliensArray => _aliens.ToArray();
-
-        public bool IsInAliens(string hash)
-        {
-            return _aliens.Contains(hash);
-        }
-
-        public void AddToAliens(string hash)
-        {
-            if (_aliens.Add(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeAliens, Helper.SortedSetToString(_aliens));
-            }
-        }
-
-        public void RemoveFromAliens(string hash)
-        {
-            if (_aliens.Remove(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeAliens, Helper.SortedSetToString(_aliens));
+            if (_history.Remove(hash)) {
+                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
             }
         }
 
@@ -122,8 +105,8 @@
             DateTime lastcheck,
             string next,
             bool verified,
-            SortedSet<string> family,
-            SortedSet<string> aliens
+            int family,
+            string history
             )
         {
             Hash = hash;
@@ -135,8 +118,8 @@
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
-            _family = family;
-            _aliens = aliens;
+            Family = family;
+            _history = Helper.StringToSortedSet(history);
         }
     }
 }

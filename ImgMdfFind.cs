@@ -34,33 +34,37 @@ namespace ImgSoh
                 }
 
                 // 0 - family
-                // 1 - aliens
+                // 1 - history
                 // 2 - any others
 
                 var lvs = AppDatabase.GetLastViews();
                 var minlvs = new[] { DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue };
-                var hashes = new string[] { null, null, imgX.Next };
-                foreach (var hash in imgX.FamilyArray) {
-                    if (lvs.TryGetValue(hash, out var lv)) {
-                        if (lv < minlvs[0]) {
-                            minlvs[0] = lv;
-                            hashes[0] = hash;
+                var hashes = new[] { null, null, imgX.Next };
+                if (imgX.Family > 0) {
+                    var family = AppDatabase.GetFamily(imgX.Family);
+                    foreach (var hash in family) {
+                        if (hash.Equals(imgX.Hash)) {
+                            continue;
                         }
-                    }
-                    else {
-                        imgX.RemoveFromFamily(hash);
+
+                        if (lvs.TryGetValue(hash, out var lv)) {
+                            if (lv < minlvs[0]) {
+                                minlvs[0] = lv;
+                                hashes[0] = hash;
+                            }
+                        }
                     }
                 }
 
-                foreach (var hash in imgX.AliensArray) {
-                    if (lvs.TryGetValue(hash, out var lv)) {
-                        if (lv < minlvs[1]) {
-                            minlvs[1] = lv;
-                            hashes[1] = hash;
+                if (imgX.HistoryCount > 0) {
+                    var historyArray = imgX.HistoryArray;
+                    foreach (var hash in historyArray) {
+                        if (lvs.TryGetValue(hash, out var lv)) {
+                            if (lv < minlvs[1]) {
+                                minlvs[1] = lv;
+                                hashes[1] = hash;
+                            }
                         }
-                    }
-                    else {
-                        imgX.RemoveFromFamily(hash);
                     }
                 }
 

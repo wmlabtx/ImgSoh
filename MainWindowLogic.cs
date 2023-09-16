@@ -103,8 +103,7 @@ namespace ImgSoh
         private async void ButtonLeftNextMouseClick()
         {
             DisableElements();
-            await Task.Run(() => { ImgMdf.Confirm(1, false); }).ConfigureAwait(true);
-            await Task.Run(() => { ImgMdf.Confirm(0, true); }).ConfigureAwait(true);
+            await Task.Run(() => { ImgMdf.Confirm(); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
@@ -145,42 +144,48 @@ namespace ImgSoh
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
-                if (AppDatabase.TryGetImg(panels[index].Hash, out var imgC)) {
-                    pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
-                    var sb = new StringBuilder();
-                    var shortfilename = Helper.GetShortFileName(imgC.Folder, panels[index].Hash);
-                    sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
-                    var familycount = imgC.FamilyCount;
-                    var alienscount = imgC.AliensCount;
-                    if (familycount > 0 || alienscount > 0) {
-                        sb.Append($" [{familycount}/{alienscount}]");
-                    }
+                if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
+                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
+                        pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
+                        var sb = new StringBuilder();
+                        var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
+                        sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                    sb.AppendLine();
+                        if (imgX.HistoryCount > 0) {
+                            sb.Append($" H{imgX.HistoryCount}");
+                        }
 
-                    sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
-                    sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
-                    sb.AppendLine();
+                        if (imgX.Family > 0) {
+                            var family = AppDatabase.GetFamily(imgX.Family);
+                            sb.Append($" [{imgX.Family}:{family.Length}]");
+                        }
 
-                    sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgC.LastView))} ago ");
-                    sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
+                        sb.AppendLine();
 
-                    pLabels[index].Text = sb.ToString();
-                    pLabels[index].Background = System.Windows.Media.Brushes.White;
-                    if (imgC.Verified) {
-                        if (familycount > 0 || alienscount > 0) {
-                            if (imgC.IsInFamily(panels[1 - index].Hash)) {
+                        sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
+                        sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
+                        sb.AppendLine();
+
+                        sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
+                        sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
+
+                        pLabels[index].Text = sb.ToString();
+                        pLabels[index].Background = System.Windows.Media.Brushes.White;
+                        if (imgX.Verified) {
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
-                                pLabels[index].Background = index == 0
-                                    ? System.Windows.Media.Brushes.Bisque
-                                    : System.Windows.Media.Brushes.LightSkyBlue;
+                                if (imgX.HistoryCount > 0) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                }
                             }
                         }
-                    }
-                    else {
-                        pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                        else {
+                            pLabels[index].Background = imgX.Family > 0 && imgX.Family == imgY.Family ?
+                                System.Windows.Media.Brushes.YellowGreen:
+                                System.Windows.Media.Brushes.Yellow;
+                        }
                     }
                 }
             }
@@ -274,28 +279,18 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private void FamilyClick(bool isFamily)
+        private void CombineToFamily()
         {
             DisableElements();
-            var hashX = AppPanels.GetImgPanel(0).Hash;
-            if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                var hashY = AppPanels.GetImgPanel(1).Hash;
-                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
-                    if (isFamily) {
-                        imgX.RemoveFromAliens(hashY);
-                        imgX.AddToFamily(hashY);
-                        imgY.RemoveFromAliens(hashX);
-                        imgY.AddToFamily(hashX);
-                    }
-                    else {
-                        imgX.RemoveFromFamily(hashY);
-                        imgX.AddToAliens(hashY);
-                        imgY.RemoveFromFamily(hashX);
-                        imgY.AddToAliens(hashX);
-                    }
-                }
-            }
+            ImgMdf.CombineToFamily();
+            DrawCanvas();
+            EnableElements();
+        }
 
+        private void DetachFromFamily()
+        {
+            DisableElements();
+            ImgMdf.DetachFromFamily();
             DrawCanvas();
             EnableElements();
         }
@@ -304,10 +299,10 @@ namespace ImgSoh
         {
             switch (key) {
                 case Key.A:
-                    FamilyClick(true);
+                    CombineToFamily();
                     break;
                 case Key.D:
-                    FamilyClick(false);
+                    DetachFromFamily();
                     break;
                 case Key.V:
                     ToggleXorClick();

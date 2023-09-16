@@ -20,7 +20,7 @@ namespace ImgSoh
                     if (magickImage != null) {
                         var ext = magickImage.Format.ToString().ToLower();
                         var name = Path.GetFileNameWithoutExtension(filename);
-                        var exportfilename = $"{AppConsts.PathRw}\\{name}.{ext}";
+                        var exportfilename = $"{AppConsts.PathRwProtected}\\{name}.{ext}";
                         File.WriteAllBytes(exportfilename, imagedata);
                         progress?.Report($"Exported {exportfilename}");
                     }

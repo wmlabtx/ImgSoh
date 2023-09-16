@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
+using System.Web.Compilation;
 
 namespace ImgSoh
 {
@@ -36,7 +37,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
                 sb.Append($"{AppConsts.AttributeFamily}, "); // 9
-                sb.Append($"{AppConsts.AttributeAliens} "); // 10
+                sb.Append($"{AppConsts.AttributeHistory} "); // 10
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -53,8 +54,8 @@ namespace ImgSoh
                             var distance = reader.GetFloat(6);
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
-                            var family = reader.GetString(9);
-                            var aliens = reader.GetString(10);
+                            var family = reader.GetInt32(9);
+                            var history = reader.GetString(10);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
@@ -65,8 +66,8 @@ namespace ImgSoh
                                 distance: distance,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                family: Helper.StringToSortedSet(family),
-                                aliens: Helper.StringToSortedSet(aliens)
+                                family: family,
+                                history: history
                             );
 
                             _imgList.Add(hash, img);
@@ -140,7 +141,7 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
                     sb.Append($"{AppConsts.AttributeFamily}, ");
-                    sb.Append($"{AppConsts.AttributeAliens}");
+                    sb.Append($"{AppConsts.AttributeHistory}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
                     sb.Append($"@{AppConsts.AttributeFolder}, ");
@@ -152,7 +153,7 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
                     sb.Append($"@{AppConsts.AttributeFamily}, ");
-                    sb.Append($"@{AppConsts.AttributeAliens}");
+                    sb.Append($"@{AppConsts.AttributeHistory}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -166,7 +167,7 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeAliens}", img.Aliens);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -231,9 +232,61 @@ namespace ImgSoh
 
         public static string GetNextView()
         {
+            // -1 ) New
+            // 0...N) HistoryCount
+
+            string hash;
+            var list = new SortedList<int, Tuple<string, DateTime>>();
+            lock (_sqlLock) {
+                foreach (var imgX in _imgList.Values) {
+                    if (imgX.Next.Equals(imgX.Hash) ||
+                        imgX.GetVector() == null ||
+                        imgX.GetVector().Length != 4096 ||
+                        !_imgList.ContainsKey(imgX.Next)) {
+                        continue;
+                    }
+
+                    var group = imgX.Verified ? imgX.HistoryCount : -1;
+                    if (list.ContainsKey(group)) {
+                        if (imgX.LastView < list[group].Item2) {
+                            list[group] = Tuple.Create(imgX.Hash, imgX.LastView);
+                        }
+                    }
+                    else {
+                        list.Add(group, Tuple.Create(imgX.Hash, imgX.LastView));
+                    }
+                }
+
+                if (list.Count == 0) {
+                    return null;
+                }
+
+                var mode = 0;
+                do {
+                    var coin = AppVars.RandomNext(2);
+                    if (coin == 0) {
+                        break;
+                    }
+
+                    mode++;
+                } while (mode < list.Count);
+
+                if (mode == list.Count) {
+                    mode = 0;
+                }
+
+                hash = list.ElementAt(mode).Value.Item1;
+            }
+
+            return hash;
+        }
+
+        /*
+        public static string GetNextView()
+        {
             // 0) New
             // 1) Has Family
-            // 2) Has Aliens
+            // 2) Has History
             // 3) Others
 
             var minlvs = new[] { DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue };
@@ -253,11 +306,11 @@ namespace ImgSoh
                         group = 0;
                     }
                     else {
-                        if (imgX.FamilyCount > 0) {
+                        if (imgX.Family > 0) {
                             group = 1;
                         }
                         else {
-                            if (imgX.AliensCount > 0) {
+                            if (imgX.HistoryCount > 0) {
                                 group = 2;
                             }
                             else {
@@ -284,6 +337,7 @@ namespace ImgSoh
             var hashView = hashes[mode];
             return hashView;
         }
+        */
 
         /*
         public static void Populate(IProgress<string> progress)
@@ -309,16 +363,33 @@ namespace ImgSoh
         }
         */
 
-        public static void Confirm(string hash, bool setVerified)
+        public static string[] GetFamily(int family)
         {
-            if (TryGetImg(hash, out var img)) {
-                if (setVerified) {
-                    img.SetVerified(true);
-                }
-
-                img.SetLastView(DateTime.Now);
-                img.SetLastCheck(DateTime.Now.AddYears(-5));
+            string[] result;
+            lock (_sqlLock) {
+                result = _imgList.Where(e => e.Value.Family == family).Select(e => e.Key).ToArray();
             }
+
+            return result;
+        }
+
+        public static int SuggestFamilyId()
+        {
+            var familyId = 1;
+            lock (_sqlLock) {
+                var families = _imgList
+                    .Where(e => e.Value.Family > 0)
+                    .Select(e => e.Value.Family)
+                    .Distinct()
+                    .OrderBy(e => e)
+                    .ToArray();
+
+                while (familyId <= families.Length && families[familyId - 1] == familyId) {
+                    familyId++;
+                }
+            }
+
+            return familyId;
         }
     }
 }

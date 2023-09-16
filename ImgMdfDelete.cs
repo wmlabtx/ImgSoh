@@ -63,7 +63,7 @@ namespace ImgSoh
         {
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
             Delete(hashD, progress);
-            Confirm(1 - idpanel, false);
+            ConfirmOpposite(1 - idpanel);
         }
     }
 } 
