@@ -13,7 +13,7 @@ namespace ImgSoh
         private static int _bad;
         private static int _found;
 
-        private static void ImportFile(string orgfilename, int family, BackgroundWorker backgroundworker)
+        private static void ImportFile(string orgfilename, BackgroundWorker backgroundworker)
         {
             var name = Path.GetFileNameWithoutExtension(orgfilename);
             var lastView = DateTime.Now.AddYears(-5);
@@ -63,10 +63,6 @@ namespace ImgSoh
                         // but found file was changed or corrupted
                         FileHelper.WriteEncryptedFile(filenamefound, imagedata);
                         File.SetLastWriteTime(filenamefound, lastmodified);
-                    }
-
-                    if (family > 0) {
-                        imgFound.SetFamily(family);
                     }
 
                     //imgFound.SetLastView(lastView);
@@ -136,7 +132,6 @@ namespace ImgSoh
                 distance: 1f,
                 lastcheck: lastView,
                 verified: false,
-                family: family,
                 history: string.Empty
             );
 
@@ -144,7 +139,7 @@ namespace ImgSoh
             _added++;
         }
 
-        private static void ImportFiles(string path, SearchOption so, int family, BackgroundWorker backgroundworker)
+        private static void ImportFiles(string path, SearchOption so, BackgroundWorker backgroundworker)
         {
             var directoryInfo = new DirectoryInfo(path);
             var fs = directoryInfo.GetFiles("*.*", so).ToArray();
@@ -164,7 +159,7 @@ namespace ImgSoh
             foreach (var e in fs) {
                 var orgfilename = e.FullName;
                 if (!Path.GetExtension(orgfilename).Equals(AppConsts.CorruptedExtension, StringComparison.OrdinalIgnoreCase)) {
-                    ImportFile(orgfilename, family, backgroundworker);
+                    ImportFile(orgfilename, backgroundworker);
                     count++;
                     if (count == AppConsts.MaxImportFiles) {
                         break;
@@ -187,13 +182,12 @@ namespace ImgSoh
                 _added = 0;
                 _found = 0;
                 _bad = 0;
-                ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, 0, backgroundworker);
-                ImportFiles(AppConsts.PathRwProtected, SearchOption.TopDirectoryOnly, 0, backgroundworker);
+                ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, backgroundworker);
+                ImportFiles(AppConsts.PathRwProtected, SearchOption.TopDirectoryOnly, backgroundworker);
                 var directoryInfo = new DirectoryInfo(AppConsts.PathRwProtected);
                 var ds = directoryInfo.GetDirectories("*.*", SearchOption.TopDirectoryOnly).ToArray();
                 foreach (var di in ds) {
-                    var family = AppDatabase.SuggestFamilyId();
-                    ImportFiles(di.FullName, SearchOption.AllDirectories, family, backgroundworker);
+                    ImportFiles(di.FullName, SearchOption.AllDirectories, backgroundworker);
                 }
 
                 Helper.CleanupDirectories(AppConsts.PathRwProtected, AppVars.Progress);

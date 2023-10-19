@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Text;
-using System.Web.Compilation;
 
 namespace ImgSoh
 {
@@ -12,6 +11,7 @@ namespace ImgSoh
         private static readonly SqlConnection _sqlConnection;
         private static readonly object _sqlLock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
+        private static readonly List<int> _recentGroups = new List<int>{ 3 };
 
         static AppDatabase()
         {
@@ -36,8 +36,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeDistance}, "); // 6
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
-                sb.Append($"{AppConsts.AttributeFamily}, "); // 9
-                sb.Append($"{AppConsts.AttributeHistory} "); // 10
+                sb.Append($"{AppConsts.AttributeHistory} "); // 9
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -54,8 +53,7 @@ namespace ImgSoh
                             var distance = reader.GetFloat(6);
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
-                            var family = reader.GetInt32(9);
-                            var history = reader.GetString(10);
+                            var history = reader.GetString(9);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
@@ -66,7 +64,6 @@ namespace ImgSoh
                                 distance: distance,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                family: family,
                                 history: history
                             );
 
@@ -140,7 +137,6 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeDistance}, ");
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
-                    sb.Append($"{AppConsts.AttributeFamily}, ");
                     sb.Append($"{AppConsts.AttributeHistory}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
@@ -152,7 +148,6 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeDistance}, ");
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
-                    sb.Append($"@{AppConsts.AttributeFamily}, ");
                     sb.Append($"@{AppConsts.AttributeHistory}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
@@ -166,7 +161,6 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDistance}", img.Distance);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
                     sqlCommand.ExecuteNonQuery();
                 }
@@ -218,25 +212,13 @@ namespace ImgSoh
             return shadow;
         }
 
-        public static SortedList<string, DateTime> GetLastViews()
-        {
-            var shadow = new SortedList<string, DateTime>();
-            lock (_sqlLock) {
-                foreach (var img in _imgList.Values) {
-                    shadow.Add(img.Hash, img.LastView);
-                }
-            }
-
-            return shadow;
-        }
-
         public static string GetNextView()
         {
-            // -1 ) New
-            // 0...N) HistoryCount
+            //  -1) New
+            //   0) HistoryCount
+            //  >0) HistoryCount
 
-            string hash;
-            var list = new SortedList<int, Tuple<string, DateTime>>();
+            var groups = new SortedList<int, List<Img>>();
             lock (_sqlLock) {
                 foreach (var imgX in _imgList.Values) {
                     if (imgX.Next.Equals(imgX.Hash) ||
@@ -246,98 +228,61 @@ namespace ImgSoh
                         continue;
                     }
 
-                    var group = imgX.Verified ? imgX.HistoryCount : -1;
-                    if (list.ContainsKey(group)) {
-                        if (imgX.LastView < list[group].Item2) {
-                            list[group] = Tuple.Create(imgX.Hash, imgX.LastView);
-                        }
+                    var group = Math.Min(1, imgX.Verified ? imgX.HistoryCount : -1);
+                    if (groups.TryGetValue(group, out var groupX)) {
+                        groupX.Add(imgX);
                     }
                     else {
-                        list.Add(group, Tuple.Create(imgX.Hash, imgX.LastView));
+                        groups.Add(group, new List<Img>{ imgX });
+                    }
+                    
+                }
+            }
+
+            var rgroup = 0;
+            var maxGroupDistance = -1;
+            foreach (var groupX in groups.Keys) {
+                var minGroupDistance = int.MaxValue;
+                foreach (var groupY in _recentGroups) {
+                    var groupDistance = Math.Abs(groupX - groupY);
+                    if (groupDistance < minGroupDistance) {
+                        minGroupDistance = groupDistance;
                     }
                 }
 
-                if (list.Count == 0) {
-                    return null;
+                if (minGroupDistance > maxGroupDistance) {
+                    maxGroupDistance = minGroupDistance;
+                    rgroup = groupX;
                 }
+            }
 
-                var mode = 0;
-                do {
-                    var coin = AppVars.RandomNext(2);
-                    if (coin == 0) {
-                        break;
+            _recentGroups.Add(rgroup);
+            while (_recentGroups.Count > 2) {
+                _recentGroups.RemoveAt(0);
+            }
+
+            string hash = null;
+            if (rgroup == -1) {
+                var scope = groups[rgroup];
+                var minDistance = scope.Min(e => e.Distance);
+                var imgX = scope.Find(e => Math.Abs(e.Distance - minDistance) < 0.0001f);
+                hash = imgX.Hash;
+            }
+            else {
+                var scope = groups[rgroup].OrderBy(e => e.LastView).Take(100);
+                var minlv = DateTime.MaxValue;
+                foreach (var imgX in scope) {
+                    if (TryGetImg(imgX.Next, out var imgY)) {
+                        if (imgY.LastView < minlv) {
+                            minlv = imgY.LastView;
+                            hash = imgX.Hash;
+                        }
                     }
-
-                    mode++;
-                } while (mode < list.Count);
-
-                if (mode == list.Count) {
-                    mode = 0;
                 }
-
-                hash = list.ElementAt(mode).Value.Item1;
             }
 
             return hash;
         }
-
-        /*
-        public static string GetNextView()
-        {
-            // 0) New
-            // 1) Has Family
-            // 2) Has History
-            // 3) Others
-
-            var minlvs = new[] { DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue, DateTime.MaxValue };
-            var hashes = new string[] { null, null, null, null };
-            int mode;
-            lock (_sqlLock) {
-                foreach (var imgX in _imgList.Values) {
-                    if (imgX.Next.Equals(imgX.Hash) || 
-                        imgX.GetVector() == null || 
-                        imgX.GetVector().Length != 4096 ||
-                        !_imgList.ContainsKey(imgX.Next)) {
-                        continue;
-                    }
-
-                    int group;
-                    if (!imgX.Verified) {
-                        group = 0;
-                    }
-                    else {
-                        if (imgX.Family > 0) {
-                            group = 1;
-                        }
-                        else {
-                            if (imgX.HistoryCount > 0) {
-                                group = 2;
-                            }
-                            else {
-                                group = 3;
-                            }
-                        }
-                    }
-
-                    if (imgX.LastView < minlvs[group]) {
-                        hashes[group] = imgX.Hash;
-                        minlvs[group] = imgX.LastView;
-                    }
-                }
-
-                if (hashes[0] == null && hashes[1] == null && hashes[2] == null && hashes[3] == null) {
-                    return null;
-                }
-
-                do {
-                    mode = AppVars.RandomNext(4);
-                } while (hashes[mode] == null);
-            }
-
-            var hashView = hashes[mode];
-            return hashView;
-        }
-        */
 
         /*
         public static void Populate(IProgress<string> progress)
@@ -362,34 +307,5 @@ namespace ImgSoh
             }
         }
         */
-
-        public static string[] GetFamily(int family)
-        {
-            string[] result;
-            lock (_sqlLock) {
-                result = _imgList.Where(e => e.Value.Family == family).Select(e => e.Key).ToArray();
-            }
-
-            return result;
-        }
-
-        public static int SuggestFamilyId()
-        {
-            var familyId = 1;
-            lock (_sqlLock) {
-                var families = _imgList
-                    .Where(e => e.Value.Family > 0)
-                    .Select(e => e.Value.Family)
-                    .Distinct()
-                    .OrderBy(e => e)
-                    .ToArray();
-
-                while (familyId <= families.Length && families[familyId - 1] == familyId) {
-                    familyId++;
-                }
-            }
-
-            return familyId;
-        }
     }
 }

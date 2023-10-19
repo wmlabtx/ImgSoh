@@ -64,13 +64,6 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVerified, verified);
         }
 
-        public int Family { get; private set; }
-        public void SetFamily(int family)
-        {
-            Family = family;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, family);
-        }
-
         private readonly SortedSet<string> _history;
         public int HistoryCount => _history.Count;
         public string[] HistoryArray => _history.ToArray();
@@ -105,7 +98,6 @@
             DateTime lastcheck,
             string next,
             bool verified,
-            int family,
             string history
             )
         {
@@ -118,7 +110,6 @@
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
-            Family = family;
             _history = Helper.StringToSortedSet(history);
         }
     }

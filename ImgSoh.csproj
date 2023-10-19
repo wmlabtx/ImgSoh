@@ -128,7 +128,6 @@
     <Compile Include="ImgMdfEdit.cs" />
     <Compile Include="ImgMdfExport.cs" />
     <Compile Include="ImgMdfFind.cs" />
-    <Compile Include="ImgMdfFamily.cs" />
     <Compile Include="MainWindowLogic.cs" />
     <Compile Include="VggHelper.cs" />
     <Page Include="MainWindow.xaml">

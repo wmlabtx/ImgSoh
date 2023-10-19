@@ -14,7 +14,7 @@
         private const string FolderGb = "Gb";
         public const string PathGbProtected = PathRootProtected + @"\" + FolderGb;
 
-        public const int MaxImportFiles = 100000;
+        public const int MaxImportFiles = 10000;
 
         public const string MzxExtension = ".mzx";
         public const string DatExtension = ".dat";
@@ -37,7 +37,6 @@
         public const string AttributeDistance = "Distance";
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
-        public const string AttributeFamily = "Family";
         public const string AttributeHistory = "History";
     }
 }
