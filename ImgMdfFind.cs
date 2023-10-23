@@ -39,7 +39,7 @@ namespace ImgSoh
                     if (coin == 0) {
                         var historyArray = imgX.HistoryArray;
                         foreach (var hash in historyArray) {
-                            if (AppDatabase.TryGetImg(hash, out var img)) {
+                            if (!hash.Equals(imgX.Hash) && AppDatabase.TryGetImg(hash, out var img)) {
                                 if (imgY == null || img.LastView < imgY.LastView) {
                                     imgY = img;
                                 }
@@ -48,13 +48,17 @@ namespace ImgSoh
                     }
                 }
 
-                var hashY = imgY == null ? imgX.Next : imgY.Next;
+                var hashY = imgY == null ? imgX.Next : imgY.Hash;
                 if (!string.IsNullOrEmpty(hashY)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
                     var imgcount = AppDatabase.ImgCount(false);
                     var newimgcount = AppDatabase.ImgCount(true);
                     progress.Report($"{newimgcount}/{imgcount}: [{age} ago] {shortfilename}");
+
+                    if (hashX.Equals(hashY)) {
+                        throw new Exception();
+                    }
 
                     if (!AppPanels.SetImgPanel(1, hashY)) {
                         Delete(hashY, progress);

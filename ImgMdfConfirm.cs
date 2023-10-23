@@ -14,7 +14,7 @@ namespace ImgSoh
                     imgX.SetLastView(DateTime.Now);
                     imgX.SetVerified(true);
                     imgX.SetNext(string.Empty);
-                    
+
                     imgY.AddToHistory(hashX);
                     imgY.SetLastView(DateTime.Now.AddMinutes(-1));
                     imgY.SetNext(string.Empty);
@@ -30,7 +30,8 @@ namespace ImgSoh
                     imgX.SetLastView(DateTime.Now);
                 }
 
-                imgX.SetNext(string.Empty);
+                var lc = AppDatabase.GetMinLastCheck();
+                imgX.SetLastCheck(lc);
             }
         }
     }

@@ -11,7 +11,6 @@ namespace ImgSoh
         private static readonly SqlConnection _sqlConnection;
         private static readonly object _sqlLock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
-        private static readonly List<int> _recentGroups = new List<int>{ 3 };
 
         static AppDatabase()
         {
@@ -185,8 +184,12 @@ namespace ImgSoh
             Img imgCheck = null;
             lock (_sqlLock) {
                 foreach (var img in _imgList.Values) {
-                    if (img.GetVector() == null || img.GetVector().Length != 4096 || img.Next.Equals(img.Hash) ||
-                        !_imgList.ContainsKey(img.Next)) {
+                    if (
+                        img.GetVector() == null || 
+                        img.GetVector().Length != 4096 || 
+                        img.Next.Equals(img.Hash) || 
+                        !_imgList.ContainsKey(img.Next) ||
+                        img.IsInHistory(img.Next)) {
                         imgCheck = img;
                         break;
                     }
@@ -212,74 +215,66 @@ namespace ImgSoh
             return shadow;
         }
 
+        public static DateTime GetMinLastCheck()
+        {
+            DateTime lc;
+            lock (_sqlLock) {
+                lc = _imgList.Min(e => e.Value.LastCheck).AddSeconds(-1);
+            }
+
+            return lc;
+        }
+
         public static string GetNextView()
         {
-            //  -1) New
-            //   0) HistoryCount
-            //  >0) HistoryCount
-
-            var groups = new SortedList<int, List<Img>>();
+            var candidates = new List<Img>();
             lock (_sqlLock) {
-                foreach (var imgX in _imgList.Values) {
-                    if (imgX.Next.Equals(imgX.Hash) ||
-                        imgX.GetVector() == null ||
-                        imgX.GetVector().Length != 4096 ||
-                        !_imgList.ContainsKey(imgX.Next)) {
+                foreach (var img in _imgList.Values) {
+                    if (img.GetVector() == null ||
+                        img.GetVector().Length != 4096 ||
+                        img.Next.Equals(img.Hash) ||
+                        !_imgList.ContainsKey(img.Next) ||
+                        img.IsInHistory(img.Next)) {
                         continue;
                     }
 
-                    var group = Math.Min(1, imgX.Verified ? imgX.HistoryCount : -1);
-                    if (groups.TryGetValue(group, out var groupX)) {
-                        groupX.Add(imgX);
+                    if (candidates.Count == 0) {
+                        candidates.Add(img);
                     }
                     else {
-                        groups.Add(group, new List<Img>{ imgX });
-                    }
-                    
-                }
-            }
+                        if (img.HistoryCount < candidates[0].HistoryCount) {
+                            candidates.Clear();
+                            candidates.Add(img);
+                        }
+                        else {
+                            if (img.HistoryCount > candidates[0].HistoryCount) {
+                                continue;
+                            }
 
-            var rgroup = 0;
-            var maxGroupDistance = -1;
-            foreach (var groupX in groups.Keys) {
-                var minGroupDistance = int.MaxValue;
-                foreach (var groupY in _recentGroups) {
-                    var groupDistance = Math.Abs(groupX - groupY);
-                    if (groupDistance < minGroupDistance) {
-                        minGroupDistance = groupDistance;
-                    }
-                }
-
-                if (minGroupDistance > maxGroupDistance) {
-                    maxGroupDistance = minGroupDistance;
-                    rgroup = groupX;
-                }
-            }
-
-            _recentGroups.Add(rgroup);
-            while (_recentGroups.Count > 2) {
-                _recentGroups.RemoveAt(0);
-            }
-
-            string hash = null;
-            if (rgroup == -1) {
-                var scope = groups[rgroup];
-                var minDistance = scope.Min(e => e.Distance);
-                var imgX = scope.Find(e => Math.Abs(e.Distance - minDistance) < 0.0001f);
-                hash = imgX.Hash;
-            }
-            else {
-                var scope = groups[rgroup].OrderBy(e => e.LastView).Take(100);
-                var minlv = DateTime.MaxValue;
-                foreach (var imgX in scope) {
-                    if (TryGetImg(imgX.Next, out var imgY)) {
-                        if (imgY.LastView < minlv) {
-                            minlv = imgY.LastView;
-                            hash = imgX.Hash;
+                            candidates.Add(img);
                         }
                     }
                 }
             }
+
+            var mindistance = candidates.Min(e => e.Distance);
+            var hash = candidates.Find(e => Math.Abs(e.Distance - mindistance) < 0.0001f).Hash;
+
+            /*
+            string hash = null;
+            var scope = candidates.OrderBy(e => e.LastView).Take(100).ToArray();
+            var minlv = DateTime.MaxValue;
+            var minhc = int.MaxValue;
+            foreach (var imgX in scope) {
+                if (TryGetImg(imgX.Next, out var imgY)) {
+                    if (imgY.HistoryCount < minhc || (imgY.HistoryCount == minhc && imgY.LastView < minlv)) {
+                        minlv = imgY.LastView;
+                        minhc = imgY.HistoryCount;
+                        hash = imgX.Hash;
+                    }
+                }
+            }
+            */
 
             return hash;
         }
