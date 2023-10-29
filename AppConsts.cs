@@ -38,5 +38,6 @@
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeHistory = "History";
+        public const string AttributeFamily = "Family";
     }
 }

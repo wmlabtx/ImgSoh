@@ -35,7 +35,8 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeDistance}, "); // 6
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
-                sb.Append($"{AppConsts.AttributeHistory} "); // 9
+                sb.Append($"{AppConsts.AttributeHistory}, "); // 9
+                sb.Append($"{AppConsts.AttributeFamily} "); // 10
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -53,6 +54,7 @@ namespace ImgSoh
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
                             var history = reader.GetString(9);
+                            var family = reader.GetInt32(10);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
@@ -63,7 +65,8 @@ namespace ImgSoh
                                 distance: distance,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                history: history
+                                history: history,
+                                family: family
                             );
 
                             _imgList.Add(hash, img);
@@ -136,7 +139,8 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeDistance}, ");
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
-                    sb.Append($"{AppConsts.AttributeHistory}");
+                    sb.Append($"{AppConsts.AttributeHistory}, ");
+                    sb.Append($"{AppConsts.AttributeFamily}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
                     sb.Append($"@{AppConsts.AttributeFolder}, ");
@@ -147,7 +151,8 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeDistance}, ");
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
-                    sb.Append($"@{AppConsts.AttributeHistory}");
+                    sb.Append($"@{AppConsts.AttributeHistory}, ");
+                    sb.Append($"@{AppConsts.AttributeFamily}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -161,6 +166,7 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -185,9 +191,9 @@ namespace ImgSoh
             lock (_sqlLock) {
                 foreach (var img in _imgList.Values) {
                     if (
-                        img.GetVector() == null || 
-                        img.GetVector().Length != 4096 || 
-                        img.Next.Equals(img.Hash) || 
+                        img.GetVector() == null ||
+                        img.GetVector().Length != 4096 ||
+                        img.Next.Equals(img.Hash) ||
                         !_imgList.ContainsKey(img.Next) ||
                         img.IsInHistory(img.Next)) {
                         imgCheck = img;
@@ -227,80 +233,114 @@ namespace ImgSoh
 
         public static string GetNextView()
         {
-            var candidates = new List<Img>();
+            string hashN = null;
+            var mindistance = float.MaxValue;
+            string hashX = null;
+            var minhcX = int.MaxValue;
+            var minhcY = int.MaxValue;
+            var minlv = DateTime.MaxValue;
+            
             lock (_sqlLock) {
-                foreach (var img in _imgList.Values) {
-                    if (img.GetVector() == null ||
-                        img.GetVector().Length != 4096 ||
-                        img.Next.Equals(img.Hash) ||
-                        !_imgList.ContainsKey(img.Next) ||
-                        img.IsInHistory(img.Next)) {
+                foreach (var imgX in _imgList.Values) {
+                    if (imgX.GetVector() == null ||
+                        imgX.GetVector().Length != 4096 ||
+                        imgX.Next.Equals(imgX.Hash) ||
+                        !_imgList.ContainsKey(imgX.Next) ||
+                        imgX.IsInHistory(imgX.Next)) {
                         continue;
                     }
 
-                    if (candidates.Count == 0) {
-                        candidates.Add(img);
-                    }
-                    else {
-                        if (img.HistoryCount < candidates[0].HistoryCount) {
-                            candidates.Clear();
-                            candidates.Add(img);
+                    if (imgX.Verified) {
+                        var imgY = _imgList[imgX.Next];
+                        if (imgX.HistoryCount < minhcX) {
+                            hashX = imgX.Hash;
+                            minhcX = imgX.HistoryCount;
+                            minhcY = imgY.HistoryCount;
+                            minlv = imgX.LastView;
                         }
                         else {
-                            if (img.HistoryCount > candidates[0].HistoryCount) {
+                            if (imgX.HistoryCount > minhcX) {
                                 continue;
                             }
 
-                            candidates.Add(img);
+                            if (imgY.HistoryCount < minhcY) {
+                                hashX = imgX.Hash;
+                                minhcY = imgY.HistoryCount;
+                                minlv = imgX.LastView;
+                            }
+                            else {
+                                if (imgY.HistoryCount > minhcY) {
+                                    continue;
+                                }
+
+                                if (imgX.LastView < minlv) {
+                                    hashX = imgX.Hash;
+                                    minlv = imgX.LastView;
+                                }
+                            }
+                        }
+                    }
+                    else {
+                        if (imgX.Distance < mindistance) {
+                            hashN = imgX.Hash;
+                            mindistance = imgX.Distance;
                         }
                     }
                 }
-            }
 
-            var mindistance = candidates.Min(e => e.Distance);
-            var hash = candidates.Find(e => Math.Abs(e.Distance - mindistance) < 0.0001f).Hash;
-
-            /*
-            string hash = null;
-            var scope = candidates.OrderBy(e => e.LastView).Take(100).ToArray();
-            var minlv = DateTime.MaxValue;
-            var minhc = int.MaxValue;
-            foreach (var imgX in scope) {
-                if (TryGetImg(imgX.Next, out var imgY)) {
-                    if (imgY.HistoryCount < minhc || (imgY.HistoryCount == minhc && imgY.LastView < minlv)) {
-                        minlv = imgY.LastView;
-                        minhc = imgY.HistoryCount;
-                        hash = imgX.Hash;
+                if (hashN != null) {
+                    var coin = AppVars.RandomNext(10);
+                    if (coin == 0) {
+                        return hashN;
                     }
                 }
-            }
-            */
 
-            return hash;
+                if (hashX != null) {
+                    return hashX;
+                }
+            }
+
+            return null;
         }
 
-        /*
-        public static void Populate(IProgress<string> progress)
+        public static string[] GetFamily(int family)
+        {
+            string[] result;
+            lock (_sqlLock) {
+                result = _imgList.Where(e => e.Value.Family == family).Select(e => e.Key).ToArray();
+            }
+
+            return result;
+        }
+
+        public static int SuggestFamilyId()
+        {
+            var familyId = 1;
+            lock (_sqlLock) {
+                var families = _imgList
+                    .Where(e => e.Value.Family > 0)
+                    .Select(e => e.Value.Family)
+                    .Distinct()
+                    .OrderBy(e => e)
+                    .ToArray();
+
+                while (familyId <= families.Length && families[familyId - 1] == familyId) {
+                    familyId++;
+                }
+            }
+
+            return familyId;
+        }
+
+        public static void RenameFamily(int of, int nf)
         {
             lock (_sqlLock) {
-                var hashes = _imgList.Keys.ToArray();
-                var dtn = DateTime.Now;
-                var count = 0;
-                foreach (var hash in hashes) {
-                    var index = AppVars.RandomNext(hashes.Length);
-                    var next = hashes[index];
-                    ImgUpdateNext(hash, next);
-
-                    count++;
-                    if (!(DateTime.Now.Subtract(dtn).TotalMilliseconds > AppConsts.TimeLapse)) {
-                        continue;
+                foreach (var imgX in _imgList.Values) {
+                    if (imgX.Family == of) {
+                        imgX.SetFamily(nf);
                     }
-
-                    dtn = DateTime.Now;
-                    progress?.Report($"Populating images ({count}){AppConsts.CharEllipsis}");
                 }
             }
         }
-        */
     }
 }

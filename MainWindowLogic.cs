@@ -155,6 +155,11 @@ namespace ImgSoh
                             sb.Append($" H{imgX.HistoryCount}");
                         }
 
+                        if (imgX.Family > 0) {
+                            var family = AppDatabase.GetFamily(imgX.Family);
+                            sb.Append($" [{imgX.Family}:{family.Length}]");
+                        }
+
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -167,8 +172,8 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (imgX.Verified) {
-                            if (imgX.IsInHistory(imgY.Hash)) {
-                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
                                 if (imgX.HistoryCount > 0) {
@@ -177,7 +182,9 @@ namespace ImgSoh
                             }
                         }
                         else {
-                            pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                            pLabels[index].Background = imgX.Family > 0 && imgX.Family == imgY.Family ?
+                                System.Windows.Media.Brushes.YellowGreen :
+                                System.Windows.Media.Brushes.Yellow;
                         }
                     }
                 }
@@ -275,7 +282,7 @@ namespace ImgSoh
         private void CombineToFamily()
         {
             DisableElements();
-            //ImgMdf.CombineToFamily();
+            ImgMdf.CombineToFamily();
             DrawCanvas();
             EnableElements();
         }
@@ -283,7 +290,7 @@ namespace ImgSoh
         private void DetachFromFamily()
         {
             DisableElements();
-            //ImgMdf.DetachFromFamily();
+            ImgMdf.DetachFromFamily();
             DrawCanvas();
             EnableElements();
         }

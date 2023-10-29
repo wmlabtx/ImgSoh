@@ -4,7 +4,6 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace ImgSoh
 {
@@ -133,7 +132,8 @@ namespace ImgSoh
                 distance: 1f,
                 lastcheck: lastView,
                 verified: false,
-                history: string.Empty
+                history: string.Empty,
+                family: 0
             );
 
             AppDatabase.AddImg(imgnew);

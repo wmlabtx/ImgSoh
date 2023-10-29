@@ -88,6 +88,13 @@
             }
         }
 
+        public int Family { get; private set; }
+        public void SetFamily(int family)
+        {
+            Family = family;
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, family);
+        }
+
         public Img(
             string hash,
             string folder,
@@ -98,7 +105,8 @@
             DateTime lastcheck,
             string next,
             bool verified,
-            string history
+            string history,
+            int family
             )
         {
             Hash = hash;
@@ -111,6 +119,7 @@
             Next = next;
             Verified = verified;
             _history = Helper.StringToSortedSet(history);
+            Family = family;
         }
     }
 }
