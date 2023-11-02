@@ -155,10 +155,12 @@ namespace ImgSoh
                             sb.Append($" H{imgX.HistoryCount}");
                         }
 
+                        /*
                         if (imgX.Family > 0) {
                             var family = AppDatabase.GetFamily(imgX.Family);
                             sb.Append($" [{imgX.Family}:{family.Length}]");
                         }
+                        */
 
                         sb.AppendLine();
 
@@ -172,7 +174,7 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (imgX.Verified) {
-                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                            if (imgX.IsInHistory(imgY.Hash)) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
@@ -182,7 +184,7 @@ namespace ImgSoh
                             }
                         }
                         else {
-                            pLabels[index].Background = imgX.Family > 0 && imgX.Family == imgY.Family ?
+                            pLabels[index].Background = imgX.IsInHistory(imgY.Hash) ?
                                 System.Windows.Media.Brushes.YellowGreen :
                                 System.Windows.Media.Brushes.Yellow;
                         }

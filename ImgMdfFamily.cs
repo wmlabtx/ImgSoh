@@ -4,6 +4,7 @@
     {
         public static void CombineToFamily()
         {
+            /*
             if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(1).Hash, out var imgY)) {
                     if (imgX.Family == 0 && imgY.Family == 0) {
@@ -35,16 +36,19 @@
                     }
                 }
             }
+            */
         }
 
         public static void DetachFromFamily()
         {
+            /*
             if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(1).Hash, out var imgY)) {
                     imgX.SetFamily(0);
                     imgY.SetFamily(0);
                 }
             }
+            */
         }
     }
 }

@@ -37,28 +37,11 @@ namespace ImgSoh
                 /*
                  * 0) Next
                  * 1) oldest from History if History > 0
-                 * 2) oldest from Family if Family > 0
                  */
 
                 Img imgY = null;
-                if (imgX.Family > 0) {
-                    var coin = AppVars.RandomNext(10);
-                    if (coin == 0) {
-                        var family = AppDatabase.GetFamily(imgX.Family).ToList();
-                        family.Remove(imgX.Hash);
-                        if (family.Count > 0) {
-                            foreach (var hash in family) {
-                                if (!hash.Equals(imgX.Hash) && AppDatabase.TryGetImg(hash, out var img)) {
-                                    if (imgY == null || img.LastView < imgY.LastView) {
-                                        imgY = img;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
 
-                if (imgY == null && imgX.HistoryCount > 0) {
+                if (imgX.HistoryCount > 0) {
                     var coin = AppVars.RandomNext(10);
                     if (coin == 0) {
                         var historyArray = imgX.HistoryArray;

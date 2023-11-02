@@ -35,8 +35,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeDistance}, "); // 6
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
-                sb.Append($"{AppConsts.AttributeHistory}, "); // 9
-                sb.Append($"{AppConsts.AttributeFamily} "); // 10
+                sb.Append($"{AppConsts.AttributeHistory} "); // 9
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -54,7 +53,6 @@ namespace ImgSoh
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
                             var history = reader.GetString(9);
-                            var family = reader.GetInt32(10);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
@@ -65,8 +63,7 @@ namespace ImgSoh
                                 distance: distance,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                history: history,
-                                family: family
+                                history: history
                             );
 
                             _imgList.Add(hash, img);
@@ -139,8 +136,7 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeDistance}, ");
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
-                    sb.Append($"{AppConsts.AttributeHistory}, ");
-                    sb.Append($"{AppConsts.AttributeFamily}");
+                    sb.Append($"{AppConsts.AttributeHistory}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
                     sb.Append($"@{AppConsts.AttributeFolder}, ");
@@ -151,8 +147,7 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeDistance}, ");
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
-                    sb.Append($"@{AppConsts.AttributeHistory}, ");
-                    sb.Append($"@{AppConsts.AttributeFamily}");
+                    sb.Append($"@{AppConsts.AttributeHistory}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -166,7 +161,6 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -235,10 +229,7 @@ namespace ImgSoh
         {
             string hashN = null;
             var mindistance = float.MaxValue;
-            string hashX = null;
-            var minhcX = int.MaxValue;
-            var minhcY = int.MaxValue;
-            var minlv = DateTime.MaxValue;
+            var hashes = new SortedList<int, Tuple<string, int, DateTime>>();
             
             lock (_sqlLock) {
                 foreach (var imgX in _imgList.Values) {
@@ -251,31 +242,22 @@ namespace ImgSoh
                     }
 
                     if (imgX.Verified) {
+                        var hc = Math.Min(2, imgX.HistoryCount);
                         var imgY = _imgList[imgX.Next];
-                        if (imgX.HistoryCount < minhcX) {
-                            hashX = imgX.Hash;
-                            minhcX = imgX.HistoryCount;
-                            minhcY = imgY.HistoryCount;
-                            minlv = imgX.LastView;
+                        if (!hashes.TryGetValue(hc, out var e)) {
+                            hashes.Add(hc, Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView));
                         }
                         else {
-                            if (imgX.HistoryCount > minhcX) {
-                                continue;
-                            }
-
-                            if (imgY.HistoryCount < minhcY) {
-                                hashX = imgX.Hash;
-                                minhcY = imgY.HistoryCount;
-                                minlv = imgX.LastView;
+                            if (imgY.HistoryCount < e.Item2) {
+                                hashes[hc] = Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView);
                             }
                             else {
-                                if (imgY.HistoryCount > minhcY) {
+                                if (imgY.HistoryCount > e.Item2) {
                                     continue;
                                 }
 
-                                if (imgX.LastView < minlv) {
-                                    hashX = imgX.Hash;
-                                    minlv = imgX.LastView;
+                                if (imgX.LastView < e.Item3) {
+                                    hashes[hc] = Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView);
                                 }
                             }
                         }
@@ -295,14 +277,16 @@ namespace ImgSoh
                     }
                 }
 
-                if (hashX != null) {
-                    return hashX;
+                if (hashes.Count > 0) {
+                    var coin = AppVars.RandomNext(hashes.Count);
+                    return hashes[coin].Item1;
                 }
             }
 
             return null;
         }
 
+        /*
         public static string[] GetFamily(int family)
         {
             string[] result;
@@ -342,5 +326,6 @@ namespace ImgSoh
                 }
             }
         }
+        */
     }
 }

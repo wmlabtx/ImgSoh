@@ -14,19 +14,22 @@ namespace ImgSoh
                     imgX.SetLastView(DateTime.Now);
                     imgX.SetVerified(true);
                     imgX.SetNext(string.Empty);
+                    /*
                     if (imgX.Family == 0) {
                         var family = AppDatabase.SuggestFamilyId();
                         imgX.SetFamily(family);
                     }
+                    */
 
                     imgY.AddToHistory(hashX);
-                    imgY.SetLastView(DateTime.Now.AddMinutes(-1));
+                    //imgY.SetLastView(DateTime.Now.AddMinutes(-1));
                     imgY.SetNext(string.Empty);
+                    /*
                     if (imgY.Family == 0) {
                         var family = AppDatabase.SuggestFamilyId();
                         imgY.SetFamily(family);
                     }
-
+                    */
                 }
             }
         }

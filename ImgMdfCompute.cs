@@ -132,8 +132,7 @@ namespace ImgSoh
                 distance: 1f,
                 lastcheck: lastView,
                 verified: false,
-                history: string.Empty,
-                family: 0
+                history: string.Empty
             );
 
             AppDatabase.AddImg(imgnew);
