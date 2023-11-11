@@ -15,6 +15,7 @@
         public const string PathGbProtected = PathRootProtected + @"\" + FolderGb;
 
         public const int MaxImportFiles = 10000;
+        public const int MaxHistorySize = 100;
 
         public const string MzxExtension = ".mzx";
         public const string DatExtension = ".dat";

@@ -11,6 +11,7 @@ namespace ImgSoh
         private static readonly SqlConnection _sqlConnection;
         private static readonly object _sqlLock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
+        private static readonly List<DateTime> _recentVectors = new List<DateTime>();
 
         static AppDatabase()
         {
@@ -227,12 +228,10 @@ namespace ImgSoh
 
         public static string GetNextView()
         {
-            string hashN = null;
-            var mindistance = float.MaxValue;
-            var hashes = new SortedList<int, Tuple<string, int, DateTime>>();
-            
+            Img imgV = null;
             lock (_sqlLock) {
-                foreach (var imgX in _imgList.Values) {
+                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
+                foreach (var imgX in lvarray) {
                     if (imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
                         imgX.Next.Equals(imgX.Hash) ||
@@ -241,46 +240,35 @@ namespace ImgSoh
                         continue;
                     }
 
-                    if (imgX.Verified) {
-                        var hc = Math.Min(2, imgX.HistoryCount);
-                        var imgY = _imgList[imgX.Next];
-                        if (!hashes.TryGetValue(hc, out var e)) {
-                            hashes.Add(hc, Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView));
+                    const double dfmax = 24.0;
+                    var df = double.MaxValue;
+                    var offset = 0;
+                    while (offset < _recentVectors.Count) {
+                        df = Math.Abs(imgX.LastView.Subtract(_recentVectors[offset]).TotalHours);
+                        if (df < dfmax) {
+                            break;
                         }
-                        else {
-                            if (imgY.HistoryCount < e.Item2) {
-                                hashes[hc] = Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView);
-                            }
-                            else {
-                                if (imgY.HistoryCount > e.Item2) {
-                                    continue;
-                                }
 
-                                if (imgX.LastView < e.Item3) {
-                                    hashes[hc] = Tuple.Create(imgX.Hash, imgY.HistoryCount, imgX.LastView);
-                                }
-                            }
-                        }
+                        offset++;
                     }
-                    else {
-                        if (imgX.Distance < mindistance) {
-                            hashN = imgX.Hash;
-                            mindistance = imgX.Distance;
-                        }
+
+                    if (df < dfmax) {
+                        continue;
                     }
+
+                    imgV = imgX;
+                    break;
+                }
+            }
+
+            if (imgV != null) {
+                const int maxrecent = 10;
+                _recentVectors.Add(imgV.LastView);
+                while (_recentVectors.Count > maxrecent) {
+                    _recentVectors.RemoveAt(0);
                 }
 
-                if (hashN != null) {
-                    var coin = AppVars.RandomNext(10);
-                    if (coin == 0) {
-                        return hashN;
-                    }
-                }
-
-                if (hashes.Count > 0) {
-                    var coin = AppVars.RandomNext(hashes.Count);
-                    return hashes[coin].Item1;
-                }
+                return imgV.Hash;
             }
 
             return null;

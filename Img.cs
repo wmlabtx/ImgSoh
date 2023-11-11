@@ -64,6 +64,7 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVerified, verified);
         }
 
+        private List<Tuple<string, float>> _distances;
         private readonly SortedSet<string> _history;
         public int HistoryCount => _history.Count;
         public string[] HistoryArray => _history.ToArray();
@@ -76,8 +77,36 @@
 
         public void AddToHistory(string hash)
         {
-            if (_history.Add(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
+            if (HistoryCount < AppConsts.MaxHistorySize) {
+                if (_history.Add(hash)) {
+                    AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
+                }
+            }
+            else {
+                if (AppDatabase.TryGetImg(hash, out var imgY)) {
+                    var distanceY = VggHelper.GetDistance(_vector, imgY.GetVector());
+                    if (_distances == null) {
+                        _distances = new List<Tuple<string, float>>();
+                        foreach (var hashH in _history) {
+                            if (AppDatabase.TryGetImg(hashH, out var imgH)) {
+                                var distanceH = VggHelper.GetDistance(_vector, imgH.GetVector());
+                                _distances.Add(Tuple.Create(hashH, distanceH));
+                            }
+                        }
+                    }
+
+                    var maxdistance = _distances.Max(e => e.Item2);
+                    if (distanceY < maxdistance) {
+                        _distances.Add(Tuple.Create(hash, distanceY));
+                        _distances = _distances.OrderBy(e => e.Item2).Take(AppConsts.MaxHistorySize).ToList();
+                        _history.Clear();
+                        foreach (var e in _distances) {
+                            _history.Add(e.Item1);
+                        }
+
+                        AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
+                    }
+                }
             }
         }
 
@@ -111,6 +140,18 @@
             Next = next;
             Verified = verified;
             _history = Helper.StringToSortedSet(history);
+            _distances = null;
+        }
+    }
+
+    public class Pair : IComparable
+    {
+        public string Hash { get; set; }
+        public float Distance { get; set; }
+
+        public int CompareTo(object obj)
+        {
+            throw new NotImplementedException();
         }
     }
 }

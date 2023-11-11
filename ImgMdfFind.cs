@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 
 namespace ImgSoh
 {
@@ -34,22 +33,14 @@ namespace ImgSoh
                     continue;
                 }
 
-                /*
-                 * 0) Next
-                 * 1) oldest from History if History > 0
-                 */
-
                 Img imgY = null;
 
-                if (imgX.HistoryCount > 0) {
-                    var coin = AppVars.RandomNext(10);
-                    if (coin == 0) {
-                        var historyArray = imgX.HistoryArray;
-                        foreach (var hash in historyArray) {
-                            if (!hash.Equals(imgX.Hash) && AppDatabase.TryGetImg(hash, out var img)) {
-                                if (imgY == null || img.LastView < imgY.LastView) {
-                                    imgY = img;
-                                }
+                if (imgX.HistoryCount >= AppConsts.MaxHistorySize) {
+                    var historyArray = imgX.HistoryArray;
+                    foreach (var hash in historyArray) {
+                        if (!hash.Equals(imgX.Hash) && AppDatabase.TryGetImg(hash, out var img)) {
+                            if (imgY == null || img.LastView < imgY.LastView) {
+                                imgY = img;
                             }
                         }
                     }
