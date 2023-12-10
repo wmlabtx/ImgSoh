@@ -1,6 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -103,7 +104,7 @@ namespace ImgSoh
         private async void ButtonLeftNextMouseClick()
         {
             DisableElements();
-            await Task.Run(() => { ImgMdf.Confirm(); }).ConfigureAwait(true);
+            await Task.Run(ImgMdf.Confirm).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
@@ -154,13 +155,6 @@ namespace ImgSoh
                         if (imgX.HistoryCount > 0) {
                             sb.Append($" H{imgX.HistoryCount}");
                         }
-
-                        /*
-                        if (imgX.Family > 0) {
-                            var family = AppDatabase.GetFamily(imgX.Family);
-                            sb.Append($" [{imgX.Family}:{family.Length}]");
-                        }
-                        */
 
                         sb.AppendLine();
 

@@ -26,12 +26,8 @@ namespace ImgSoh
         {
             var hashX = AppPanels.GetImgPanel(idpanel).Hash;
             if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                if (imgX.Verified) {
-                    imgX.SetLastView(DateTime.Now);
-                }
-
-                var lc = AppDatabase.GetMinLastCheck();
-                imgX.SetLastCheck(lc);
+                imgX.SetLastView(DateTime.Now);
+                imgX.SetNext(string.Empty);
             }
         }
     }

@@ -51,8 +51,8 @@ namespace ImgSoh
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
                     var imgcount = AppDatabase.ImgCount(false);
-                    var newimgcount = AppDatabase.ImgCount(true);
-                    progress.Report($"{newimgcount}/{imgcount}: [{age} ago] {shortfilename}");
+                    var counter = AppDatabase.GetCounter();
+                    progress.Report($"{counter}/{imgcount}: [{age} ago] {shortfilename}");
 
                     if (hashX.Equals(hashY)) {
                         throw new Exception();

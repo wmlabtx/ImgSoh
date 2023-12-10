@@ -182,7 +182,7 @@ gab_nosim6 = 0.8706
 
             for (var i = 0; i < vectors.Length; i++) {
                 var distance = VggHelper.GetDistance(vectors[0].Item2, vectors[i].Item2);
-                var rawdistance = VggHelper.GetRawDistance(vectors[0].Item2, vectors[i].Item2);
+                var rawdistance = VggHelper.GetSpearmanDistance(vectors[0].Item2, vectors[i].Item2);
                 Debug.WriteLine($"{images[i]} = {distance:F4} ({rawdistance:F2})");
             }
         }

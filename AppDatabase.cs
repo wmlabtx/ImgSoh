@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 
 namespace ImgSoh
@@ -11,7 +12,6 @@ namespace ImgSoh
         private static readonly SqlConnection _sqlConnection;
         private static readonly object _sqlLock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
-        private static readonly List<DateTime> _recentVectors = new List<DateTime>();
 
         static AppDatabase()
         {
@@ -184,19 +184,19 @@ namespace ImgSoh
         {
             Img imgCheck = null;
             lock (_sqlLock) {
-                foreach (var img in _imgList.Values) {
+                foreach (var imgX in _imgList.Values) {
                     if (
-                        img.GetVector() == null ||
-                        img.GetVector().Length != 4096 ||
-                        img.Next.Equals(img.Hash) ||
-                        !_imgList.ContainsKey(img.Next) ||
-                        img.IsInHistory(img.Next)) {
-                        imgCheck = img;
+                        imgX.GetVector() == null ||
+                        imgX.GetVector().Length != 4096 ||
+                        imgX.Next.Equals(imgX.Hash) ||
+                        imgX.IsInHistory(imgX.Next) ||
+                        !_imgList.ContainsKey(imgX.Next)) {
+                        imgCheck = imgX;
                         break;
                     }
 
-                    if (imgCheck == null || img.LastCheck < imgCheck.LastCheck) {
-                        imgCheck = img;
+                    if (imgCheck == null || imgX.LastCheck < imgCheck.LastCheck) {
+                        imgCheck = imgX;
                     }
                 }
             }
@@ -226,17 +226,19 @@ namespace ImgSoh
             return lc;
         }
 
+        /*
         public static string GetNextView()
         {
             Img imgV = null;
             lock (_sqlLock) {
                 var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
                 foreach (var imgX in lvarray) {
-                    if (imgX.GetVector() == null ||
+                    if (
+                        imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
                         imgX.Next.Equals(imgX.Hash) ||
-                        !_imgList.ContainsKey(imgX.Next) ||
-                        imgX.IsInHistory(imgX.Next)) {
+                        imgX.IsInHistory(imgX.Next) || 
+                        !_imgList.ContainsKey(imgX.Next)) { 
                         continue;
                     }
 
@@ -273,47 +275,171 @@ namespace ImgSoh
 
             return null;
         }
+        */
 
-        /*
-        public static string[] GetFamily(int family)
+        public static string GetNextView()
         {
-            string[] result;
+            Img imgV = null;
+            int mindayX = int.MaxValue;
+            int mindayY = int.MaxValue;
             lock (_sqlLock) {
-                result = _imgList.Where(e => e.Value.Family == family).Select(e => e.Key).ToArray();
-            }
+                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
+                foreach (var imgX in lvarray) {
+                    if (
+                        imgX.GetVector() == null ||
+                        imgX.GetVector().Length != 4096 ||
+                        imgX.Next.Equals(imgX.Hash) ||
+                        imgX.IsInHistory(imgX.Next)) {
+                        continue;
+                    }
 
-            return result;
-        }
+                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
+                        continue;
+                    }
 
-        public static int SuggestFamilyId()
-        {
-            var familyId = 1;
-            lock (_sqlLock) {
-                var families = _imgList
-                    .Where(e => e.Value.Family > 0)
-                    .Select(e => e.Value.Family)
-                    .Distinct()
-                    .OrderBy(e => e)
-                    .ToArray();
+                    var dayX = (int)Math.Round(imgX.LastView.Subtract(DateTime.MinValue).TotalDays);
+                    var dayY = (int)Math.Round(imgY.LastView.Subtract(DateTime.MinValue).TotalDays);
 
-                while (familyId <= families.Length && families[familyId - 1] == familyId) {
-                    familyId++;
-                }
-            }
+                    if (imgV == null) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        continue;
+                    }
 
-            return familyId;
-        }
+                    if (imgX.Verified && !imgV.Verified) {
+                        continue;
+                    }
 
-        public static void RenameFamily(int of, int nf)
-        {
-            lock (_sqlLock) {
-                foreach (var imgX in _imgList.Values) {
-                    if (imgX.Family == of) {
-                        imgX.SetFamily(nf);
+                    if (!imgX.Verified && imgV.Verified) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        continue;
+                    }
+
+                    if (imgX.HistoryCount > imgV.HistoryCount) {
+                        continue;
+                    }
+
+                    if (imgX.HistoryCount < imgV.HistoryCount) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        continue;
+                    }
+
+                    if (dayX > mindayX) {
+                        continue;
+                    }
+
+                    if (dayX < mindayX) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        continue;
+                    }
+
+                    if (dayY > mindayY) {
+                        continue;
+                    }
+
+                    if (dayY < mindayY) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
                     }
                 }
             }
+
+            return imgV?.Hash;
         }
-        */
+
+        public static int GetCounter()
+        {
+            int counter = 0;
+            Img imgV = null;
+            int mindayX = int.MaxValue;
+            int mindayY = int.MaxValue;
+            lock (_sqlLock) {
+                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
+                foreach (var imgX in lvarray) {
+                    if (
+                        imgX.GetVector() == null ||
+                        imgX.GetVector().Length != 4096 ||
+                        imgX.Next.Equals(imgX.Hash) ||
+                        imgX.IsInHistory(imgX.Next)) {
+                        continue;
+                    }
+
+                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
+                        continue;
+                    }
+
+                    var dayX = (int)Math.Round(imgX.LastView.Subtract(DateTime.MinValue).TotalDays);
+                    var dayY = (int)Math.Round(imgY.LastView.Subtract(DateTime.MinValue).TotalDays);
+
+                    if (imgV == null) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        counter = 1;
+                        continue;
+                    }
+
+                    if (imgX.Verified && !imgV.Verified) {
+                        continue;
+                    }
+
+                    if (!imgX.Verified && imgV.Verified) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        counter = 1;
+                        continue;
+                    }
+
+                    if (imgX.HistoryCount > imgV.HistoryCount) {
+                        continue;
+                    }
+
+                    if (imgX.HistoryCount < imgV.HistoryCount) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        counter = 1;
+                        continue;
+                    }
+
+                    if (dayX > mindayX) {
+                        continue;
+                    }
+
+                    if (dayX < mindayX) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        counter = 1;
+                        continue;
+                    }
+
+                    if (dayY > mindayY) {
+                        continue;
+                    }
+
+                    if (dayY < mindayY) {
+                        imgV = imgX;
+                        mindayX = dayX;
+                        mindayY = dayY;
+                        counter = 1;
+                        continue;
+                    }
+
+                    counter++;
+                }
+            }
+
+            return counter;
+        }
     }
 }

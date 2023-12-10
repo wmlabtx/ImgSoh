@@ -117,6 +117,8 @@
             }
         }
 
+        public int Dominant { get; private set; }
+
         public Img(
             string hash,
             string folder,
@@ -141,17 +143,6 @@
             Verified = verified;
             _history = Helper.StringToSortedSet(history);
             _distances = null;
-        }
-    }
-
-    public class Pair : IComparable
-    {
-        public string Hash { get; set; }
-        public float Distance { get; set; }
-
-        public int CompareTo(object obj)
-        {
-            throw new NotImplementedException();
         }
     }
 }

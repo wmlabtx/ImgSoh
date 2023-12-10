@@ -206,6 +206,10 @@ namespace ImgSoh
                     }
                 }
 
+                var vectorX = imgX.GetVector();
+                string hashY = null;
+                var mindistance = float.MaxValue;
+
                 var vectors = AppDatabase.GetVectors();
                 vectors.Remove(hashX);
                 foreach (var hash in imgX.HistoryArray) {
@@ -217,9 +221,6 @@ namespace ImgSoh
                     }
                 }
 
-                string hashY = null;
-                var mindistance = float.MaxValue;
-                var vectorX = imgX.GetVector();
                 foreach (var e in vectors) {
                     var distance = VggHelper.GetDistance(vectorX, e.Value);
                     if (distance < mindistance) {
@@ -233,8 +234,8 @@ namespace ImgSoh
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
                         backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {mindistance:F4}");
-                        imgX.SetNext(hashY);
                         imgX.SetDistance(mindistance);
+                        imgX.SetNext(hashY);
                     }
                 }
 

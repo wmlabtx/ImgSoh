@@ -106,21 +106,67 @@ namespace ImgSoh
             return 1f - (float)(dot / (Math.Sqrt(magx) * Math.Sqrt(magy)));
         }
 
-        public static float GetRawDistance(byte[] x, byte[] y)
+        public static float GetSpearmanDistance(byte[] x, byte[] y)
         {
             if (x.Length == 0 || y.Length == 0 || x.Length != y.Length) {
                 return 1f;
             }
 
-            const int Limit = 128;
-            var intdistance = x.Length;
-            for (var n = 0; n < x.Length; n++) {
-                if ((x[n] <= Limit && y[n] <= Limit) || (x[n] > Limit && y[n] > Limit)) {
-                    intdistance--;
+            var xr = getSpearmanRank(x);
+            var yr = getSpearmanRank(y);
+            var distance = getSpearmanCorrelation(xr, yr);
+            return distance;
+        }
+
+        private static float[] getSpearmanRank(byte[] x)
+        {
+            var n = x.Length;
+            var result = new float[n];
+            for (var i = 0; i < n; i++) {
+                result[i] = 0f;
+                int r = 1, s = 1;
+                for (var j = 0; j < i; j++) {
+                    if (x[j] < x[i]) {
+                        r++;
+                    }
+
+                    if (x[j] == x[i]) {
+                        s++;
+                    }
                 }
+
+                for (var j = i + 1; j < n; j++) {
+                    if (x[j] < x[i]) {
+                        r++;
+                    }
+
+                    if (x[j] == x[i]) {
+                        s++;
+                    }
+                }
+
+                result[i] = (r + (s - 1) * 0.5f);
             }
 
-            return (float)intdistance / x.Length;
+            return result;
+        }
+
+        private static float getSpearmanCorrelation(float[] x, float[] y)
+        {
+            var n = x.Length;
+            float sum_X = 0f, sum_Y = 0f, sum_XY = 0f;
+            float squareSum_X = 0f, squareSum_Y = 0f;
+
+            for (var i = 0; i < n; i++) {
+                sum_X += x[i];
+                sum_Y += y[i];
+                sum_XY += x[i] * y[i];
+                squareSum_X += x[i] * x[i];
+                squareSum_Y += y[i] * y[i];
+            }
+
+            var result = 1f - (float)((n * sum_XY - sum_X * sum_Y) / Math.Sqrt((n * squareSum_X - sum_X * sum_X) * (n * squareSum_Y - sum_Y * sum_Y)));
+            return result;
         }
     }
 }
