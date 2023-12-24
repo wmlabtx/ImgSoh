@@ -66,7 +66,7 @@ namespace ImgSoh
                     }
 
                     //imgFound.SetLastView(lastView);
-                    DeleteFile(orgfilename);
+                    DeleteFile(orgfilename, string.Empty);
                     _found++;
                     return;
                 }
@@ -76,25 +76,28 @@ namespace ImgSoh
             }
 
             byte[] vector;
+            byte[] colorvector;
+            DateTime datetaken;
             using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
-                    DeleteFile(orgfilename);
+                    DeleteFile(orgfilename, AppConsts.CorruptedExtension);
                     _bad++;
                     return;
                 }
 
-                var datetaken = BitmapHelper.GetDateTaken(magickImage, DateTime.Now);
+                datetaken = BitmapHelper.GetDateTaken(magickImage, DateTime.Now);
                 if (datetaken < lastmodified) {
                     lastmodified = datetaken;
                 }
 
                 using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
                     vector = VggHelper.CalculateVector(bitmap);
+                    colorvector = ColorHelper.CalculateVector(bitmap);
                 }
             }
 
-            if (vector == null) {
-                DeleteFile(orgfilename);
+            if (vector == null || colorvector == null) {
+                DeleteFile(orgfilename, AppConsts.CorruptedExtension);
                 _bad++;
                 return;
             }
@@ -108,31 +111,33 @@ namespace ImgSoh
 
             var vimagedata = FileHelper.ReadEncryptedFile(newfilename);
             if (vimagedata == null) {
-                DeleteFile(newfilename);
+                DeleteFile(newfilename, AppConsts.CorruptedExtension);
                 return;
             }
 
             var vhash = FileHelper.GetHash(vimagedata);
             if (!hash.Equals(vhash)) {
-                DeleteFile(newfilename);
+                DeleteFile(newfilename, string.Empty);
                 return;
             }
 
             if (!orgfilename.Equals(newfilename)) {
-                DeleteFile(orgfilename);
+                DeleteFile(orgfilename, string.Empty);
             }
 
             var imgnew = new Img(
                 hash: hash,
                 folder: folder,
                 vector: vector,
+                colorvector: colorvector,
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastView,
                 next: hash,
                 distance: 1f,
                 lastcheck: lastView,
                 verified: false,
-                history: string.Empty
+                history: string.Empty,
+                datetaken: datetaken
             );
 
             AppDatabase.AddImg(imgnew);
@@ -196,37 +201,78 @@ namespace ImgSoh
 
             var hashX = AppDatabase.GetNextCheck();
             if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                if (imgX.GetVector().Length != 4096) {
-                    var filename = Helper.GetFileName(imgX.Folder, imgX.Hash);
-                    var imagedata = FileHelper.ReadEncryptedFile(filename);
-                    using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
-                    using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                        var vector = VggHelper.CalculateVector(bitmap);
-                        imgX.SetVector(vector);
+                var filename = Helper.GetFileName(imgX.Folder, imgX.Hash);
+                var imagedata = FileHelper.ReadEncryptedFile(filename);
+                if (imagedata == null) {
+                    Delete(hashX, AppConsts.CorruptedExtension, null);
+                    return;
+                }
+
+                var hashT = FileHelper.GetHash(imagedata);
+                if (!hashT.Equals(hashX)) {
+                    Delete(hashX, AppConsts.CorruptedExtension, null);
+                    return;
+                }
+
+                if (imgX.GetVector().Length != 4096 || imgX.GetColorVector().Length != 200 || imgX.DateTaken.Year == 1900) {
+                    using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
+                        if (magickImage == null) {
+                            Delete(hashX, AppConsts.CorruptedExtension, null);
+                            return;
+                        }
+
+                        using (var bitmap =
+                               BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                            var vector = VggHelper.CalculateVector(bitmap);
+                            imgX.SetVector(vector);
+                            var colorvector = ColorHelper.CalculateVector(bitmap);
+                            imgX.SetColorVector(colorvector);
+                            var lastmodified = File.GetLastWriteTime(filename);
+                            var datetaken = BitmapHelper.GetDateTaken(magickImage, lastmodified);
+                            imgX.SetDateTaken(datetaken);
+                        }
                     }
                 }
 
-                var vectorX = imgX.GetVector();
-                string hashY = null;
-                var mindistance = float.MaxValue;
-
-                var vectors = AppDatabase.GetVectors();
-                vectors.Remove(hashX);
+                var candidates = AppDatabase.GetCandidates();
+                candidates.Remove(hashX);
                 foreach (var hash in imgX.HistoryArray) {
-                    if (vectors.ContainsKey(hash)) {
-                        vectors.Remove(hash);
+                    if (candidates.ContainsKey(hash)) {
+                        candidates.Remove(hash);
                     }
                     else {
                         imgX.RemoveFromHistory(hash);
                     }
                 }
 
-                foreach (var e in vectors) {
-                    var distance = VggHelper.GetDistance(vectorX, e.Value);
-                    if (distance < mindistance) {
-                        mindistance = distance;
-                        hashY = e.Key;
+                string hashVgg = null;
+                float distanceVgg = 1f;
+                string hashColor = null;
+                float distanceColor = 1f;
+
+                foreach (var e in candidates) {
+                    var distance = VggHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
+                    if (distance < distanceVgg) {
+                        distanceVgg = distance;
+                        hashVgg = e.Key;
                     }
+
+                    distance = ColorHelper.GetDistance(imgX.GetColorVector(), e.Value.GetColorVector());
+                    if (distance < distanceColor) {
+                        distanceColor = distance;
+                        hashColor = e.Key;
+                    }
+                }
+
+                string hashY;
+                float mindistance;
+                if (distanceVgg < distanceColor) {
+                    hashY = hashVgg;
+                    mindistance = distanceVgg;
+                }
+                else {
+                    hashY = hashColor;
+                    mindistance = distanceColor;
                 }
 
                 if (!string.IsNullOrEmpty(hashY)) {

@@ -22,13 +22,13 @@ namespace ImgSoh
                 }
 
                 if (!AppPanels.SetImgPanel(0, hashX)) {
-                    Delete(hashX, progress);
+                    Delete(hashX, AppConsts.CorruptedExtension, progress);
                     hashX = null;
                     continue;
                 }
 
                 if (!AppDatabase.TryGetImg(hashX, out var imgX)) {
-                    Delete(hashX, progress);
+                    Delete(hashX, AppConsts.CorruptedExtension, progress);
                     hashX = null;
                     continue;
                 }
@@ -51,15 +51,15 @@ namespace ImgSoh
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
                     var imgcount = AppDatabase.ImgCount(false);
-                    var counter = AppDatabase.GetCounter();
-                    progress.Report($"{counter}/{imgcount}: [{age} ago] {shortfilename}");
+                    AppDatabase.GetCounters(out var good, out var bad, out var distance);
+                    progress.Report($"{distance:F2}:{good}/x{bad}/{imgcount}: [{age} ago] {shortfilename}");
 
                     if (hashX.Equals(hashY)) {
                         throw new Exception();
                     }
 
                     if (!AppPanels.SetImgPanel(1, hashY)) {
-                        Delete(hashY, progress);
+                        Delete(hashY, AppConsts.CorruptedExtension, progress);
                         hashX = null;
                         continue;
                     }

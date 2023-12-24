@@ -5,19 +5,19 @@ namespace ImgSoh
 {
     public static partial class ImgMdf
     {
-        private static void Delete(string hashD, IProgress<string> progress)
+        private static void Delete(string hashD, string suffix, IProgress<string> progress)
         {
             if (AppDatabase.TryGetImg(hashD, out var imgD)) {
                 var folderD = imgD.Folder;
                 var shortname = Helper.GetShortFileName(folderD, hashD);
-                progress.Report($"Delete {shortname}");
+                progress?.Report($"Delete {shortname}");
                 AppDatabase.ImgDelete(hashD);
                 var filename = Helper.GetFileName(folderD, hashD);
-                DeleteFile(filename);
+                DeleteFile(filename, suffix);
             }
         }
 
-        private static void DeleteFile(string filename)
+        private static void DeleteFile(string filename, string suffix)
         {
             var name = Path.GetFileNameWithoutExtension(filename).ToLower();
             var extension = Path.GetExtension(filename);
@@ -49,7 +49,7 @@ namespace ImgSoh
             string deletedFilename;
             var counter = 0;
             do {
-                deletedFilename = $"{AppConsts.PathGbProtected}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}.{name}";
+                deletedFilename = $"{AppConsts.PathGbProtected}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}{suffix}.{name}";
                 if (counter > 0) {
                     deletedFilename += $"({counter})";
                 }
@@ -62,10 +62,10 @@ namespace ImgSoh
             File.Delete(filename);
         }
 
-        public static void Delete(int idpanel, IProgress<string> progress)
+        public static void Delete(int idpanel, string suffix, IProgress<string> progress)
         {
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
-            Delete(hashD, progress);
+            Delete(hashD, suffix, progress);
             ConfirmOpposite(1 - idpanel);
         }
     }

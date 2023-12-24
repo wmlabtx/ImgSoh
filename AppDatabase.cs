@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 
 namespace ImgSoh
@@ -36,7 +35,9 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeDistance}, "); // 6
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
-                sb.Append($"{AppConsts.AttributeHistory} "); // 9
+                sb.Append($"{AppConsts.AttributeHistory}, "); // 9
+                sb.Append($"{AppConsts.AttributeColorVector}, "); // 10
+                sb.Append($"{AppConsts.AttributeDateTaken} "); // 11
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -54,17 +55,21 @@ namespace ImgSoh
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
                             var history = reader.GetString(9);
+                            var colorvector = (byte[])reader[10];
+                            var datetaken = reader.GetDateTime(11);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
                                 vector: vector,
+                                colorvector: colorvector,
                                 orientation: orientation,
                                 lastview: lastview,
                                 next: next,
                                 distance: distance,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                history: history
+                                history: history,
+                                datetaken: datetaken
                             );
 
                             _imgList.Add(hash, img);
@@ -137,7 +142,9 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeDistance}, ");
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
-                    sb.Append($"{AppConsts.AttributeHistory}");
+                    sb.Append($"{AppConsts.AttributeHistory}, ");
+                    sb.Append($"{AppConsts.AttributeColorVector}, ");
+                    sb.Append($"{AppConsts.AttributeDateTaken}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
                     sb.Append($"@{AppConsts.AttributeFolder}, ");
@@ -148,7 +155,9 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeDistance}, ");
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
-                    sb.Append($"@{AppConsts.AttributeHistory}");
+                    sb.Append($"@{AppConsts.AttributeHistory}, ");
+                    sb.Append($"@{AppConsts.AttributeColorVector}, ");
+                    sb.Append($"@{AppConsts.AttributeDateTaken}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -162,6 +171,8 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeColorVector}", img.GetColorVector());
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDateTaken}", img.DateTaken);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -188,6 +199,9 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
+                        imgX.GetColorVector() == null ||
+                        imgX.GetColorVector().Length != 200 ||
+                        imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
                         !_imgList.ContainsKey(imgX.Next)) {
@@ -204,29 +218,16 @@ namespace ImgSoh
             return imgCheck?.Hash;
         }
 
-        public static SortedList<string, byte[]> GetVectors()
+        public static SortedList<string, Img> GetCandidates()
         {
-            var shadow = new SortedList<string, byte[]>();
+            SortedList<string, Img> shadow;
             lock (_sqlLock) {
-                foreach (var img in _imgList.Values) {
-                    shadow.Add(img.Hash, img.GetVector());
-                }
+                shadow = new SortedList<string, Img>(_imgList);
             }
 
             return shadow;
         }
 
-        public static DateTime GetMinLastCheck()
-        {
-            DateTime lc;
-            lock (_sqlLock) {
-                lc = _imgList.Min(e => e.Value.LastCheck).AddSeconds(-1);
-            }
-
-            return lc;
-        }
-
-        /*
         public static string GetNextView()
         {
             Img imgV = null;
@@ -236,74 +237,17 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
+                        imgX.GetColorVector() == null ||
+                        imgX.GetColorVector().Length != 200 ||
+                        imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
-                        imgX.IsInHistory(imgX.Next) || 
-                        !_imgList.ContainsKey(imgX.Next)) { 
+                        imgX.IsInHistory(imgX.Next) ||
+                        !_imgList.ContainsKey(imgX.Next)) {
                         continue;
                     }
-
-                    const double dfmax = 24.0;
-                    var df = double.MaxValue;
-                    var offset = 0;
-                    while (offset < _recentVectors.Count) {
-                        df = Math.Abs(imgX.LastView.Subtract(_recentVectors[offset]).TotalHours);
-                        if (df < dfmax) {
-                            break;
-                        }
-
-                        offset++;
-                    }
-
-                    if (df < dfmax) {
-                        continue;
-                    }
-
-                    imgV = imgX;
-                    break;
-                }
-            }
-
-            if (imgV != null) {
-                const int maxrecent = 10;
-                _recentVectors.Add(imgV.LastView);
-                while (_recentVectors.Count > maxrecent) {
-                    _recentVectors.RemoveAt(0);
-                }
-
-                return imgV.Hash;
-            }
-
-            return null;
-        }
-        */
-
-        public static string GetNextView()
-        {
-            Img imgV = null;
-            int mindayX = int.MaxValue;
-            int mindayY = int.MaxValue;
-            lock (_sqlLock) {
-                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
-                foreach (var imgX in lvarray) {
-                    if (
-                        imgX.GetVector() == null ||
-                        imgX.GetVector().Length != 4096 ||
-                        imgX.Next.Equals(imgX.Hash) ||
-                        imgX.IsInHistory(imgX.Next)) {
-                        continue;
-                    }
-
-                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
-                        continue;
-                    }
-
-                    var dayX = (int)Math.Round(imgX.LastView.Subtract(DateTime.MinValue).TotalDays);
-                    var dayY = (int)Math.Round(imgY.LastView.Subtract(DateTime.MinValue).TotalDays);
 
                     if (imgV == null) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
                         continue;
                     }
 
@@ -313,8 +257,6 @@ namespace ImgSoh
 
                     if (!imgX.Verified && imgV.Verified) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
                         continue;
                     }
 
@@ -324,30 +266,11 @@ namespace ImgSoh
 
                     if (imgX.HistoryCount < imgV.HistoryCount) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
                         continue;
                     }
 
-                    if (dayX > mindayX) {
-                        continue;
-                    }
-
-                    if (dayX < mindayX) {
+                    if (imgX.Distance < imgV.Distance) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        continue;
-                    }
-
-                    if (dayY > mindayY) {
-                        continue;
-                    }
-
-                    if (dayY < mindayY) {
-                        imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
                     }
                 }
             }
@@ -355,35 +278,34 @@ namespace ImgSoh
             return imgV?.Hash;
         }
 
-        public static int GetCounter()
+        public static void GetCounters(out int good, out int bad, out float classDistance)
         {
-            int counter = 0;
+            good = 0;
+            bad = 0;
             Img imgV = null;
-            int mindayX = int.MaxValue;
-            int mindayY = int.MaxValue;
+            var roundDistance = 100;
             lock (_sqlLock) {
                 var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
                 foreach (var imgX in lvarray) {
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
+                        imgX.GetColorVector() == null ||
+                        imgX.GetColorVector().Length != 200 ||
+                        imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
-                        imgX.IsInHistory(imgX.Next)) {
+                        imgX.IsInHistory(imgX.Next) ||
+                        !_imgList.ContainsKey(imgX.Next)) {
+                        bad++;
                         continue;
                     }
 
-                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
-                        continue;
-                    }
-
-                    var dayX = (int)Math.Round(imgX.LastView.Subtract(DateTime.MinValue).TotalDays);
-                    var dayY = (int)Math.Round(imgY.LastView.Subtract(DateTime.MinValue).TotalDays);
+                    var distance = (int)Math.Round(imgX.Distance * 100f);
 
                     if (imgV == null) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        counter = 1;
+                        good = 1;
+                        roundDistance = distance;
                         continue;
                     }
 
@@ -393,9 +315,8 @@ namespace ImgSoh
 
                     if (!imgX.Verified && imgV.Verified) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        counter = 1;
+                        good = 1;
+                        roundDistance = distance;
                         continue;
                     }
 
@@ -405,41 +326,27 @@ namespace ImgSoh
 
                     if (imgX.HistoryCount < imgV.HistoryCount) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        counter = 1;
+                        good = 1;
+                        roundDistance = distance;
                         continue;
                     }
 
-                    if (dayX > mindayX) {
+                    if (distance > roundDistance) {
                         continue;
                     }
 
-                    if (dayX < mindayX) {
+                    if (distance < roundDistance) {
                         imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        counter = 1;
+                        good = 1;
+                        roundDistance = distance;
                         continue;
                     }
 
-                    if (dayY > mindayY) {
-                        continue;
-                    }
-
-                    if (dayY < mindayY) {
-                        imgV = imgX;
-                        mindayX = dayX;
-                        mindayY = dayY;
-                        counter = 1;
-                        continue;
-                    }
-
-                    counter++;
+                    good++;
                 }
             }
 
-            return counter;
+            classDistance = roundDistance / 100f;
         }
     }
 }

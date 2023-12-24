@@ -41,6 +41,9 @@ namespace ImgSoh
             catch (MagickCorruptImageErrorException) {
                 magickImage = null;
             }
+            catch (MagickCoderErrorException) {
+                magickImage = null;
+            }
 
             return magickImage;
         }
@@ -180,12 +183,6 @@ namespace ImgSoh
                 ya[i] = (byte)Math.Min(255, Math.Abs(xa[i] - ya[i]) << 3);
                 ya[i + 1] = (byte)Math.Min(255, Math.Abs(xa[i + 1] - ya[i + 1]) << 1);
                 ya[i + 2] = (byte)Math.Min(255, Math.Abs(xa[i + 2] - ya[i + 2]) << 1);
-                /*
-                if (ya[i] == 255 && ya[i + 1] == 255 && ya[i + 2] == 255) {
-                    var cb = new Bitmap(yb);
-                    return cb;
-                }
-                */
             }
 
             var zb = new Bitmap(yb);

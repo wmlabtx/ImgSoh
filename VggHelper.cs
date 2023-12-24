@@ -112,13 +112,13 @@ namespace ImgSoh
                 return 1f;
             }
 
-            var xr = getSpearmanRank(x);
-            var yr = getSpearmanRank(y);
-            var distance = getSpearmanCorrelation(xr, yr);
+            var xr = GetSpearmanRank(x);
+            var yr = GetSpearmanRank(y);
+            var distance = GetSpearmanCorrelation(xr, yr);
             return distance;
         }
 
-        private static float[] getSpearmanRank(byte[] x)
+        private static float[] GetSpearmanRank(byte[] x)
         {
             var n = x.Length;
             var result = new float[n];
@@ -151,7 +151,7 @@ namespace ImgSoh
             return result;
         }
 
-        private static float getSpearmanCorrelation(float[] x, float[] y)
+        private static float GetSpearmanCorrelation(float[] x, float[] y)
         {
             var n = x.Length;
             float sum_X = 0f, sum_Y = 0f, sum_XY = 0f;

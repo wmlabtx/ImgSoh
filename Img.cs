@@ -22,6 +22,22 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVector, _vector);
         }
 
+        private byte[] _colorvector;
+        public byte[] GetColorVector()
+        {
+            return _colorvector;
+        }
+
+        public void SetColorVector(byte[] colorvector)
+        {
+            if (_colorvector == null || _colorvector.Length != 200) {
+                _colorvector = new byte[200];
+            }
+
+            Array.Copy(colorvector, _colorvector, 200);
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeColorVector, _colorvector);
+        }
+
         public DateTime LastView { get; private set; }
         public void SetLastView(DateTime lastview)
         {
@@ -62,6 +78,13 @@
         {
             Verified = verified;
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVerified, verified);
+        }
+
+        public DateTime DateTaken { get; private set; }
+        public void SetDateTaken(DateTime datetaken)
+        {
+            DateTaken = datetaken;
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeDateTaken, datetaken);
         }
 
         private List<Tuple<string, float>> _distances;
@@ -117,24 +140,25 @@
             }
         }
 
-        public int Dominant { get; private set; }
-
         public Img(
             string hash,
             string folder,
             byte[] vector,
+            byte[] colorvector,
             DateTime lastview,
             RotateFlipType orientation,
             float distance,
             DateTime lastcheck,
             string next,
             bool verified,
-            string history
+            string history,
+            DateTime datetaken
             )
         {
             Hash = hash;
             Folder = folder;
             _vector = vector;
+            _colorvector = colorvector;
             Orientation = orientation;
             LastView = lastview;
             Distance = distance;
@@ -143,6 +167,7 @@
             Verified = verified;
             _history = Helper.StringToSortedSet(history);
             _distances = null;
+            DateTaken = datetaken;
         }
     }
 }

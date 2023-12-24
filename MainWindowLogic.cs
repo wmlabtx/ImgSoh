@@ -54,6 +54,7 @@ namespace ImgSoh
 
             
             await Task.Run(() => { VggHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { ColorHelper.LoadTable(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
@@ -224,7 +225,7 @@ namespace ImgSoh
         private async void ImgPanelDelete(int idpanel)
         {
             DisableElements();
-            await Task.Run(() => { ImgMdf.Delete(idpanel, AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { ImgMdf.Delete(idpanel, string.Empty, AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();

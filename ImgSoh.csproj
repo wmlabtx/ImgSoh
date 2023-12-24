@@ -122,6 +122,7 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="ColorHelper.cs" />
     <Compile Include="ImgMdfCompute.cs" />
     <Compile Include="ImgMdfConfirm.cs" />
     <Compile Include="ImgMdfDelete.cs" />

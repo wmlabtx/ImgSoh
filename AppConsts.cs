@@ -7,6 +7,7 @@
         private const string FolderDb = "Db";
         public const string FileVgg = PathRoot + @"\" + FolderDb +@"\" + "vgg16.onnx";
         public const string FileDatabase = PathRoot + @"\" + FolderDb + @"\" + "images.mdf";
+        public const string FileRgbLab = PathRoot + @"\" + FolderDb + @"\" + "rgblab.dat";
         private const string FolderRw = "Rw";
         public const string PathRwProtected = PathRootProtected + @"\" + FolderRw;
         private const string FolderHp = "Hp";
@@ -39,5 +40,7 @@
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeHistory = "History";
+        public const string AttributeColorVector = "ColorVector";
+        public const string AttributeDateTaken = "DateTaken";
     }
 }
