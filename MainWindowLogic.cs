@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -52,7 +51,7 @@ namespace ImgSoh
 
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
-            
+            await Task.Run(ExifHelper.Start).ConfigureAwait(true);
             await Task.Run(() => { VggHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ColorHelper.LoadTable(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
@@ -254,6 +253,7 @@ namespace ImgSoh
 
         private void ClassDispose()
         {
+            ExifHelper.Stop();
             _notifyIcon?.Dispose();
             _backgroundWorker?.CancelAsync();
             _backgroundWorker?.Dispose();

@@ -14,6 +14,8 @@
         public const string PathHp = PathRoot + @"\" + FolderHp;
         private const string FolderGb = "Gb";
         public const string PathGbProtected = PathRootProtected + @"\" + FolderGb;
+        private const string FolderEx = "Ex";
+        public const string FileExifTool = PathRoot + @"\" + FolderEx + @"\" + "exiftool(-k).exe";
 
         public const int MaxImportFiles = 10000;
         public const int MaxHistorySize = 100;
@@ -40,7 +42,7 @@
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeHistory = "History";
-        public const string AttributeColorVector = "ColorVector";
         public const string AttributeDateTaken = "DateTaken";
+        public const string AttributeFingerPrint = "FingerPrint";
     }
 }

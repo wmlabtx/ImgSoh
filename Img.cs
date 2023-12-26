@@ -22,22 +22,6 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVector, _vector);
         }
 
-        private byte[] _colorvector;
-        public byte[] GetColorVector()
-        {
-            return _colorvector;
-        }
-
-        public void SetColorVector(byte[] colorvector)
-        {
-            if (_colorvector == null || _colorvector.Length != 200) {
-                _colorvector = new byte[200];
-            }
-
-            Array.Copy(colorvector, _colorvector, 200);
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeColorVector, _colorvector);
-        }
-
         public DateTime LastView { get; private set; }
         public void SetLastView(DateTime lastview)
         {
@@ -140,11 +124,19 @@
             }
         }
 
+        public SortedList<string, string> FingerPrint;
+        public string FingerPrintString { get; private set; }
+        public void SetFingerPrint(string fingerprint)
+        {
+            FingerPrintString = fingerprint;
+            FingerPrint = ExifHelper.StringtoFingerPrint(fingerprint);
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFingerPrint, fingerprint);
+        }
+
         public Img(
             string hash,
             string folder,
             byte[] vector,
-            byte[] colorvector,
             DateTime lastview,
             RotateFlipType orientation,
             float distance,
@@ -152,13 +144,13 @@
             string next,
             bool verified,
             string history,
-            DateTime datetaken
+            DateTime datetaken,
+            string fingerprint
             )
         {
             Hash = hash;
             Folder = folder;
             _vector = vector;
-            _colorvector = colorvector;
             Orientation = orientation;
             LastView = lastview;
             Distance = distance;
@@ -168,6 +160,8 @@
             _history = Helper.StringToSortedSet(history);
             _distances = null;
             DateTaken = datetaken;
+            FingerPrintString = fingerprint;
+            FingerPrint = ExifHelper.StringtoFingerPrint(fingerprint);
         }
     }
 }

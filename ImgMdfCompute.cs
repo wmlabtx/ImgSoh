@@ -102,6 +102,15 @@ namespace ImgSoh
                 return;
             }
 
+            var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
+            if (fingerprint.Count == 0) {
+                DeleteFile(orgfilename, AppConsts.CorruptedExtension);
+                _bad++;
+                return;
+            }
+
+            var fingerprintstring = ExifHelper.FingerprintToString(fingerprint);
+
             var folder = Helper.GetFolder();
             var newfilename = Helper.GetFileName(folder, hash);
             if (!orgfilename.Equals(newfilename)) {
@@ -129,7 +138,7 @@ namespace ImgSoh
                 hash: hash,
                 folder: folder,
                 vector: vector,
-                colorvector: colorvector,
+                fingerprint: fingerprintstring,
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastView,
                 next: hash,
@@ -214,7 +223,7 @@ namespace ImgSoh
                     return;
                 }
 
-                if (imgX.GetVector().Length != 4096 || imgX.GetColorVector().Length != 200 || imgX.DateTaken.Year == 1900) {
+                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Count == 0 || imgX.DateTaken.Year == 1900) {
                     using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                         if (magickImage == null) {
                             Delete(hashX, AppConsts.CorruptedExtension, null);
@@ -225,13 +234,21 @@ namespace ImgSoh
                                BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
                             var vector = VggHelper.CalculateVector(bitmap);
                             imgX.SetVector(vector);
-                            var colorvector = ColorHelper.CalculateVector(bitmap);
-                            imgX.SetColorVector(colorvector);
                             var lastmodified = File.GetLastWriteTime(filename);
                             var datetaken = BitmapHelper.GetDateTaken(magickImage, lastmodified);
                             imgX.SetDateTaken(datetaken);
                         }
                     }
+
+                    var name = Path.GetFileNameWithoutExtension(filename);
+                    var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
+                    if (fingerprint.Count == 0) {
+                        Delete(hashX, AppConsts.CorruptedExtension, null);
+                        return;
+                    }
+
+                    var fingerprintstring = ExifHelper.FingerprintToString(fingerprint);
+                    imgX.SetFingerPrint(fingerprintstring);
                 }
 
                 var candidates = AppDatabase.GetCandidates();
@@ -245,43 +262,76 @@ namespace ImgSoh
                     }
                 }
 
+                const float VggSim = 0.2f;
                 string hashVgg = null;
                 float distanceVgg = 1f;
-                string hashColor = null;
-                float distanceColor = 1f;
-
+                int nameVgg = 0;
+                int valueVgg = 0;
                 foreach (var e in candidates) {
                     var distance = VggHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
+                    ExifHelper.GetMatch(imgX.FingerPrint, e.Value.FingerPrint, out int name, out int value);
+                    if (hashVgg == null) {
+                        distanceVgg = distance;
+                        hashVgg = e.Key;
+                        nameVgg = name;
+                        valueVgg = value;
+                        continue;
+                    }
+
+                    if (distance < VggSim) {
+                        if (distance < distanceVgg) {
+                            distanceVgg = distance;
+                            hashVgg = e.Key;
+                            nameVgg = name;
+                            valueVgg = value;
+                        }
+
+                        continue;
+                    }
+
+                    if (distanceVgg < VggSim) {
+                        continue;
+                    }
+
+                    if (value > valueVgg) {
+                        distanceVgg = distance;
+                        hashVgg = e.Key;
+                        nameVgg = name;
+                        valueVgg = value;
+                        continue;
+                    }
+
+                    if (value < valueVgg) {
+                        continue;
+                    }
+
+                    if (name > nameVgg) {
+                        distanceVgg = distance;
+                        hashVgg = e.Key;
+                        nameVgg = name;
+                        valueVgg = value;
+                        continue;
+                    }
+
+                    if (name < nameVgg) {
+                        continue;
+                    }
+
                     if (distance < distanceVgg) {
                         distanceVgg = distance;
                         hashVgg = e.Key;
-                    }
-
-                    distance = ColorHelper.GetDistance(imgX.GetColorVector(), e.Value.GetColorVector());
-                    if (distance < distanceColor) {
-                        distanceColor = distance;
-                        hashColor = e.Key;
+                        nameVgg = name;
+                        valueVgg = value;
                     }
                 }
 
-                string hashY;
-                float mindistance;
-                if (distanceVgg < distanceColor) {
-                    hashY = hashVgg;
-                    mindistance = distanceVgg;
-                }
-                else {
-                    hashY = hashColor;
-                    mindistance = distanceColor;
-                }
-
-                if (!string.IsNullOrEmpty(hashY)) {
-                    if (!imgX.Next.Equals(hashY)) {
+                if (!string.IsNullOrEmpty(hashVgg)) {
+                    if (!imgX.Next.Equals(hashVgg)) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {mindistance:F4}");
-                        imgX.SetDistance(mindistance);
-                        imgX.SetNext(hashY);
+                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {distanceVgg:F4}");
+                        imgX.SetDistance(distanceVgg);
+                        imgX.SetNext(hashVgg);
                     }
                 }
 

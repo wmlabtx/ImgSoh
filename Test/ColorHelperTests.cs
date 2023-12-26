@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.IO;
 using ImgSoh;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -110,6 +108,120 @@ bs = 0.5100979023
             File.WriteAllBytes(AppConsts.FileRgbLab, table);
         }
 
+        [TestMethod]
+        public void CheckExif()
+        {
+            /*
+            const string resultfile = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\result.json";
+            var content = File.ReadAllText(resultfile);
+            if (content.StartsWith("{ready0000}\r\n")) {
+                content = content.Substring("{ready0000\r\n}".Length);
+                content = content.Replace(@"[{", @"{").Replace(@"}]", @"}");
+            }
+
+            var o1 = JObject.Parse(content);
+            foreach (var jtocken in o1) {
+                var name = jtocken.Key;
+                var value = jtocken.Value;
+                if (value.HasValues) {
+                    var array = string.Join(" ", value.Values<string>().ToArray());
+                    Debug.WriteLine($"{name} {array} (...array...)");
+                }
+                else {
+                    var svalue = value.ToString();
+                    if (svalue.Length < 256) {
+                        Debug.WriteLine($"{name} {svalue}");
+                    }
+                    else {
+                        var buffer = Encoding.UTF8.GetBytes(svalue);
+                        var sb = new StringBuilder();
+                        using (var md5 = MD5.Create()) {
+                            var hashMD5 = md5.ComputeHash(buffer);
+
+                            foreach (var b in hashMD5) {
+                                sb.Append($"{b:x2}");
+                            }
+                        }
+
+                        svalue = sb.ToString();
+                        Debug.WriteLine($"{name} {svalue} (...binary...)");
+                    }
+                }
+            }
+            */
+
+            /*
+            const string resultfile = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\result.xml";
+            var content = File.ReadAllText(resultfile);
+            if (content.StartsWith("{ready0000}\r\n")) {
+                content = content.Substring("{ready0000\r\n}".Length);
+            }
+
+            var byteArray = Encoding.UTF8.GetBytes(content);
+            using (var ms = new MemoryStream(byteArray)) {
+                var xml = XDocument.Load(ms);
+                foreach (var e in xml.DescendantNodes()) {
+                    if (e is XElement el) {
+                        if (!el.IsEmpty && el.NodeType == XmlNodeType.Element) {
+                            if (!el.Name.Equals("rdf:RDF")) {
+                                var xpath = string.Join("/", el.AncestorsAndSelf().Reverse().Select(a => a.Name.LocalName).ToArray());
+                                Debug.WriteLine($"{xpath} {el.Name} {el.Value}");
+                            }
+
+                        }
+                    }
+                    
+                }
+            }
+            */
+
+            const string filename = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\Page26-Exif-IPTC.jpg";
+            //const string filename = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\Wednesday_Christmas_final-NoExif.jpg";
+            //const string filename = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\ml38a001.jpg";
+            //const string filename = "d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\Alice Club 9205-171-Exif.JPG";
+            var imgdata = File.ReadAllBytes(filename);
+            ExifHelper.Start();
+            var result = ExifHelper.GetFingerPrint("test", imgdata);
+            foreach (var e in result) {
+                Debug.WriteLine($"{e.Key} {e.Value}");
+            }
+
+            ExifHelper.Stop();
+
+            /*
+             var imagedata = //File.ReadAllBytes("d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\Page26-Exif-IPTC.jpg");
+            File.ReadAllBytes("d:\\Users\\Murad\\Documents\\ImgSoh\\Test\\bin\\Debug\\Exif\\Wednesday_Christmas_final-NoExif.jpg");
+        using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
+            var exif = magickImage.GetExifProfile();
+            if (exif != null) {
+                foreach (var value in exif.Values) {
+                    var str = value.ToString();
+                    Debug.WriteLine($"{value.Tag} {value.DataType} {str}");
+                }
+            }
+            */
+        }
+    }
+
+        /*
+
+ImageWidth Short 2480
+ImageLength Short 3508
+BitsPerSample Short ImageMagick.ExifShortArray
+PhotometricInterpretation Short RGB
+Orientation Short Horizontal (normal)
+SamplesPerPixel Short 3
+XResolution Rational 720000/10000
+YResolution Rational 720000/10000
+ResolutionUnit Short Inches
+Software String Adobe Photoshop 24.7 (Windows)
+DateTime String 2023:10:06 15:21:59
+ExifVersion Undefined ImageMagick.ExifByteArray
+ColorSpace Short sRGB
+PixelXDimension Short 1000
+PixelYDimension Short 1415
+
+         */
         /*
         [TestMethod]
         public void RgbToLabFastTest()
@@ -149,5 +261,4 @@ bs = 0.5100979023
             }
         }
         */
-    }
 }

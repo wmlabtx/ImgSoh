@@ -36,7 +36,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 7
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
                 sb.Append($"{AppConsts.AttributeHistory}, "); // 9
-                sb.Append($"{AppConsts.AttributeColorVector}, "); // 10
+                sb.Append($"{AppConsts.AttributeFingerPrint}, "); // 10
                 sb.Append($"{AppConsts.AttributeDateTaken} "); // 11
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
@@ -55,13 +55,13 @@ namespace ImgSoh
                             var lastcheck = reader.GetDateTime(7);
                             var verified = reader.GetBoolean(8);
                             var history = reader.GetString(9);
-                            var colorvector = (byte[])reader[10];
+                            var fingerprint = reader.GetString(10);
                             var datetaken = reader.GetDateTime(11);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
                                 vector: vector,
-                                colorvector: colorvector,
+                                fingerprint: fingerprint,
                                 orientation: orientation,
                                 lastview: lastview,
                                 next: next,
@@ -143,7 +143,7 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
                     sb.Append($"{AppConsts.AttributeHistory}, ");
-                    sb.Append($"{AppConsts.AttributeColorVector}, ");
+                    sb.Append($"{AppConsts.AttributeFingerPrint}, ");
                     sb.Append($"{AppConsts.AttributeDateTaken}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
@@ -156,7 +156,7 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
                     sb.Append($"@{AppConsts.AttributeHistory}, ");
-                    sb.Append($"@{AppConsts.AttributeColorVector}, ");
+                    sb.Append($"@{AppConsts.AttributeFingerPrint}, ");
                     sb.Append($"@{AppConsts.AttributeDateTaken}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
@@ -171,7 +171,7 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeColorVector}", img.GetColorVector());
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFingerPrint}", img.FingerPrintString);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDateTaken}", img.DateTaken);
                     sqlCommand.ExecuteNonQuery();
                 }
@@ -199,8 +199,7 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
-                        imgX.GetColorVector() == null ||
-                        imgX.GetColorVector().Length != 200 ||
+                        imgX.FingerPrint.Count == 0 ||
                         imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
@@ -237,8 +236,7 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
-                        imgX.GetColorVector() == null ||
-                        imgX.GetColorVector().Length != 200 ||
+                        imgX.FingerPrint.Count == 0 ||
                         imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
@@ -249,6 +247,11 @@ namespace ImgSoh
                     if (imgV == null) {
                         imgV = imgX;
                         continue;
+                    }
+
+                    if (!imgX.Verified) {
+                        imgV = imgX;
+                        break;
                     }
 
                     if (imgX.Verified && !imgV.Verified) {
@@ -290,8 +293,7 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
-                        imgX.GetColorVector() == null ||
-                        imgX.GetColorVector().Length != 200 ||
+                        imgX.FingerPrint.Count == 0 ||
                         imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
