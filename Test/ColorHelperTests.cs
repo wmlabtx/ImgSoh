@@ -1,5 +1,4 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
 using ImgSoh;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -9,6 +8,7 @@ namespace Test
     [TestClass]
     public class ColorHelperTests
     {
+        /*
         [TestMethod]
         public void Range()
         {
@@ -38,7 +38,6 @@ namespace Test
             Debug.Print($"bmax = {bmax:F10}");
             Debug.Print($"bs = {bmax - bmin:F10}");
 
-            /*
 lmin = 0.0000000000
 lmax = 0.9999999935
 amin = -0.2338875742
@@ -47,9 +46,10 @@ as = 0.5101043277
 bmin = -0.3115281477
 bmax = 0.1985697547
 bs = 0.5100979023
-            */
         }
+    */
 
+        /*
         [TestMethod]
         public void QuantRange()
         {
@@ -77,7 +77,6 @@ bs = 0.5100979023
             Debug.Print($"bmin = {bmin}");
             Debug.Print($"bmax = {bmax}");
 
-            /*
     lmin = 0.0000000000
     lmax = 0.9999999935
     amin = -0.2338875742
@@ -86,7 +85,6 @@ bs = 0.5100979023
     bmin = -0.3115281477
     bmax = 0.1985697547
     bs = 0.5100979023
-            */
         }
 
         [TestMethod]
@@ -107,7 +105,7 @@ bs = 0.5100979023
 
             File.WriteAllBytes(AppConsts.FileRgbLab, table);
         }
-
+*/
         [TestMethod]
         public void CheckExif()
         {

@@ -7,7 +7,6 @@
         private const string FolderDb = "Db";
         public const string FileVgg = PathRoot + @"\" + FolderDb +@"\" + "vgg16.onnx";
         public const string FileDatabase = PathRoot + @"\" + FolderDb + @"\" + "images.mdf";
-        public const string FileRgbLab = PathRoot + @"\" + FolderDb + @"\" + "rgblab.dat";
         private const string FolderRw = "Rw";
         public const string PathRwProtected = PathRootProtected + @"\" + FolderRw;
         private const string FolderHp = "Hp";

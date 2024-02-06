@@ -124,7 +124,7 @@
             }
         }
 
-        public SortedList<string, string> FingerPrint;
+        public KeyValuePair<string, string>[] FingerPrint;
         public string FingerPrintString { get; private set; }
         public void SetFingerPrint(string fingerprint)
         {

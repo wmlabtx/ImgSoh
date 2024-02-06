@@ -199,11 +199,12 @@ namespace ImgSoh
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
-                        imgX.FingerPrint.Count == 0 ||
+                        imgX.FingerPrint.Length == 0 ||
                         imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
-                        !_imgList.ContainsKey(imgX.Next)) {
+                        !_imgList.ContainsKey(imgX.Next) ||
+                        imgX.Distance > 1f) {
                         imgCheck = imgX;
                         break;
                     }
@@ -227,128 +228,123 @@ namespace ImgSoh
             return shadow;
         }
 
-        public static string GetNextView()
+        public static void GetNextView(out string bestHash, out string status)
         {
-            Img imgV = null;
+            bestHash = null;
+            status = null;
+            var classes = new[] { new List<Img>(), new List<Img>(), new List<Img>(), new List<Img>() };
+            var total = 0;
             lock (_sqlLock) {
-                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
-                foreach (var imgX in lvarray) {
+                total = _imgList.Count;
+                foreach (var imgX in _imgList.Values) {
                     if (
                         imgX.GetVector() == null ||
                         imgX.GetVector().Length != 4096 ||
-                        imgX.FingerPrint.Count == 0 ||
+                        imgX.FingerPrint.Length == 0 ||
                         imgX.DateTaken.Year == 1900 ||
                         imgX.Next.Equals(imgX.Hash) ||
                         imgX.IsInHistory(imgX.Next) ||
-                        !_imgList.ContainsKey(imgX.Next)) {
+                        imgX.Distance > 1f
+                    ) {
+                        classes[0].Add(imgX);
                         continue;
                     }
 
-                    if (imgV == null) {
-                        imgV = imgX;
+                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
+                        classes[0].Add(imgX);
                         continue;
                     }
 
                     if (!imgX.Verified) {
-                        imgV = imgX;
+                        classes[1].Add(imgX);
+                        continue;
+                    }
+
+                    if (imgX.LastView > imgY.LastView || imgX.HistoryCount > imgY.HistoryCount) {
+                        continue;
+                    }
+
+                    if (imgX.HistoryCount == 0) {
+                        classes[2].Add(imgX);
+                    }
+
+                    classes[3].Add(imgX);
+                }
+            }
+
+            if (classes[1].Count == 0 && classes[2].Count == 0 && classes[3].Count == 0) {
+                return;
+            }
+
+            var sb = new StringBuilder();
+            if (classes[0].Count > 0) {
+                sb.Append($"b{classes[0].Count}");
+            }
+
+            if (classes[1].Count > 0) {
+                if (sb.Length > 0) {
+                    sb.Append('/');
+                }
+
+                sb.Append($"n{classes[1].Count}");
+            }
+
+            if (classes[2].Count > 0) {
+                if (sb.Length > 0) {
+                    sb.Append('/');
+                }
+
+                sb.Append($"z{classes[2].Count}");
+            }
+
+            if (sb.Length > 0) {
+                sb.Append('/');
+            }
+
+            sb.Append($"{total}");
+            status = sb.ToString();
+
+            var classid = 0;
+            while (classid <= 0) {
+                classid = AppVars.RandomNext(3) + 1;
+                if (classes[classid].Count == 0 || classid == 2) {
+                    classid = 0;
+                }
+            }
+
+            var attempts = Math.Min(classes[classid].Count, 100);
+            var bestLastView = DateTime.MaxValue;
+            var bestDistance = float.MaxValue;
+            var bestHistoryCount = int.MaxValue;
+            var bestDataTaken = DateTime.MaxValue;
+            var mode = AppVars.RandomNext(3);
+            for (var i = 0; i < attempts; i++) {
+                var rindex = AppVars.RandomNext(classes[classid].Count);
+                var img = classes[classid][rindex];
+                var isBetter = false;
+                switch (mode) {
+                    case 0:
+                        isBetter = img.HistoryCount < bestHistoryCount ||
+                                   (img.HistoryCount == bestHistoryCount && img.LastView < bestLastView);
                         break;
-                    }
+                    case 1:
+                        isBetter = img.HistoryCount < bestHistoryCount ||
+                                   (img.HistoryCount == bestHistoryCount && img.Distance < bestDistance);
+                        break;
+                    case 2:
+                        isBetter = img.HistoryCount < bestHistoryCount ||
+                                   (img.HistoryCount == bestHistoryCount && img.DateTaken < bestDataTaken);
+                        break;
+                }
 
-                    if (imgX.Verified && !imgV.Verified) {
-                        continue;
-                    }
-
-                    if (!imgX.Verified && imgV.Verified) {
-                        imgV = imgX;
-                        continue;
-                    }
-
-                    if (imgX.HistoryCount > imgV.HistoryCount) {
-                        continue;
-                    }
-
-                    if (imgX.HistoryCount < imgV.HistoryCount) {
-                        imgV = imgX;
-                        continue;
-                    }
-
-                    if (imgX.Distance < imgV.Distance) {
-                        imgV = imgX;
-                    }
+                if (isBetter) {
+                    bestHash = img.Hash;
+                    bestLastView = img.LastView;
+                    bestHistoryCount = img.HistoryCount;
+                    bestDistance = img.Distance;
+                    bestDataTaken = img.DateTaken;
                 }
             }
-
-            return imgV?.Hash;
-        }
-
-        public static void GetCounters(out int good, out int bad, out float classDistance)
-        {
-            good = 0;
-            bad = 0;
-            Img imgV = null;
-            var roundDistance = 100;
-            lock (_sqlLock) {
-                var lvarray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
-                foreach (var imgX in lvarray) {
-                    if (
-                        imgX.GetVector() == null ||
-                        imgX.GetVector().Length != 4096 ||
-                        imgX.FingerPrint.Count == 0 ||
-                        imgX.DateTaken.Year == 1900 ||
-                        imgX.Next.Equals(imgX.Hash) ||
-                        imgX.IsInHistory(imgX.Next) ||
-                        !_imgList.ContainsKey(imgX.Next)) {
-                        bad++;
-                        continue;
-                    }
-
-                    var distance = (int)Math.Round(imgX.Distance * 100f);
-
-                    if (imgV == null) {
-                        imgV = imgX;
-                        good = 1;
-                        roundDistance = distance;
-                        continue;
-                    }
-
-                    if (imgX.Verified && !imgV.Verified) {
-                        continue;
-                    }
-
-                    if (!imgX.Verified && imgV.Verified) {
-                        imgV = imgX;
-                        good = 1;
-                        roundDistance = distance;
-                        continue;
-                    }
-
-                    if (imgX.HistoryCount > imgV.HistoryCount) {
-                        continue;
-                    }
-
-                    if (imgX.HistoryCount < imgV.HistoryCount) {
-                        imgV = imgX;
-                        good = 1;
-                        roundDistance = distance;
-                        continue;
-                    }
-
-                    if (distance > roundDistance) {
-                        continue;
-                    }
-
-                    if (distance < roundDistance) {
-                        imgV = imgX;
-                        good = 1;
-                        roundDistance = distance;
-                        continue;
-                    }
-
-                    good++;
-                }
-            }
-
-            classDistance = roundDistance / 100f;
         }
     }
 }

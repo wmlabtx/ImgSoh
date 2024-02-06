@@ -8,6 +8,7 @@ using System.Text;
 using System.Threading;
 using System;
 using System.Linq;
+using System.Management;
 
 namespace ImgSoh
 {
@@ -15,9 +16,9 @@ namespace ImgSoh
     {
         private static readonly ExifToolWrapper _wrapper = new ExifToolWrapper(AppConsts.FileExifTool);
 
-        public static SortedList<string, string> GetFingerPrint(string name, byte[] imagedata)
+        public static KeyValuePair<string, string>[] GetFingerPrint(string name, byte[] imagedata)
         {
-            SortedList<string, string> fingerprint;
+            KeyValuePair<string, string>[] fingerprint;
             var tempname = $"{AppConsts.PathGbProtected}\\{name}";
             try {
                 File.WriteAllBytes(tempname, imagedata);
@@ -42,7 +43,7 @@ namespace ImgSoh
             _wrapper.Stop();
         }
 
-        public static string FingerprintToString(SortedList<string, string> fingerprint)
+        public static string FingerprintToString(KeyValuePair<string, string>[] fingerprint)
         {
             var sb = new StringBuilder();
             foreach (var e in fingerprint) {
@@ -58,32 +59,46 @@ namespace ImgSoh
             return sb.ToString();
         }
 
-        public static SortedList<string, string> StringtoFingerPrint(string array)
+        public static KeyValuePair<string, string>[] StringtoFingerPrint(string array)
         {
-            var fingerprint = new SortedList<string, string>();
+            var fingerprint = new List<KeyValuePair<string, string>>();
             if (string.IsNullOrEmpty(array)) {
-                return fingerprint;
+                return fingerprint.ToArray();
             }
 
             var par = array.Split('\t');
             for (var i = 0; i < par.Length; i += 2) {
-                fingerprint.Add(par[i], par[i + 1]);
+                fingerprint.Add(new KeyValuePair<string, string>(par[i], par[i + 1]));
             }
 
-            return fingerprint;
+            return fingerprint.ToArray();
         }
 
         public static void GetMatch(
-            SortedList<string, string> x, SortedList<string, string> y, 
+            KeyValuePair<string, string>[] x, KeyValuePair<string, string>[] y, 
             out int matchname, out int matchvalue)
         {
             matchname = 0; 
             matchvalue = 0;
-            foreach (var xkey in x.Keys) {
-                if (y.TryGetValue(xkey, out var yval)) {
+            var i = 0;
+            var j = 0;
+            while (i < x.Length && j < y.Length) {
+                var c = string.CompareOrdinal(x[i].Key, y[j].Key);
+                if (c == 0) {
                     matchname++;
-                    if (x[xkey].Equals(yval)) {
+                    if (string.CompareOrdinal(x[i].Value, y[j].Value) == 0) {
                         matchvalue++;
+                    }
+
+                    i++;
+                    j++;
+                }
+                else {
+                    if (c < 0) {
+                        i++;
+                    }
+                    else {
+                        j++;
                     }
                 }
             }
@@ -230,13 +245,36 @@ namespace ImgSoh
             Status = ExeStatus.Stopped;
         }
 
+        private static void KillProcessAndChildren(int pid)
+        {
+            if (pid == 0) {
+                return;
+            }
+
+            var searcher = new ManagementObjectSearcher
+                ("Select * From Win32_Process Where ParentProcessID=" + pid);
+            ManagementObjectCollection moc = searcher.Get();
+            foreach (var o in moc) {
+                var mo = (ManagementObject)o;
+                KillProcessAndChildren(Convert.ToInt32(mo["ProcessID"]));
+            }
+            try {
+                var proc = Process.GetProcessById(pid);
+                proc.Kill();
+            }
+            catch (ArgumentException) {
+                // Process already exited.
+            }
+        }
+
         public void Stop()
         {
             if (Status == ExeStatus.Ready) {
+                KillProcessAndChildren(_proc.Id);
+                //_proc.Kill();
+                //_proc.StandardInput.Write("-stay_open\nFalse\n");
                 Status = ExeStatus.Stopping;
                 _waitHandle.Reset();
-                _proc.StandardInput.Write("-stay_open\nFalse\n");
-
                 if (!_waitHandle.WaitOne(TimeSpan.FromSeconds(SecondsToWaitForStop))) {
                     if (_proc != null) {
                         try {
@@ -318,16 +356,16 @@ namespace ImgSoh
             return resp;
         }
 
-        public SortedList<string, string> FetchExifFrom(string path)
+        public KeyValuePair<string, string>[] FetchExifFrom(string path)
         {
             var result = new SortedList<string, string>();
             if (!File.Exists(path)) {
-                return result;
+                return result.ToArray();
             }
 
             var cmdRes = SendCommand(path);
             if (!cmdRes) {
-                return result;
+                return result.ToArray();
             }
 
             var content = cmdRes.Result;
@@ -389,7 +427,7 @@ namespace ImgSoh
                 }
             }
 
-            return result;
+            return result.ToArray();
         }
 
         public DateTime? GetCreationTime(string path)

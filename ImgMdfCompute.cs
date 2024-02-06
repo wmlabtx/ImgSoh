@@ -76,7 +76,6 @@ namespace ImgSoh
             }
 
             byte[] vector;
-            byte[] colorvector;
             DateTime datetaken;
             using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
@@ -92,18 +91,17 @@ namespace ImgSoh
 
                 using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
                     vector = VggHelper.CalculateVector(bitmap);
-                    colorvector = ColorHelper.CalculateVector(bitmap);
                 }
             }
 
-            if (vector == null || colorvector == null) {
+            if (vector == null) {
                 DeleteFile(orgfilename, AppConsts.CorruptedExtension);
                 _bad++;
                 return;
             }
 
             var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
-            if (fingerprint.Count == 0) {
+            if (fingerprint.Length == 0) {
                 DeleteFile(orgfilename, AppConsts.CorruptedExtension);
                 _bad++;
                 return;
@@ -223,7 +221,7 @@ namespace ImgSoh
                     return;
                 }
 
-                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Count == 0 || imgX.DateTaken.Year == 1900) {
+                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Length == 0 || imgX.DateTaken.Year == 1900) {
                     using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                         if (magickImage == null) {
                             Delete(hashX, AppConsts.CorruptedExtension, null);
@@ -242,7 +240,7 @@ namespace ImgSoh
 
                     var name = Path.GetFileNameWithoutExtension(filename);
                     var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
-                    if (fingerprint.Count == 0) {
+                    if (fingerprint.Length == 0) {
                         Delete(hashX, AppConsts.CorruptedExtension, null);
                         return;
                     }
@@ -326,7 +324,7 @@ namespace ImgSoh
                 }
 
                 if (!string.IsNullOrEmpty(hashVgg)) {
-                    if (!imgX.Next.Equals(hashVgg)) {
+                    if (!imgX.Next.Equals(hashVgg) || Math.Abs(imgX.Distance - distanceVgg) > 0.0001f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
                         backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {distanceVgg:F4}");

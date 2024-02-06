@@ -53,7 +53,6 @@ namespace ImgSoh
 
             await Task.Run(ExifHelper.Start).ConfigureAwait(true);
             await Task.Run(() => { VggHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
-            await Task.Run(() => { ColorHelper.LoadTable(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);

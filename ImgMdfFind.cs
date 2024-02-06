@@ -6,6 +6,7 @@ namespace ImgSoh
     {
         public static void Find(string hashX, IProgress<string> progress)
         {
+            var status = string.Empty;
             do {
                 var totalcount = AppDatabase.ImgCount(false);
                 if (totalcount < 2) {
@@ -14,9 +15,10 @@ namespace ImgSoh
                 }
 
                 if (hashX == null) {
-                    hashX = AppDatabase.GetNextView();
+                    AppDatabase.GetNextView(out var hash, out status);
+                    hashX = hash;
                     if (hashX == null) {
-                        progress?.Report($"not ready to view");
+                        progress?.Report("not ready to view");
                         return;
                     }
                 }
@@ -50,9 +52,7 @@ namespace ImgSoh
                 if (!string.IsNullOrEmpty(hashY)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
-                    var imgcount = AppDatabase.ImgCount(false);
-                    AppDatabase.GetCounters(out var good, out var bad, out var distance);
-                    progress.Report($"{distance:F2}:{good}/x{bad}/{imgcount}: [{age} ago] {shortfilename}");
+                    progress.Report($"{status} [{age} ago] {shortfilename}");
 
                     if (hashX.Equals(hashY)) {
                         throw new Exception();
