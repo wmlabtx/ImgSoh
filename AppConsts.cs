@@ -17,7 +17,6 @@
         public const string FileExifTool = PathRoot + @"\" + FolderEx + @"\" + "exiftool(-k).exe";
 
         public const int MaxImportFiles = 10000;
-        public const int MaxHistorySize = 100;
 
         public const string MzxExtension = ".mzx";
         public const string DatExtension = ".dat";
@@ -38,9 +37,11 @@
         public const string AttributeLastView = "LastView";
         public const string AttributeNext = "Next";
         public const string AttributeDistance = "Distance";
+        public const string AttributeMatch = "Match";
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeHistory = "History";
+        public const string AttributeFamily = "Family";
         public const string AttributeDateTaken = "DateTaken";
         public const string AttributeFingerPrint = "FingerPrint";
     }

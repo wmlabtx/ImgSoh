@@ -37,7 +37,9 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 8
                 sb.Append($"{AppConsts.AttributeHistory}, "); // 9
                 sb.Append($"{AppConsts.AttributeFingerPrint}, "); // 10
-                sb.Append($"{AppConsts.AttributeDateTaken} "); // 11
+                sb.Append($"{AppConsts.AttributeDateTaken}, "); // 11
+                sb.Append($"{AppConsts.AttributeMatch}, "); // 12
+                sb.Append($"{AppConsts.AttributeFamily} "); // 13
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
                     sqlCommand.Connection = _sqlConnection;
@@ -57,6 +59,8 @@ namespace ImgSoh
                             var history = reader.GetString(9);
                             var fingerprint = reader.GetString(10);
                             var datetaken = reader.GetDateTime(11);
+                            var match = reader.GetInt16(12);
+                            var family = reader.GetString(13);
                             var img = new Img(
                                 hash: hash,
                                 folder: folder,
@@ -66,9 +70,11 @@ namespace ImgSoh
                                 lastview: lastview,
                                 next: next,
                                 distance: distance,
+                                match: match,
                                 lastcheck: lastcheck,
                                 verified: verified,
                                 history: history,
+                                family: family,
                                 datetaken: datetaken
                             );
 
@@ -144,7 +150,9 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeVerified}, ");
                     sb.Append($"{AppConsts.AttributeHistory}, ");
                     sb.Append($"{AppConsts.AttributeFingerPrint}, ");
-                    sb.Append($"{AppConsts.AttributeDateTaken}");
+                    sb.Append($"{AppConsts.AttributeDateTaken}, ");
+                    sb.Append($"{AppConsts.AttributeMatch}, ");
+                    sb.Append($"{AppConsts.AttributeFamily} ");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
                     sb.Append($"@{AppConsts.AttributeFolder}, ");
@@ -157,7 +165,9 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
                     sb.Append($"@{AppConsts.AttributeHistory}, ");
                     sb.Append($"@{AppConsts.AttributeFingerPrint}, ");
-                    sb.Append($"@{AppConsts.AttributeDateTaken}");
+                    sb.Append($"@{AppConsts.AttributeDateTaken}, ");
+                    sb.Append($"@{AppConsts.AttributeMatch}, ");
+                    sb.Append($"@{AppConsts.AttributeFamily} ");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -168,11 +178,14 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", img.LastView);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDistance}", img.Distance);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeMatch}", img.Match);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFingerPrint}", img.FingerPrintString);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDateTaken}", img.DateTaken);
+                    img.GetHistory(out var history, out var family);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", history);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", family);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -232,8 +245,14 @@ namespace ImgSoh
         {
             bestHash = null;
             status = null;
-            var classes = new[] { new List<Img>(), new List<Img>(), new List<Img>(), new List<Img>() };
-            var total = 0;
+            var classes = new[] { new List<Img>(), new List<Img>(), new List<Img>(), new List<Img>(), new List<Img>() };
+            // 0 - bad pair
+            // 1 - new image (!Verified)
+            // 2 - not paired (HistoryCount = 0)
+            // 3 - paired (HistoryCount > 0)
+            // 4 - family (FamilyCount > 0)
+
+            int total;
             lock (_sqlLock) {
                 total = _imgList.Count;
                 foreach (var imgX in _imgList.Values) {
@@ -267,12 +286,17 @@ namespace ImgSoh
                     if (imgX.HistoryCount == 0) {
                         classes[2].Add(imgX);
                     }
+                    else {
+                        classes[3].Add(imgX);
+                    }
 
-                    classes[3].Add(imgX);
+                    if (imgX.FamilyCount > 0) {
+                        classes[4].Add(imgX);
+                    }
                 }
             }
 
-            if (classes[1].Count == 0 && classes[2].Count == 0 && classes[3].Count == 0) {
+            if (classes[1].Count == 0 && classes[2].Count == 0 && classes[3].Count == 0 && classes[4].Count == 0) {
                 return;
             }
 
@@ -297,6 +321,14 @@ namespace ImgSoh
                 sb.Append($"z{classes[2].Count}");
             }
 
+            if (classes[4].Count > 0) {
+                if (sb.Length > 0) {
+                    sb.Append('/');
+                }
+
+                sb.Append($"f{classes[4].Count}");
+            }
+
             if (sb.Length > 0) {
                 sb.Append('/');
             }
@@ -306,8 +338,8 @@ namespace ImgSoh
 
             var classid = 0;
             while (classid <= 0) {
-                classid = AppVars.RandomNext(3) + 1;
-                if (classes[classid].Count == 0 || classid == 2) {
+                classid = AppVars.RandomNext(4) + 1;
+                if (classes[classid].Count == 0) {
                     classid = 0;
                 }
             }

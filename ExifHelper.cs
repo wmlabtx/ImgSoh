@@ -74,20 +74,16 @@ namespace ImgSoh
             return fingerprint.ToArray();
         }
 
-        public static void GetMatch(
-            KeyValuePair<string, string>[] x, KeyValuePair<string, string>[] y, 
-            out int matchname, out int matchvalue)
+        public static short GetMatch(KeyValuePair<string, string>[] x, KeyValuePair<string, string>[] y)
         {
-            matchname = 0; 
-            matchvalue = 0;
+            short result = 0; 
             var i = 0;
             var j = 0;
             while (i < x.Length && j < y.Length) {
                 var c = string.CompareOrdinal(x[i].Key, y[j].Key);
                 if (c == 0) {
-                    matchname++;
                     if (string.CompareOrdinal(x[i].Value, y[j].Value) == 0) {
-                        matchvalue++;
+                        result++;
                     }
 
                     i++;
@@ -102,6 +98,8 @@ namespace ImgSoh
                     }
                 }
             }
+
+            return result;
         }
     }
 

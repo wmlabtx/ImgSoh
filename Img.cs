@@ -1,7 +1,8 @@
-﻿ using System;
+﻿using System;
  using System.Collections.Generic;
  using System.Drawing;
  using System.Linq;
+ using System.Text;
 
  namespace ImgSoh
 {
@@ -43,6 +44,13 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeDistance, Distance);
         }
 
+        public short Match { get; private set; }
+        public void SetMatch(short match)
+        {
+            Match = match;
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeMatch, Match);
+        }
+
         public DateTime LastCheck { get; private set; }
         public void SetLastCheck(DateTime lastcheck)
         {
@@ -71,56 +79,78 @@
             AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeDateTaken, datetaken);
         }
 
-        private List<Tuple<string, float>> _distances;
-        private readonly SortedSet<string> _history;
+        private readonly SortedList<string, char> _history = new SortedList<string, char>();
         public int HistoryCount => _history.Count;
-        public string[] HistoryArray => _history.ToArray();
-        public string History => Helper.SortedSetToString(_history);
-
+        public int FamilyCount => _history.Count(e => e.Value == '*');
+        public string[] HistoryArray => _history.Keys.ToArray();
         public bool IsInHistory(string hash)
         {
-            return _history.Contains(hash);
+            return _history.ContainsKey(hash);
+        }
+
+        public bool IsInFamily(string hash)
+        {
+            return _history.ContainsKey(hash) && _history[hash] == '*';
+        }
+
+        public void GetHistory(out string history, out string family)
+        {
+            var sbhistory = new StringBuilder();
+            var sbfamily = new StringBuilder();
+            foreach (var e in _history) {
+                sbhistory.Append(e.Key);
+                sbfamily.Append(e.Value);
+            }
+
+            history = sbhistory.ToString();
+            family = sbfamily.ToString();
+        }
+
+        private void SetHistory(string history, string family)
+        {
+            _history.Clear();
+            var ofamily = 0;
+            var ohistory = 0;
+            while (ohistory + 12 <= history.Length) {
+                var ehistory = history.Substring(ohistory, 12);
+                var efamily =  ofamily < family.Length ? family[ofamily] : ehistory[0];
+                _history.Add(ehistory, efamily);
+                ofamily++;
+                ohistory += 12;
+            }
+        }
+
+        private void UpdateHistory()
+        {
+            GetHistory(out var history, out var family);
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, history);
+            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, family);
         }
 
         public void AddToHistory(string hash)
         {
-            if (HistoryCount < AppConsts.MaxHistorySize) {
-                if (_history.Add(hash)) {
-                    AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
-                }
+            if (!IsInHistory(hash)) {
+                _history.Add(hash, hash[0]);
+                UpdateHistory();
+            }
+        }
+
+        public void AddToHistory(string hash, char isfamily)
+        {
+            if (!IsInHistory(hash)) {
+                _history.Add(hash, isfamily);
             }
             else {
-                if (AppDatabase.TryGetImg(hash, out var imgY)) {
-                    var distanceY = VggHelper.GetDistance(_vector, imgY.GetVector());
-                    if (_distances == null) {
-                        _distances = new List<Tuple<string, float>>();
-                        foreach (var hashH in _history) {
-                            if (AppDatabase.TryGetImg(hashH, out var imgH)) {
-                                var distanceH = VggHelper.GetDistance(_vector, imgH.GetVector());
-                                _distances.Add(Tuple.Create(hashH, distanceH));
-                            }
-                        }
-                    }
-
-                    var maxdistance = _distances.Max(e => e.Item2);
-                    if (distanceY < maxdistance) {
-                        _distances.Add(Tuple.Create(hash, distanceY));
-                        _distances = _distances.OrderBy(e => e.Item2).Take(AppConsts.MaxHistorySize).ToList();
-                        _history.Clear();
-                        foreach (var e in _distances) {
-                            _history.Add(e.Item1);
-                        }
-
-                        AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
-                    }
-                }
+                _history[hash] = isfamily;
             }
+
+            UpdateHistory();
         }
 
         public void RemoveFromHistory(string hash)
         {
             if (_history.Remove(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
+                UpdateHistory();
             }
         }
 
@@ -140,10 +170,12 @@
             DateTime lastview,
             RotateFlipType orientation,
             float distance,
+            short match,
             DateTime lastcheck,
             string next,
             bool verified,
             string history,
+            string family,
             DateTime datetaken,
             string fingerprint
             )
@@ -154,11 +186,11 @@
             Orientation = orientation;
             LastView = lastview;
             Distance = distance;
+            Match = match;
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
-            _history = Helper.StringToSortedSet(history);
-            _distances = null;
+            SetHistory(history, family);
             DateTaken = datetaken;
             FingerPrintString = fingerprint;
             FingerPrint = ExifHelper.StringtoFingerPrint(fingerprint);

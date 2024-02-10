@@ -141,9 +141,11 @@ namespace ImgSoh
                 lastview: lastView,
                 next: hash,
                 distance: 1f,
+                match: 0,
                 lastcheck: lastView,
                 verified: false,
                 history: string.Empty,
+                family: string.Empty,
                 datetaken: datetaken
             );
 
@@ -262,17 +264,15 @@ namespace ImgSoh
 
                 const float VggSim = 0.2f;
                 string hashVgg = null;
-                float distanceVgg = 1f;
-                int nameVgg = 0;
-                int valueVgg = 0;
+                var distanceVgg = 1f;
+                short matchVgg = 0;
                 foreach (var e in candidates) {
                     var distance = VggHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
-                    ExifHelper.GetMatch(imgX.FingerPrint, e.Value.FingerPrint, out int name, out int value);
+                    var match = ExifHelper.GetMatch(imgX.FingerPrint, e.Value.FingerPrint);
                     if (hashVgg == null) {
                         distanceVgg = distance;
                         hashVgg = e.Key;
-                        nameVgg = name;
-                        valueVgg = value;
+                        matchVgg = match;
                         continue;
                     }
 
@@ -280,8 +280,7 @@ namespace ImgSoh
                         if (distance < distanceVgg) {
                             distanceVgg = distance;
                             hashVgg = e.Key;
-                            nameVgg = name;
-                            valueVgg = value;
+                            matchVgg = match;
                         }
 
                         continue;
@@ -291,35 +290,21 @@ namespace ImgSoh
                         continue;
                     }
 
-                    if (value > valueVgg) {
+                    if (match > matchVgg) {
                         distanceVgg = distance;
                         hashVgg = e.Key;
-                        nameVgg = name;
-                        valueVgg = value;
+                        matchVgg = match;
                         continue;
                     }
 
-                    if (value < valueVgg) {
-                        continue;
-                    }
-
-                    if (name > nameVgg) {
-                        distanceVgg = distance;
-                        hashVgg = e.Key;
-                        nameVgg = name;
-                        valueVgg = value;
-                        continue;
-                    }
-
-                    if (name < nameVgg) {
+                    if (match < matchVgg) {
                         continue;
                     }
 
                     if (distance < distanceVgg) {
                         distanceVgg = distance;
                         hashVgg = e.Key;
-                        nameVgg = name;
-                        valueVgg = value;
+                        matchVgg = match;
                     }
                 }
 
@@ -327,9 +312,10 @@ namespace ImgSoh
                     if (!imgX.Next.Equals(hashVgg) || Math.Abs(imgX.Distance - distanceVgg) > 0.0001f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {distanceVgg:F4}");
+                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} [{imgX.Match}]{imgX.Distance:F4} {AppConsts.CharRightArrow} [{matchVgg}]{distanceVgg:F4}");
                         imgX.SetDistance(distanceVgg);
                         imgX.SetNext(hashVgg);
+                        imgX.SetMatch(matchVgg);
                     }
                 }
 

@@ -153,6 +153,9 @@ namespace ImgSoh
 
                         if (imgX.HistoryCount > 0) {
                             sb.Append($" H{imgX.HistoryCount}");
+                            if (imgX.FamilyCount > 0) {
+                                sb.Append($"/{imgX.FamilyCount}");
+                            }
                         }
 
                         sb.AppendLine();
@@ -167,19 +170,22 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (imgX.Verified) {
-                            if (imgX.IsInHistory(imgY.Hash)) {
+                            if (imgX.IsInFamily(imgY.Hash)) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
-                                if (imgX.HistoryCount > 0) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                if (imgX.IsInHistory(imgY.Hash)) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.LightCyan;
+                                }
+                                else {
+                                    if (imgX.HistoryCount > 0) {
+                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                    }
                                 }
                             }
                         }
                         else {
-                            pLabels[index].Background = imgX.IsInHistory(imgY.Hash) ?
-                                System.Windows.Media.Brushes.YellowGreen :
-                                System.Windows.Media.Brushes.Yellow;
+                            pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                     }
                 }

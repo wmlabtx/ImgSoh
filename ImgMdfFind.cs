@@ -35,20 +35,13 @@ namespace ImgSoh
                     continue;
                 }
 
-                Img imgY = null;
-
-                if (imgX.HistoryCount >= AppConsts.MaxHistorySize) {
-                    var historyArray = imgX.HistoryArray;
-                    foreach (var hash in historyArray) {
-                        if (!hash.Equals(imgX.Hash) && AppDatabase.TryGetImg(hash, out var img)) {
-                            if (imgY == null || img.LastView < imgY.LastView) {
-                                imgY = img;
-                            }
-                        }
-                    }
+                var hashY = imgX.Next;
+                if (imgX.HistoryCount > 0 && AppVars.RandomNext(2) == 0) {
+                    var array = imgX.HistoryArray;
+                    var rindex = AppVars.RandomNext(array.Length);
+                    hashY = array[rindex];
                 }
 
-                var hashY = imgY == null ? imgX.Next : imgY.Hash;
                 if (!string.IsNullOrEmpty(hashY)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
