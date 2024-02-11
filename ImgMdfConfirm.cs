@@ -10,14 +10,25 @@ namespace ImgSoh
             if (AppDatabase.TryGetImg(hashX, out var imgX)) {
                 var hashY = AppPanels.GetImgPanel(1).Hash;
                 if (AppDatabase.TryGetImg(hashY, out var imgY)) {
-                    imgX.AddToHistory(hashY);
+                    if (imgX.Family == 0) {
+                        var family = AppDatabase.GetNewFamily();
+                        imgX.SetFamily(family);
+                    }
+
+                    if (imgX.Family != imgY.Family) {
+                        imgX.AddToHistory(hashY);
+                        imgY.AddToHistory(hashX);
+                    }
+
                     imgX.SetLastView(DateTime.Now);
                     imgX.SetVerified(true);
-                    imgX.SetNext(string.Empty);
 
-                    imgY.AddToHistory(hashX);
-                    imgY.SetLastView(DateTime.Now.AddMinutes(-1));
-                    imgY.SetNext(string.Empty);
+                    if (imgY.Family == 0) {
+                        var family = AppDatabase.GetNewFamily();
+                        imgY.SetFamily(family);
+                    }
+
+                    imgY.SetLastView(DateTime.Now);
                 }
             }
         }
@@ -26,8 +37,9 @@ namespace ImgSoh
         {
             var hashX = AppPanels.GetImgPanel(idpanel).Hash;
             if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                imgX.SetLastView(DateTime.Now);
-                imgX.SetNext(string.Empty);
+                if (imgX.Verified) {
+                    imgX.SetLastView(DateTime.Now);
+                }
             }
         }
     }

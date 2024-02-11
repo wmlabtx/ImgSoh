@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -36,31 +38,22 @@ namespace ImgSoh
                 }
 
                 var hashY = imgX.Next;
-                if (imgX.HistoryCount > 0 && AppVars.RandomNext(2) == 0) {
-                    var array = imgX.HistoryArray;
-                    var rindex = AppVars.RandomNext(array.Length);
-                    hashY = array[rindex];
+
+                var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
+                progress.Report($"{status} [{age} ago] {shortfilename}");
+
+                if (hashX.Equals(hashY)) {
+                    throw new Exception();
                 }
 
-                if (!string.IsNullOrEmpty(hashY)) {
-                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                    var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
-                    progress.Report($"{status} [{age} ago] {shortfilename}");
-
-                    if (hashX.Equals(hashY)) {
-                        throw new Exception();
-                    }
-
-                    if (!AppPanels.SetImgPanel(1, hashY)) {
-                        Delete(hashY, AppConsts.CorruptedExtension, progress);
-                        hashX = null;
-                        continue;
-                    }
-
-                    break;
+                if (!AppPanels.SetImgPanel(1, hashY)) {
+                    Delete(hashY, AppConsts.CorruptedExtension, progress);
+                    hashX = null;
+                    continue;
                 }
 
-                hashX = null;
+                break;
             }
             while (true);
         }

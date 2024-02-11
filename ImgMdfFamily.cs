@@ -1,4 +1,6 @@
-﻿namespace ImgSoh
+﻿using System;
+
+namespace ImgSoh
 {
     public static partial class ImgMdf
     {
@@ -12,8 +14,28 @@
                 return;
             }
 
-            imgX.AddToHistory(imgY.Hash, '*');
-            imgY.AddToHistory(imgX.Hash, '*');
+            if (imgX.Family == 0 && imgY.Family == 0) {
+                var family = AppDatabase.GetNewFamily();
+                imgX.SetFamily(family);
+                imgY.SetFamily(family);
+            }
+            else {
+                if (imgX.Family > 0 && imgY.Family == 0) {
+                    imgY.SetFamily(imgX.Family);
+                }
+                else {
+                    if (imgX.Family == 0 && imgY.Family > 0) {
+                        imgX.SetFamily(imgY.Family);
+                    }
+                    else {
+                        if (imgX.Family != imgY.Family) {
+                            var family = Math.Min(imgX.Family, imgY.Family);
+                            imgX.SetFamily(family);
+                            imgY.SetFamily(family);
+                        }
+                    }
+                }
+            }
         }
 
         public static void DetachFromFamily()
@@ -22,12 +44,8 @@
                 return;
             }
 
-            if (!AppDatabase.TryGetImg(AppPanels.GetImgPanel(1).Hash, out var imgY)) {
-                return;
-            }
-
-            imgX.AddToHistory(imgY.Hash, imgY.Hash[0]);
-            imgY.AddToHistory(imgX.Hash, imgX.Hash[0]);
+            var family = AppDatabase.GetNewFamily();
+            imgX.SetFamily(family);
         }
     }
 }

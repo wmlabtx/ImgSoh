@@ -151,11 +151,13 @@ namespace ImgSoh
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
+                        if (imgX.Family > 0) {
+                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
+                            sb.Append($" #{imgX.Family}:{familysize}");
+                        }
+
                         if (imgX.HistoryCount > 0) {
                             sb.Append($" H{imgX.HistoryCount}");
-                            if (imgX.FamilyCount > 0) {
-                                sb.Append($"/{imgX.FamilyCount}");
-                            }
                         }
 
                         sb.AppendLine();
@@ -170,7 +172,7 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (imgX.Verified) {
-                            if (imgX.IsInFamily(imgY.Hash)) {
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {

@@ -76,7 +76,6 @@ namespace ImgSoh
             }
 
             byte[] vector;
-            DateTime datetaken;
             using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
                     DeleteFile(orgfilename, AppConsts.CorruptedExtension);
@@ -84,7 +83,7 @@ namespace ImgSoh
                     return;
                 }
 
-                datetaken = BitmapHelper.GetDateTaken(magickImage, DateTime.Now);
+                var datetaken = BitmapHelper.GetDateTaken(magickImage, DateTime.Now);
                 if (datetaken < lastmodified) {
                     lastmodified = datetaken;
                 }
@@ -145,8 +144,7 @@ namespace ImgSoh
                 lastcheck: lastView,
                 verified: false,
                 history: string.Empty,
-                family: string.Empty,
-                datetaken: datetaken
+                family: 0
             );
 
             AppDatabase.AddImg(imgnew);
@@ -223,7 +221,7 @@ namespace ImgSoh
                     return;
                 }
 
-                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Length == 0 || imgX.DateTaken.Year == 1900) {
+                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Length == 0) {
                     using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                         if (magickImage == null) {
                             Delete(hashX, AppConsts.CorruptedExtension, null);
@@ -234,9 +232,6 @@ namespace ImgSoh
                                BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
                             var vector = VggHelper.CalculateVector(bitmap);
                             imgX.SetVector(vector);
-                            var lastmodified = File.GetLastWriteTime(filename);
-                            var datetaken = BitmapHelper.GetDateTaken(magickImage, lastmodified);
-                            imgX.SetDateTaken(datetaken);
                         }
                     }
 
@@ -251,14 +246,31 @@ namespace ImgSoh
                     imgX.SetFingerPrint(fingerprintstring);
                 }
 
+                if (imgX.Family > 0) {
+                    var history = imgX.HistoryArray;
+                    foreach (var hash in history) {
+                        if (AppDatabase.TryGetImg(hash, out var imgH)) {
+                            if (imgX.Family == imgH.Family) {
+                                imgX.RemoveFromHistory(hash);
+                            }
+                        }
+                        else {
+                            imgX.RemoveFromHistory(hash);
+                        }
+                    }
+                }
+
                 var candidates = AppDatabase.GetCandidates();
                 candidates.Remove(hashX);
-                foreach (var hash in imgX.HistoryArray) {
+                var minus = imgX.HistoryArray.ToList();
+                if (imgX.Family > 0) {
+                    var array = AppDatabase.GetFamily(imgX.Family);
+                    minus.AddRange(array);
+                }
+
+                foreach (var hash in minus) {
                     if (candidates.ContainsKey(hash)) {
                         candidates.Remove(hash);
-                    }
-                    else {
-                        imgX.RemoveFromHistory(hash);
                     }
                 }
 
@@ -308,13 +320,39 @@ namespace ImgSoh
                     }
                 }
 
+                var classesFirst = new[] { new List<string>(), new List<string>(), new List<string>() };
+                // 0 - next
+                // 1 - history
+                // 2 - family
+
                 if (!string.IsNullOrEmpty(hashVgg)) {
-                    if (!imgX.Next.Equals(hashVgg) || Math.Abs(imgX.Distance - distanceVgg) > 0.0001f) {
+                    classesFirst[0].Add(hashVgg);
+                }
+
+                classesFirst[1].AddRange(imgX.HistoryArray);
+                if (imgX.Family > 0) {
+                    classesFirst[2].AddRange(AppDatabase.GetFamily(imgX.Family).Where(e => !e.Equals(imgX.Hash)));
+                }
+
+                var classid = -1;
+                while (classid < 0) {
+                    classid = AppVars.RandomNext(3);
+                    if (classesFirst[classid].Count == 0) {
+                        classid = -1;
+                    }
+                }
+
+                var rindex = AppVars.RandomNext(classesFirst[classid].Count);
+                var hashY = classesFirst[classid][rindex];
+                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
+                    distanceVgg = VggHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
+                    matchVgg = ExifHelper.GetMatch(imgX.FingerPrint, imgY.FingerPrint);
+                    if (!imgX.Next.Equals(hashY) || Math.Abs(imgX.Distance - distanceVgg) > 0.0001f || imgX.Match != matchVgg) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
                         backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} [{imgX.Match}]{imgX.Distance:F4} {AppConsts.CharRightArrow} [{matchVgg}]{distanceVgg:F4}");
+                        imgX.SetNext(hashY);
                         imgX.SetDistance(distanceVgg);
-                        imgX.SetNext(hashVgg);
                         imgX.SetMatch(matchVgg);
                     }
                 }
