@@ -6,6 +6,7 @@ namespace ImgSoh
     {
         public static void CombineToFamily()
         {
+            /*
             if (!AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 return;
             }
@@ -36,16 +37,19 @@ namespace ImgSoh
                     }
                 }
             }
+            */
         }
 
         public static void DetachFromFamily()
         {
+            /*
             if (!AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 return;
             }
 
             var family = AppDatabase.GetNewFamily();
             imgX.SetFamily(family);
+            */
         }
     }
 }

@@ -9,66 +9,17 @@ namespace ImgSoh
     {
         public string Hash { get; }
         public string Folder { get; }
+        public RotateFlipType Orientation { get; }
+        public DateTime LastView { get; }
+        public DateTime LastCheck { get; }
+        public string Next { get; }
+        public bool Verified { get; }
+        public string FingerPrint { get; }
 
-        private readonly byte[] _vector;
-        public byte[] GetVector()
+        private readonly float[] _vector;
+        public float[] GetVector()
         {
             return _vector;
-        }
-
-        public void SetVector(byte[] vector)
-        {
-            Array.Copy(vector, _vector, 4096);
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVector, _vector);
-        }
-
-        public DateTime LastView { get; private set; }
-        public void SetLastView(DateTime lastview)
-        {
-            LastView = lastview;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeLastView, LastView);
-        }
-
-        public RotateFlipType Orientation { get; private set; }
-        public void SetOrientation(RotateFlipType rft)
-        {
-            Orientation = rft;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeOrientation, Helper.RotateFlipTypeToByte(Orientation));
-        }
-
-        public float Distance { get; private set; }
-        public void SetDistance(float distance)
-        {
-            Distance = distance;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeDistance, Distance);
-        }
-
-        public short Match { get; private set; }
-        public void SetMatch(short match)
-        {
-            Match = match;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeMatch, Match);
-        }
-
-        public DateTime LastCheck { get; private set; }
-        public void SetLastCheck(DateTime lastcheck)
-        {
-            LastCheck = lastcheck;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeLastCheck, LastCheck);
-        }
-
-        public string Next { get; private set; }
-        public void SetNext(string next)
-        {
-            Next = next;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeNext, next);
-        }
-
-        public bool Verified { get; private set; }
-        public void SetVerified(bool verified)
-        {
-            Verified = verified;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeVerified, verified);
         }
 
         private readonly SortedSet<string> _history;
@@ -81,49 +32,16 @@ namespace ImgSoh
             return _history.Contains(hash);
         }
 
-        public void AddToHistory(string hash)
-        {
-            if (_history.Add(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
-            }
-        }
-
-        public void RemoveFromHistory(string hash)
-        {
-            if (_history.Remove(hash)) {
-                AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeHistory, History);
-            }
-        }
-
-        public KeyValuePair<string, string>[] FingerPrint;
-        public string FingerPrintString { get; private set; }
-        public void SetFingerPrint(string fingerprint)
-        {
-            FingerPrintString = fingerprint;
-            FingerPrint = ExifHelper.StringtoFingerPrint(fingerprint);
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFingerPrint, fingerprint);
-        }
-
-        public short Family { get; private set; }
-        public void SetFamily(short family)
-        {
-            Family = family;
-            AppDatabase.ImgUpdateProperty(Hash, AppConsts.AttributeFamily, Family);
-        }
-
         public Img(
             string hash,
             string folder,
-            byte[] vector,
+            float[] vector,
             DateTime lastview,
             RotateFlipType orientation,
-            float distance,
-            short match,
             DateTime lastcheck,
             string next,
             bool verified,
             string history,
-            short family,
             string fingerprint
             )
         {
@@ -132,15 +50,11 @@ namespace ImgSoh
             _vector = vector;
             Orientation = orientation;
             LastView = lastview;
-            Distance = distance;
-            Match = match;
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
             _history = Helper.StringToSortedSet(history);
-            Family = family;
-            FingerPrintString = fingerprint;
-            FingerPrint = ExifHelper.StringtoFingerPrint(fingerprint);
+            FingerPrint = fingerprint;
         }
     }
 }

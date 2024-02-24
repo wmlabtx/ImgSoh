@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="packages\OpenCvSharp4.runtime.win.4.8.0.20230708\build\net48\OpenCvSharp4.runtime.win.props" Condition="Exists('packages\OpenCvSharp4.runtime.win.4.8.0.20230708\build\net48\OpenCvSharp4.runtime.win.props')" />
+  <Import Project="packages\OpenCvSharp4.runtime.win.4.9.0.20240103\build\net48\OpenCvSharp4.runtime.win.props" Condition="Exists('packages\OpenCvSharp4.runtime.win.4.9.0.20240103\build\net48\OpenCvSharp4.runtime.win.props')" />
   <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -64,32 +64,41 @@
     <Prefer32Bit>true</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Magick.NET-Q16-x64, Version=13.5.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=AMD64">
-      <HintPath>packages\Magick.NET-Q16-x64.13.5.0\lib\netstandard20\Magick.NET-Q16-x64.dll</HintPath>
+    <Reference Include="Magick.NET-Q16-x64, Version=13.6.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=AMD64">
+      <HintPath>packages\Magick.NET-Q16-x64.13.6.0\lib\netstandard20\Magick.NET-Q16-x64.dll</HintPath>
     </Reference>
-    <Reference Include="Magick.NET.Core, Version=13.5.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
-      <HintPath>packages\Magick.NET.Core.13.5.0\lib\netstandard20\Magick.NET.Core.dll</HintPath>
+    <Reference Include="Magick.NET.Core, Version=13.6.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
+      <HintPath>packages\Magick.NET.Core.13.6.0\lib\netstandard20\Magick.NET.Core.dll</HintPath>
     </Reference>
     <Reference Include="Magick.NET.SystemDrawing, Version=7.2.0.0, Culture=neutral, PublicKeyToken=2004825badfa91ec, processorArchitecture=MSIL">
-      <HintPath>packages\Magick.NET.SystemDrawing.7.2.1\lib\net462\Magick.NET.SystemDrawing.dll</HintPath>
+      <HintPath>packages\Magick.NET.SystemDrawing.7.2.2\lib\net462\Magick.NET.SystemDrawing.dll</HintPath>
+    </Reference>
+    <Reference Include="MetadataExtractor, Version=2.8.1.0, Culture=neutral, PublicKeyToken=b66b5ccaf776c301, processorArchitecture=MSIL">
+      <HintPath>packages\MetadataExtractor.2.8.1\lib\net45\MetadataExtractor.dll</HintPath>
+    </Reference>
+    <Reference Include="Microsoft.ApplicationInsights, Version=2.22.0.997, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <HintPath>packages\Microsoft.ApplicationInsights.2.22.0\lib\net46\Microsoft.ApplicationInsights.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=13.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>packages\Newtonsoft.Json.13.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="OpenCvSharp, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
-      <HintPath>packages\OpenCvSharp4.4.8.0.20230708\lib\net48\OpenCvSharp.dll</HintPath>
+      <HintPath>packages\OpenCvSharp4.4.9.0.20240103\lib\net48\OpenCvSharp.dll</HintPath>
     </Reference>
     <Reference Include="OpenCvSharp.Extensions, Version=1.0.0.0, Culture=neutral, PublicKeyToken=6adad1e807fea099, processorArchitecture=MSIL">
-      <HintPath>packages\OpenCvSharp4.Extensions.4.8.0.20230708\lib\net48\OpenCvSharp.Extensions.dll</HintPath>
+      <HintPath>packages\OpenCvSharp4.Extensions.4.9.0.20240103\lib\net48\OpenCvSharp.Extensions.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Buffers, Version=4.0.3.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
       <HintPath>packages\System.Buffers.4.5.1\lib\net461\System.Buffers.dll</HintPath>
     </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Diagnostics.DiagnosticSource, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
+      <HintPath>packages\System.Diagnostics.DiagnosticSource.8.0.0\lib\net462\System.Diagnostics.DiagnosticSource.dll</HintPath>
+    </Reference>
     <Reference Include="System.Drawing" />
     <Reference Include="System.Drawing.Common, Version=8.0.0.0, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
-      <HintPath>packages\System.Drawing.Common.8.0.0\lib\net462\System.Drawing.Common.dll</HintPath>
+      <HintPath>packages\System.Drawing.Common.8.0.2\lib\net462\System.Drawing.Common.dll</HintPath>
     </Reference>
     <Reference Include="System.Management" />
     <Reference Include="System.Memory, Version=4.0.1.2, Culture=neutral, PublicKeyToken=cc7b13ffcd2ddd51, processorArchitecture=MSIL">
@@ -114,9 +123,14 @@
     <Reference Include="System.Data.DataSetExtensions" />
     <Reference Include="System.Net.Http" />
     <Reference Include="System.Xaml" />
+    <Reference Include="System.Xml" />
+    <Reference Include="System.Xml.Linq" />
     <Reference Include="WindowsBase" />
     <Reference Include="PresentationCore" />
     <Reference Include="PresentationFramework" />
+    <Reference Include="XmpCore, Version=6.1.10.1, Culture=neutral, PublicKeyToken=961f4f366277b80e, processorArchitecture=MSIL">
+      <HintPath>packages\XmpCore.6.1.10.1\lib\net35\XmpCore.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml">
@@ -132,7 +146,7 @@
     <Compile Include="ImgMdfFamily.cs" />
     <Compile Include="ImgMdfFind.cs" />
     <Compile Include="MainWindowLogic.cs" />
-    <Compile Include="VggHelper.cs" />
+    <Compile Include="VitHelper.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -192,12 +206,12 @@
     </Resource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <Import Project="packages\Magick.NET-Q16-x64.13.6.0\build\netstandard20\Magick.NET-Q16-x64.targets" Condition="Exists('packages\Magick.NET-Q16-x64.13.6.0\build\netstandard20\Magick.NET-Q16-x64.targets')" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('packages\OpenCvSharp4.runtime.win.4.8.0.20230708\build\net48\OpenCvSharp4.runtime.win.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\OpenCvSharp4.runtime.win.4.8.0.20230708\build\net48\OpenCvSharp4.runtime.win.props'))" />
-    <Error Condition="!Exists('packages\Magick.NET-Q16-x64.13.5.0\build\netstandard20\Magick.NET-Q16-x64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Magick.NET-Q16-x64.13.5.0\build\netstandard20\Magick.NET-Q16-x64.targets'))" />
+    <Error Condition="!Exists('packages\Magick.NET-Q16-x64.13.6.0\build\netstandard20\Magick.NET-Q16-x64.targets')" Text="$([System.String]::Format('$(ErrorText)', 'packages\Magick.NET-Q16-x64.13.6.0\build\netstandard20\Magick.NET-Q16-x64.targets'))" />
+    <Error Condition="!Exists('packages\OpenCvSharp4.runtime.win.4.9.0.20240103\build\net48\OpenCvSharp4.runtime.win.props')" Text="$([System.String]::Format('$(ErrorText)', 'packages\OpenCvSharp4.runtime.win.4.9.0.20240103\build\net48\OpenCvSharp4.runtime.win.props'))" />
   </Target>
-  <Import Project="packages\Magick.NET-Q16-x64.13.5.0\build\netstandard20\Magick.NET-Q16-x64.targets" Condition="Exists('packages\Magick.NET-Q16-x64.13.5.0\build\netstandard20\Magick.NET-Q16-x64.targets')" />
 </Project>

@@ -6,7 +6,7 @@ namespace ImgSoh
     {
         public static void LoadImages(IProgress<string> progress)
         {
-            VggHelper.LoadNet(progress);
+            VitHelper.LoadNet(progress);
         }
     }
 }

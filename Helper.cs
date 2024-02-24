@@ -236,5 +236,17 @@ namespace ImgSoh
 
             return result;
         }
+
+        public static string FingerPrintToString(IEnumerable<string> set)
+        {
+            var result = string.Join("|", set.Select(e => e).ToArray());
+            return result;
+        }
+
+        public static string[] StringToFingerPrint(string str)
+        {
+            var par = str.Split('|');
+            return par;
+        }
     }
 }

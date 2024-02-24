@@ -51,8 +51,7 @@ namespace ImgSoh
 
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
-            await Task.Run(ExifHelper.Start).ConfigureAwait(true);
-            await Task.Run(() => { VggHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { VitHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
@@ -151,14 +150,7 @@ namespace ImgSoh
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                        if (imgX.Family > 0) {
-                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
-                            sb.Append($" #{imgX.Family}:{familysize}");
-                        }
-
-                        if (imgX.HistoryCount > 0) {
-                            sb.Append($" H{imgX.HistoryCount}");
-                        }
+                        sb.Append($" H{imgX.HistoryCount}");
 
                         sb.AppendLine();
 
@@ -172,17 +164,12 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (imgX.Verified) {
-                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                            if (imgX.IsInHistory(imgY.Hash)) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
-                                if (imgX.IsInHistory(imgY.Hash)) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.LightCyan;
-                                }
-                                else {
-                                    if (imgX.HistoryCount > 0) {
-                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                                    }
+                                if (imgX.HistoryCount > 0) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                                 }
                             }
                         }
@@ -260,7 +247,6 @@ namespace ImgSoh
 
         private void ClassDispose()
         {
-            ExifHelper.Stop();
             _notifyIcon?.Dispose();
             _backgroundWorker?.CancelAsync();
             _backgroundWorker?.Dispose();

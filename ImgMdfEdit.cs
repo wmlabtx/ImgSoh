@@ -32,9 +32,10 @@ namespace ImgSoh
                             return;
                         }
 
-                        img.SetOrientation(rft);
-                        var rvector = VggHelper.CalculateVector(bitmap);
-                        img.SetVector(rvector);
+                        var rvector = VitHelper.CalculateFloatVector(bitmap);
+
+                        AppDatabase.SetVector(hash, rvector);
+                        AppDatabase.SetOrientation(hash, rft);
                     }
                 }
             }

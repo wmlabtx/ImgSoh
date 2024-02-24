@@ -75,7 +75,7 @@ namespace ImgSoh
                 AppDatabase.ImgDelete(hash);
             }
 
-            byte[] vector;
+            float[] vector;
             using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
                     DeleteFile(orgfilename, AppConsts.CorruptedExtension);
@@ -89,7 +89,7 @@ namespace ImgSoh
                 }
 
                 using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    vector = VggHelper.CalculateVector(bitmap);
+                    vector = VitHelper.CalculateFloatVector(bitmap);
                 }
             }
 
@@ -99,14 +99,14 @@ namespace ImgSoh
                 return;
             }
 
-            var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
+            var fingerprint = ExifHelper.GetFingerPrint(imagedata);
             if (fingerprint.Length == 0) {
                 DeleteFile(orgfilename, AppConsts.CorruptedExtension);
                 _bad++;
                 return;
             }
 
-            var fingerprintstring = ExifHelper.FingerprintToString(fingerprint);
+            var fingerprintstring = Helper.FingerPrintToString(fingerprint);
 
             var folder = Helper.GetFolder();
             var newfilename = Helper.GetFileName(folder, hash);
@@ -139,12 +139,9 @@ namespace ImgSoh
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastView,
                 next: hash,
-                distance: 1f,
-                match: 0,
                 lastcheck: lastView,
                 verified: false,
-                history: string.Empty,
-                family: 0
+                history: string.Empty
             );
 
             AppDatabase.AddImg(imgnew);
@@ -221,7 +218,7 @@ namespace ImgSoh
                     return;
                 }
 
-                if (imgX.GetVector().Length != 4096 || imgX.FingerPrint.Length == 0) {
+                if (imgX.GetVector().Length != AppConsts.VectorLength || imgX.FingerPrint.Length == 0) {
                     using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                         if (magickImage == null) {
                             Delete(hashX, AppConsts.CorruptedExtension, null);
@@ -230,134 +227,111 @@ namespace ImgSoh
 
                         using (var bitmap =
                                BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                            var vector = VggHelper.CalculateVector(bitmap);
-                            imgX.SetVector(vector);
+                            var vector = VitHelper.CalculateFloatVector(bitmap);
+                            AppDatabase.SetVector(hashX, vector);
                         }
                     }
 
-                    var name = Path.GetFileNameWithoutExtension(filename);
-                    var fingerprint = ExifHelper.GetFingerPrint(name, imagedata);
-                    if (fingerprint.Length == 0) {
+                    var fp = ExifHelper.GetFingerPrint(imagedata);
+                    if (fp.Length == 0) {
                         Delete(hashX, AppConsts.CorruptedExtension, null);
                         return;
                     }
 
-                    var fingerprintstring = ExifHelper.FingerprintToString(fingerprint);
-                    imgX.SetFingerPrint(fingerprintstring);
+                    var fingerprint = Helper.FingerPrintToString(fp);
+                    AppDatabase.SetFingerPrint(hashX, fingerprint);
+                    if (!AppDatabase.TryGetImg(hashX, out imgX)) {
+                        return;
+                    }
                 }
 
-                if (imgX.Family > 0) {
-                    var history = imgX.HistoryArray;
-                    foreach (var hash in history) {
-                        if (AppDatabase.TryGetImg(hash, out var imgH)) {
-                            if (imgX.Family == imgH.Family) {
-                                imgX.RemoveFromHistory(hash);
+                string bestNext = null;
+                var bestMatch = 0;
+                var bestDistance = float.MaxValue;
+                var bestLastView = DateTime.MaxValue;
+
+                var fpX = Helper.StringToFingerPrint(imgX.FingerPrint);
+
+                if (imgX.HistoryCount > 0) {
+                    var historyarray = imgX.HistoryArray;
+                    foreach (var hash in historyarray) {
+                        if (!AppDatabase.TryGetImg(hash, out _)) {
+                            AppDatabase.RemoveFromHistory(hashX, hash);
+                        }
+                    }
+
+                    if (!AppDatabase.TryGetImg(hashX, out imgX)) {
+                        return;
+                    }
+
+                    var rand = AppVars.RandomNext(2);
+                    if (imgX.HistoryCount > 0 && rand == 1) {
+                        historyarray = imgX.HistoryArray;
+                        foreach (var hash in historyarray) {
+                            if (AppDatabase.TryGetImg(hash, out var imgH)) {
+                                if (imgH.LastView < bestLastView) {
+                                    bestLastView = imgH.LastView;
+                                    bestNext = hash;
+                                    bestDistance = VitHelper.GetDistance(imgX.GetVector(), imgH.GetVector());
+                                    var fpY = Helper.StringToFingerPrint(imgH.FingerPrint);
+                                    bestMatch = ExifHelper.GetMatch(fpX, fpY);
+                                }
                             }
                         }
-                        else {
-                            imgX.RemoveFromHistory(hash);
-                        }
                     }
                 }
 
-                var candidates = AppDatabase.GetCandidates();
-                candidates.Remove(hashX);
-                var minus = imgX.HistoryArray.ToList();
-                if (imgX.Family > 0) {
-                    var array = AppDatabase.GetFamily(imgX.Family);
-                    minus.AddRange(array);
-                }
-
-                foreach (var hash in minus) {
-                    if (candidates.ContainsKey(hash)) {
+                if (bestNext == null) {
+                    var candidates = AppDatabase.GetCandidates();
+                    candidates.Remove(hashX);
+                    var historyarray = imgX.HistoryArray;
+                    foreach (var hash in historyarray) {
                         candidates.Remove(hash);
                     }
-                }
 
-                const float VggSim = 0.2f;
-                string hashVgg = null;
-                var distanceVgg = 1f;
-                short matchVgg = 0;
-                foreach (var e in candidates) {
-                    var distance = VggHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
-                    var match = ExifHelper.GetMatch(imgX.FingerPrint, e.Value.FingerPrint);
-                    if (hashVgg == null) {
-                        distanceVgg = distance;
-                        hashVgg = e.Key;
-                        matchVgg = match;
-                        continue;
-                    }
+                   
+                    foreach (var e in candidates) {
+                        var distance = VitHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
+                        var fpY = Helper.StringToFingerPrint(e.Value.FingerPrint);
+                        var match = ExifHelper.GetMatch(fpX, fpY);
 
-                    if (distance < VggSim) {
-                        if (distance < distanceVgg) {
-                            distanceVgg = distance;
-                            hashVgg = e.Key;
-                            matchVgg = match;
+                        if (distance < AppConsts.VitSim) {
+                            if (distance < bestDistance) {
+                                bestDistance = distance;
+                                bestMatch = match;
+                                bestNext = e.Key;
+                            }
+
+                            continue;
                         }
 
-                        continue;
-                    }
+                        if (match > bestMatch) {
+                            bestDistance = distance;
+                            bestMatch = match;
+                            bestNext = e.Key;
+                            continue;
+                        }
 
-                    if (distanceVgg < VggSim) {
-                        continue;
-                    }
+                        if (match < bestMatch) {
+                            continue;
+                        }
 
-                    if (match > matchVgg) {
-                        distanceVgg = distance;
-                        hashVgg = e.Key;
-                        matchVgg = match;
-                        continue;
-                    }
-
-                    if (match < matchVgg) {
-                        continue;
-                    }
-
-                    if (distance < distanceVgg) {
-                        distanceVgg = distance;
-                        hashVgg = e.Key;
-                        matchVgg = match;
+                        if (distance < bestDistance) {
+                            bestDistance = distance;
+                            bestMatch = match;
+                            bestNext = e.Key;
+                        }
                     }
                 }
 
-                var classesFirst = new[] { new List<string>(), new List<string>(), new List<string>() };
-                // 0 - next
-                // 1 - history
-                // 2 - family
-
-                if (!string.IsNullOrEmpty(hashVgg)) {
-                    classesFirst[0].Add(hashVgg);
+                if (bestNext != null && !imgX.Next.Equals(bestNext)) {
+                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                    var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {AppConsts.CharRightArrow} [{bestMatch}] {bestDistance:F4}");
+                    AppDatabase.SetNext(hashX, bestNext);
                 }
 
-                classesFirst[1].AddRange(imgX.HistoryArray);
-                if (imgX.Family > 0) {
-                    classesFirst[2].AddRange(AppDatabase.GetFamily(imgX.Family).Where(e => !e.Equals(imgX.Hash)));
-                }
-
-                var classid = -1;
-                while (classid < 0) {
-                    classid = AppVars.RandomNext(3);
-                    if (classesFirst[classid].Count == 0) {
-                        classid = -1;
-                    }
-                }
-
-                var rindex = AppVars.RandomNext(classesFirst[classid].Count);
-                var hashY = classesFirst[classid][rindex];
-                if (AppDatabase.TryGetImg(hashY, out var imgY)) {
-                    distanceVgg = VggHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
-                    matchVgg = ExifHelper.GetMatch(imgX.FingerPrint, imgY.FingerPrint);
-                    if (!imgX.Next.Equals(hashY) || Math.Abs(imgX.Distance - distanceVgg) > 0.0001f || imgX.Match != matchVgg) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} [{imgX.Match}]{imgX.Distance:F4} {AppConsts.CharRightArrow} [{matchVgg}]{distanceVgg:F4}");
-                        imgX.SetNext(hashY);
-                        imgX.SetDistance(distanceVgg);
-                        imgX.SetMatch(matchVgg);
-                    }
-                }
-
-                imgX.SetLastCheck(DateTime.Now);
+                AppDatabase.SetLastCheck(hashX, DateTime.Now);
             }
         }
     }
