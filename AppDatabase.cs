@@ -205,6 +205,11 @@ namespace ImgSoh
         {
             string hash;
             lock (_sqlLock) {
+                hash = _imgList
+                    .OrderBy(e => e.Value.LastCheck)
+                    .FirstOrDefault()
+                    .Key;
+                /*
                 var scope = _imgList
                     .Where(e => !IsValid(e.Value))
                     .ToList();
@@ -220,6 +225,7 @@ namespace ImgSoh
                 hash = scope
                     .FirstOrDefault()
                     .Key;
+                */
             }
 
             return hash;
@@ -239,86 +245,81 @@ namespace ImgSoh
         {
             bestHash = null;
             status = null;
-            var classes = new[] { new List<string>(), new List<string>(), new List<string>(), new List<string>() };
-            // 0 - bad pair
-            // 1 - new image (!Verified)
-            // 2 - with history
-            // 3 - no history
+            var bads = 0;
+            var news = 0;
+            var h = int.MaxValue;
+            var hc = 0;
 
             int total;
             lock (_sqlLock) {
                 total = _imgList.Count;
                 foreach (var imgX in _imgList.Values) {
-                    int classid;
                     if (!IsValid(imgX)) {
-                        classid = 0;
+                        bads++;
                     }
                     else {
                         if (!imgX.Verified) {
-                            classid = 1;
+                            news++;
                         }
                         else {
-                            if (imgX.HistoryCount > 0) {
-                                classid = 2;
+                            if (imgX.HistoryCount < h) {
+                                h = imgX.HistoryCount;
+                                hc = 1;
                             }
                             else {
-                                classid = 3;
+                                if (imgX.HistoryCount == h) {
+                                    hc++;
+                                }
                             }
                         }
                     }
-
-                    classes[classid].Add(imgX.Hash);
                 }
 
-                var scope = _imgList
-                    .Where(e => IsValid(e.Value) && !e.Value.Verified)
-                    .ToList();
-
-                if (scope.Count > 0) {
-                    bestHash = scope
-                        .OrderBy(e => e.Value.LastView)
-                        .FirstOrDefault()
-                        .Key;
-                }
-                else {
-                    scope = _imgList
-                        .Where(e => IsValid(e.Value))
-                        .ToList();
-                    if (scope.Count == 0) {
-                        bestHash = _imgList.FirstOrDefault().Key;
-                        return;
+                var daysX = -1;
+                var daysY = -1;
+                foreach (var imgX in _imgList.Values) {
+                    if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
+                        continue;
                     }
 
-                    var minhc = scope.Min(e => e.Value.HistoryCount);
-                    scope = scope
-                        .Where(e => e.Value.HistoryCount == minhc)
-                        .ToList();
+                    if (!imgX.Verified) {
+                        bestHash = imgX.Hash;
+                        break;
+                    }
 
-                    var irandom = AppVars.RandomNext(scope.Count);
-                    bestHash = scope.ElementAt(irandom).Key;
+                    var dX = (int)DateTime.Now.Subtract(imgX.LastView).TotalDays;
+                    var dY = (int)DateTime.Now.Subtract(imgY.LastView).TotalDays;
+                    if (dX > daysX || (dX == daysX && dY > daysY)) {
+                        daysX = dX;
+                        daysY = dY;
+                        bestHash = imgX.Hash;
+                    }
                 }
-
             }
 
             var sb = new StringBuilder();
-            if (classes[0].Count > 0) {
-                sb.Append($"b{classes[0].Count}");
-            }
-
-            if (classes[1].Count > 0) {
+            if (news > 0) {
                 if (sb.Length > 0) {
                     sb.Append('/');
                 }
 
-                sb.Append($"n{classes[1].Count}");
+                sb.Append($"n{news}");
             }
 
-            if (classes[2].Count > 0) {
+            if (h < int.MaxValue) {
                 if (sb.Length > 0) {
                     sb.Append('/');
                 }
 
-                sb.Append($"h{classes[2].Count}");
+                sb.Append($"{h}:{hc}");
+            }
+
+            if (bads > 0) {
+                if (sb.Length > 0) {
+                    sb.Append('/');
+                }
+
+                sb.Append($"b{bads}");
             }
 
             if (sb.Length > 0) {

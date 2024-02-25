@@ -27,7 +27,6 @@
         public const double WindowMargin = 5.0;
         public const double TimeLapse = 500.0;
         public const int VectorLength = 1000;
-        public const float VitSim = 2f;
 
         public const string TableImages = "Images";
         public const string AttributeHash = "Hash";

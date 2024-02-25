@@ -246,88 +246,37 @@ namespace ImgSoh
                 }
 
                 string bestNext = null;
-                var bestMatch = 0;
                 var bestDistance = float.MaxValue;
-                var bestLastView = DateTime.MaxValue;
 
-                var fpX = Helper.StringToFingerPrint(imgX.FingerPrint);
-
-                if (imgX.HistoryCount > 0) {
-                    var historyarray = imgX.HistoryArray;
+                var candidates = AppDatabase.GetCandidates();
+                candidates.Remove(hashX);
+                
+                var historyarray = imgX.HistoryArray;
+                if (historyarray.Length > 0) {
                     foreach (var hash in historyarray) {
+                        candidates.Remove(hash);
                         if (!AppDatabase.TryGetImg(hash, out _)) {
                             AppDatabase.RemoveFromHistory(hashX, hash);
                         }
                     }
-
-                    if (!AppDatabase.TryGetImg(hashX, out imgX)) {
-                        return;
-                    }
-
-                    var rand = AppVars.RandomNext(2);
-                    if (imgX.HistoryCount > 0 && rand == 1) {
-                        historyarray = imgX.HistoryArray;
-                        foreach (var hash in historyarray) {
-                            if (AppDatabase.TryGetImg(hash, out var imgH)) {
-                                if (imgH.LastView < bestLastView) {
-                                    bestLastView = imgH.LastView;
-                                    bestNext = hash;
-                                    bestDistance = VitHelper.GetDistance(imgX.GetVector(), imgH.GetVector());
-                                    var fpY = Helper.StringToFingerPrint(imgH.FingerPrint);
-                                    bestMatch = ExifHelper.GetMatch(fpX, fpY);
-                                }
-                            }
-                        }
-                    }
                 }
 
-                if (bestNext == null) {
-                    var candidates = AppDatabase.GetCandidates();
-                    candidates.Remove(hashX);
-                    var historyarray = imgX.HistoryArray;
-                    foreach (var hash in historyarray) {
-                        candidates.Remove(hash);
-                    }
+                if (!AppDatabase.TryGetImg(hashX, out imgX)) {
+                    return;
+                }
 
-                   
-                    foreach (var e in candidates) {
-                        var distance = VitHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
-                        var fpY = Helper.StringToFingerPrint(e.Value.FingerPrint);
-                        var match = ExifHelper.GetMatch(fpX, fpY);
-
-                        if (distance < AppConsts.VitSim) {
-                            if (distance < bestDistance) {
-                                bestDistance = distance;
-                                bestMatch = match;
-                                bestNext = e.Key;
-                            }
-
-                            continue;
-                        }
-
-                        if (match > bestMatch) {
-                            bestDistance = distance;
-                            bestMatch = match;
-                            bestNext = e.Key;
-                            continue;
-                        }
-
-                        if (match < bestMatch) {
-                            continue;
-                        }
-
-                        if (distance < bestDistance) {
-                            bestDistance = distance;
-                            bestMatch = match;
-                            bestNext = e.Key;
-                        }
+                foreach (var e in candidates) {
+                    var distance = VitHelper.GetDistance(imgX.GetVector(), e.Value.GetVector());
+                    if (distance < bestDistance) {
+                        bestDistance = distance;
+                        bestNext = e.Key;
                     }
                 }
 
                 if (bestNext != null && !imgX.Next.Equals(bestNext)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {AppConsts.CharRightArrow} [{bestMatch}] {bestDistance:F4}");
+                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} [{imgX.HistoryCount}] {AppConsts.CharRightArrow} {bestDistance:F4}");
                     AppDatabase.SetNext(hashX, bestNext);
                 }
 
