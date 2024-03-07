@@ -5,19 +5,25 @@
         public static void Confirm()
         {
             var hashX = AppPanels.GetImgPanel(0).Hash;
-            AppDatabase.SetVerified(hashX);
-            AppDatabase.SetLastView(hashX);
-            
             var hashY = AppPanels.GetImgPanel(1).Hash;
-            AppDatabase.SetLastView(hashY);
-
-            AppDatabase.AddToHistory(hashX, hashY);
+            
+            AppDatabase.SetFamilyForced(hashY);
             AppDatabase.AddToHistory(hashY, hashX);
+            AppDatabase.SetLastView(hashY);
+            AppDatabase.SetLastCheck(hashY, AppDatabase.GetMinLastCheck());
+
+            AppDatabase.SetFamilyForced(hashX);
+            AppDatabase.SetVerified(hashX);
+            AppDatabase.AddToHistory(hashX, hashY);
+            AppDatabase.SetLastView(hashX);
+            AppDatabase.SetLastCheck(hashX, AppDatabase.GetMinLastCheck());
         }
 
         private static void ConfirmOpposite(int idpanel)
         {
             var hashX = AppPanels.GetImgPanel(idpanel).Hash;
+
+            AppDatabase.SetFamilyForced(hashX);
             AppDatabase.SetLastView(hashX);
         }
     }

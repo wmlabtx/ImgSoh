@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using MetadataExtractor;
@@ -21,6 +23,36 @@ namespace ImgSoh
             }
 
             return fplist.ToArray();
+        }
+
+        public static string GetDateTaken(string[] fingerPrint)
+        {
+            var result = string.Empty;
+            var dateTaken = DateTime.MaxValue;
+            foreach (var e in fingerPrint) {
+                var par = e.Split('=');
+                if (par.Length <= 1) {
+                    continue;
+                }
+
+                var v = par.Last();
+                if (!DateTime.TryParseExact(v, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)) {
+                    if (!DateTime.TryParseExact(v, "yyyy:MM:dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out dt)) {
+                        continue;
+                    }
+                }
+
+                if (e.IndexOf("profile", StringComparison.OrdinalIgnoreCase) >= 0) {
+                    continue;
+                }
+
+                if (dt < dateTaken) {
+                    dateTaken = dt;
+                    result = dt.ToShortDateString();
+                }
+            }
+
+            return result;
         }
 
         public static short GetMatch(string[] x, string[] y)

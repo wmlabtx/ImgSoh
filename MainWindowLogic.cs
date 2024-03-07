@@ -150,7 +150,15 @@ namespace ImgSoh
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                        sb.Append($" H{imgX.HistoryCount}");
+                        var history = imgX.GetHistoryArray();
+                        if (history.Length > 0) {
+                            sb.Append($" H{history.Length}");
+                        }
+
+                        if (imgX.Family > 0) {
+                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
+                            sb.Append($" #{imgX.Family}:{familysize}");
+                        }
 
                         sb.AppendLine();
 
@@ -159,22 +167,19 @@ namespace ImgSoh
                         sb.AppendLine();
 
                         sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
-                        sb.Append($" [{Helper.GetShortDateTaken(panels[index].DateTaken)}]");
+                        sb.Append(!string.IsNullOrEmpty(panels[index].DateTaken)
+                            ? $" {panels[index].DateTaken}"
+                            : $" E{panels[index].FingerPrint.Length}");
 
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
-                        if (imgX.Verified) {
-                            if (imgX.IsInHistory(imgY.Hash)) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
-                            }
-                            else {
-                                if (imgX.HistoryCount > 0) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                                }
-                            }
+                        if (!imgX.Verified) {
+                            pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                            }
                         }
                     }
                 }

@@ -1,5 +1,4 @@
-﻿using System;
-using System.Drawing;
+﻿using System.Drawing;
 
 namespace ImgSoh
 {
@@ -9,14 +8,16 @@ namespace ImgSoh
         public long Size { get; }
         public Bitmap Bitmap { get; private set; }
         public string Format { get; }
-        public DateTime DateTaken { get; }
+        public string[] FingerPrint { get; }
+        public string DateTaken { get; }
 
-        public ImgPanel(string hash, long size, Bitmap bitmap, string format, DateTime dateTaken)
+        public ImgPanel(string hash, long size, Bitmap bitmap, string format, string[] fingerPrint, string dateTaken)
         {
             Hash = hash;
             Size = size;
             Bitmap = bitmap;
             Format = format;
+            FingerPrint = fingerPrint;
             DateTaken = dateTaken;
         }
     }

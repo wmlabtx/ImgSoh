@@ -1,7 +1,7 @@
 ﻿using System;
- using System.Collections.Generic;
- using System.Drawing;
- using System.Linq;
+using System.Collections.Generic;
+using System.Drawing;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -14,7 +14,7 @@ namespace ImgSoh
         public DateTime LastCheck { get; }
         public string Next { get; }
         public bool Verified { get; }
-        public string FingerPrint { get; }
+        public int Family { get; }
 
         private readonly float[] _vector;
         public float[] GetVector()
@@ -23,13 +23,39 @@ namespace ImgSoh
         }
 
         private readonly SortedSet<string> _history;
-        public int HistoryCount => _history.Count;
-        public string[] HistoryArray => _history.ToArray();
-        public string History => Helper.SortedSetToString(_history);
+        public string GetHistory()
+        {
+            return Helper.SortedSetToString(_history);
+        }
+
+        public string[] GetHistoryArray()
+        {
+            return _history.ToArray();
+        }
 
         public bool IsInHistory(string hash)
         {
             return _history.Contains(hash);
+        }
+
+        public bool AddToHistory(string hash)
+        {
+            return _history.Add(hash);
+        }
+
+        public bool RemoveFromHistory(string hash)
+        {
+            return _history.Remove(hash);
+        }
+
+        public bool ClearHistory()
+        {
+            if (_history.Count == 0) {
+                return false;
+            }
+
+            _history.Clear();
+            return true;
         }
 
         public Img(
@@ -41,8 +67,8 @@ namespace ImgSoh
             DateTime lastcheck,
             string next,
             bool verified,
-            string history,
-            string fingerprint
+            int family,
+            string history
             )
         {
             Hash = hash;
@@ -53,8 +79,8 @@ namespace ImgSoh
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
+            Family = family;
             _history = Helper.StringToSortedSet(history);
-            FingerPrint = fingerprint;
         }
     }
 }

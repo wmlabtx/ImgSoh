@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -36,6 +37,16 @@ namespace ImgSoh
                 }
 
                 var hashY = imgX.Next;
+                if (imgX.Family > 0 && AppVars.RandomNext(5) == 0) {
+                    var members = AppDatabase.GetFamily(imgX.Family);
+                    var list = members.ToList();
+                    list.Remove(hashX);
+                    if (list.Count > 0) {
+                        var rindex = AppVars.RandomNext(list.Count);
+                        hashY = list[rindex];
+                    }
+                }
+
                 if (hashX.Equals(hashY)) {
                     throw new Exception();
                 }
@@ -55,11 +66,7 @@ namespace ImgSoh
                 var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
                 var shortfilename = Helper.GetShortFileName(imgX.Folder, hashX);
                 var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
-                var fpX = Helper.StringToFingerPrint(imgX.FingerPrint);
-                var fpY = Helper.StringToFingerPrint(imgY.FingerPrint);
-                var match = ExifHelper.GetMatch(fpX, fpY);
-
-                progress.Report($"{status} [{age} ago] {shortfilename} [{match}/{fpX.Length}] {distance:F4}");
+                progress.Report($"{status} [{age} ago] {shortfilename} {distance:F4}");
                 break;
             }
             while (true);
