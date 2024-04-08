@@ -144,7 +144,7 @@ namespace ImgSoh
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
                 if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
+                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out _)) {
                         pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
@@ -155,11 +155,7 @@ namespace ImgSoh
                             sb.Append($" H{history.Length}");
                         }
 
-                        if (imgX.Family > 0) {
-                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
-                            sb.Append($" #{imgX.Family}:{familysize}");
-                        }
-
+                        sb.Append($" [{imgX.Distance:F4}]");
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -167,9 +163,10 @@ namespace ImgSoh
                         sb.AppendLine();
 
                         sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
+                        var ediff = ExifHelper.GetDiff(panels[index].FingerPrint, panels[1 - index].FingerPrint);
                         sb.Append(!string.IsNullOrEmpty(panels[index].DateTaken)
                             ? $" {panels[index].DateTaken}"
-                            : $" E{panels[index].FingerPrint.Length}");
+                            : $" {ediff}");
 
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
@@ -177,8 +174,8 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                            if (history.Length > 0) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                             }
                         }
                     }

@@ -35,7 +35,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeNext}, "); // 5
                 sb.Append($"{AppConsts.AttributeLastCheck}, "); // 6
                 sb.Append($"{AppConsts.AttributeVerified}, "); // 7
-                sb.Append($"{AppConsts.AttributeFamily}, "); // 8
+                sb.Append($"{AppConsts.AttributeDistance}, "); // 8
                 sb.Append($"{AppConsts.AttributeHistory} "); // 9
                 sb.Append($"FROM {AppConsts.TableImages}");
                 using (var sqlCommand = _sqlConnection.CreateCommand()) {
@@ -52,7 +52,7 @@ namespace ImgSoh
                             var next = reader.GetString(5);
                             var lastcheck = reader.GetDateTime(6);
                             var verified = reader.GetBoolean(7);
-                            var family = reader.GetInt32(8);
+                            var distance = reader.GetFloat(8);
                             var history = reader.GetString(9);
                             var img = new Img(
                                 hash: hash,
@@ -63,7 +63,7 @@ namespace ImgSoh
                                 next: next,
                                 lastcheck: lastcheck,
                                 verified: verified,
-                                family: family,
+                                distance: distance,
                                 history: history
                             );
 
@@ -146,7 +146,7 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeNext}, ");
                     sb.Append($"{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"{AppConsts.AttributeVerified}, ");
-                    sb.Append($"{AppConsts.AttributeFamily}, ");
+                    sb.Append($"{AppConsts.AttributeDistance}, ");
                     sb.Append($"{AppConsts.AttributeHistory}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash}, ");
@@ -157,7 +157,7 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeNext}, ");
                     sb.Append($"@{AppConsts.AttributeLastCheck}, ");
                     sb.Append($"@{AppConsts.AttributeVerified}, ");
-                    sb.Append($"@{AppConsts.AttributeFamily}, ");
+                    sb.Append($"@{AppConsts.AttributeDistance}, ");
                     sb.Append($"@{AppConsts.AttributeHistory}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
@@ -170,7 +170,7 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeDistance}", img.Distance);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.GetHistory());
                     sqlCommand.ExecuteNonQuery();
                 }
@@ -196,15 +196,8 @@ namespace ImgSoh
                 if (imgX.GetVector() == null ||
                     imgX.GetVector().Length != AppConsts.VectorLength ||
                     imgX.Next.Equals(imgX.Hash) ||
+                    !_imgList.ContainsKey(imgX.Next) ||
                     imgX.IsInHistory(imgX.Next)) {
-                    return false;
-                }
-
-                if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
-                    return false;
-                }
-
-                if (imgX.Family > 0 && imgX.Family == imgY.Family) {
                     return false;
                 }
             }
@@ -214,32 +207,58 @@ namespace ImgSoh
 
         public static string GetNextCheck()
         {
-            string hash = null;
-            var bestLastCheck = DateTime.MaxValue;
+            Img bestImgX = null;
             lock (_sqlLock) {
-                foreach (var e in _imgList.Values) {
-                    if (
-                        e.GetVector().Length != AppConsts.VectorLength || 
-                        e.Hash.Equals(e.Next) ||
-                        !_imgList.ContainsKey(e.Next)) {
-                        return e.Hash;
+                foreach (var imgX in _imgList.Values) {
+                    if (bestImgX == null || imgX.LastCheck < bestImgX.LastCheck) {
+                        bestImgX = imgX;
                     }
+                }
 
-                    if (e.Family > 0) {
-                        var n = _imgList[e.Next];
-                        if (e.Family == n.Family) {
-                            return e.Hash;
+                /*
+                var scope = _imgList.Values.ToArray();
+                var attempts = Math.Min(1000, scope.Length);
+                var attempt = 0;
+                while (attempt < attempts) {
+                    var rindex = AppVars.RandomNext(scope.Length);
+                    var imgX = scope[rindex];
+                    if (bestImgX == null) {
+                        bestImgX = imgX;
+                    }
+                    else {
+                        if (!imgX.Verified && bestImgX.Verified) {
+                            bestImgX = imgX;
+                        }
+                        else {
+                            if ((!imgX.Verified && !bestImgX.Verified) || (imgX.Verified && bestImgX.Verified)) {
+                                if (imgX.LastView < bestImgX.LastView) {
+                                    bestImgX = imgX;
+                                }
+                            }
                         }
                     }
 
-                    if (e.LastCheck < bestLastCheck) {
-                        bestLastCheck = e.LastCheck;
-                        hash = e.Hash;
+                    attempt++;
+                }
+                */
+            }
+
+            var hash = bestImgX?.Hash;
+            return hash;
+        }
+
+        public static Img[] GetPointers(string hash)
+        {
+            var pointers = new List<Img>();
+            lock (_sqlLock) {
+                foreach (var e in _imgList.Values) {
+                    if (e.Next.Equals(hash)) {
+                        pointers.Add(e);
                     }
                 }
             }
 
-            return hash;
+            return pointers.OrderBy(e => e.Distance).ToArray();
         }
 
         public static SortedList<string, Img> GetCandidates()
@@ -257,60 +276,28 @@ namespace ImgSoh
             bestHash = null;
             status = null;
             int total;
+            int news;
+            int bads;
+            int count;
             lock (_sqlLock) {
                 total = _imgList.Count;
-                var familyList = new SortedList<int, DateTime>();
-                foreach (var imgX in _imgList.Values) {
-                    if (imgX.Family == 0 || !IsValid(imgX)) {
-                        continue;
-                    }
+                news = _imgList.Count(e => !e.Value.Verified);
+                bads = _imgList.Count(e => !IsValid(e.Value));
+                var scope = _imgList.Values.Where(IsValid).ToArray();
+                count = scope.Length;
+                var imgX = scope.OrderBy(e => e.Verified).ThenBy(e => e.LastView).FirstOrDefault();
+                /*
+                var rindex = AppVars.RandomNext(scope.Length);
+                var imgX = scope[rindex];
+                var imgY = _imgList[imgX.Next];
+                bestHash = scope[rindex].Hash;
+                */
 
-                    if (familyList.ContainsKey(imgX.Family)) {
-                        if (imgX.LastView > familyList[imgX.Family]) {
-                            familyList[imgX.Family] = imgX.LastView;
-                        }
-                    }
-                    else {
-                        familyList.Add(imgX.Family, imgX.LastView);
-                    }
-                }
-
-                if (familyList.Count == 0) {
-                    familyList.Add(0, DateTime.Now);
-                }
-
-                var families = familyList.OrderBy(e => e.Value).Select(e => e.Key).ToArray();
-                var index = 0;
-                while (bestHash == null && index < families.Length) {
-                    var family = families[index];
-                    var rindex = AppVars.RandomNext(100);
-                    if (rindex == 0) {
-                        family = 0;
-                    }
-
-                    var lastview = DateTime.MaxValue;
-                    foreach (var e in _imgList.Where(e => e.Value.Family == family)) {
-                        if (!IsValid(e.Value)) {
-                            continue;
-                        }
-
-                        if (!e.Value.Verified) {
-                            bestHash = e.Key;
-                            break;
-                        }
-
-                        if (e.Value.LastView < lastview) {
-                            bestHash = e.Key;
-                            lastview = e.Value.LastView;
-                        }
-                    }
-
-                    index++;
-                }
+                bestHash = imgX?.Hash;
             }
 
             var sb = new StringBuilder();
-            sb.Append($"{total}");
+            sb.Append($"{news}/b{bads}/v{count}/{total}");
             status = sb.ToString();
         }
 
@@ -327,7 +314,7 @@ namespace ImgSoh
                         next: o.Next,
                         lastcheck: o.LastCheck,
                         verified: o.Verified,
-                        family: o.Family,
+                        distance: o.Distance,
                         history: o.GetHistory()
                     );
 
@@ -351,7 +338,7 @@ namespace ImgSoh
                         next: o.Next,
                         lastcheck: o.LastCheck,
                         verified: o.Verified,
-                        family: o.Family, 
+                        distance: o.Distance,
                         history: o.GetHistory()
                     );
 
@@ -375,7 +362,7 @@ namespace ImgSoh
                         next: o.Next,
                         lastcheck: o.LastCheck,
                         verified: o.Verified,
-                        family: o.Family,
+                        distance: o.Distance,
                         history: o.GetHistory()
                     );
 
@@ -400,7 +387,7 @@ namespace ImgSoh
                             next: o.Next,
                             lastcheck: o.LastCheck,
                             verified: true,
-                            family: o.Family,
+                            distance: o.Distance,
                             history: o.GetHistory()
                         );
 
@@ -425,7 +412,7 @@ namespace ImgSoh
                         next: o.Next,
                         lastcheck: lastcheck,
                         verified: o.Verified,
-                        family: o.Family,
+                        distance: o.Distance,
                         history: o.GetHistory()
                     );
 
@@ -449,7 +436,7 @@ namespace ImgSoh
                         next: next,
                         lastcheck: o.LastCheck,
                         verified: o.Verified,
-                        family: o.Family,
+                        distance: o.Distance,
                         history: o.GetHistory()
                     );
 
@@ -460,7 +447,7 @@ namespace ImgSoh
             }
         }
 
-        public static void SetFamily(string hash, int family)
+        public static void SetDistance(string hash, float distance)
         {
             lock (_sqlLock) {
                 if (_imgList.TryGetValue(hash, out var o)) {
@@ -473,81 +460,15 @@ namespace ImgSoh
                         next: o.Next,
                         lastcheck: o.LastCheck,
                         verified: o.Verified,
-                        family: family,
-                        history: string.Empty
+                        distance: distance,
+                        history: o.GetHistory()
                     );
 
                     _imgList.Remove(hash);
                     _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeFamily, n.Family);
-                    ImgUpdateProperty(hash, AppConsts.AttributeHistory, n.GetHistory());
+                    ImgUpdateProperty(hash, AppConsts.AttributeDistance, n.Distance);
                 }
             }
-        }
-
-        public static void SetFamilyForced(string hash)
-        {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    if (o.Family == 0) {
-                        var family = GetNewFamily();
-                        var n = new Img(
-                            hash: o.Hash,
-                            folder: o.Folder,
-                            vector: o.GetVector(),
-                            orientation: o.Orientation,
-                            lastview: o.LastView,
-                            next: o.Next,
-                            lastcheck: o.LastCheck,
-                            verified: o.Verified,
-                            family: family,
-                            history: o.GetHistory()
-                        );
-
-                        _imgList.Remove(hash);
-                        _imgList.Add(hash, n);
-                        ImgUpdateProperty(hash, AppConsts.AttributeFamily, n.Family);
-                    }
-                }
-            }
-        }
-
-        public static int GetNewFamily()
-        {
-            int[] families;
-            lock (_sqlLock) {
-                families = _imgList
-                    .Where(e => e.Value.Family > 0)
-                    .Select(e => e.Value.Family)
-                    .Distinct()
-                    .OrderBy(e => e)
-                    .ToArray();
-            }
-
-            if (families.Length == 0) {
-                return 1;
-            }
-
-            var pos = 0;
-            while (pos < families.Length) {
-                if (families[pos] != pos + 1) {
-                    break;
-                }
-
-                pos++;
-            }
-
-            return pos + 1;
-        }
-
-        public static string[] GetFamily(int family)
-        {
-            string[] array;
-            lock (_sqlLock) {
-                array = _imgList.Where(e => e.Value.Family == family).Select(e => e.Key).ToArray();
-            }
-
-            return array;
         }
 
         public static void AddToHistory(string hash, string hashToAdd)
@@ -565,7 +486,7 @@ namespace ImgSoh
                             next: o.Next,
                             lastcheck: o.LastCheck,
                             verified: o.Verified,
-                            family: o.Family,
+                            distance: o.Distance,
                             history: history
                         );
 
@@ -592,7 +513,7 @@ namespace ImgSoh
                             next: o.Next,
                             lastcheck: o.LastCheck,
                             verified: o.Verified,
-                            family: o.Family,
+                            distance: o.Distance,
                             history: history
                         );
 

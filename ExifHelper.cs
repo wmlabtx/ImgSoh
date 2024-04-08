@@ -79,5 +79,42 @@ namespace ImgSoh
 
             return result;
         }
+
+        public static string GetDiff(string[] x, string[] y)
+        {
+            var result = string.Empty;
+            var i = 0;
+            var j = 0;
+            while (i < x.Length && j < y.Length) {
+                var c = string.CompareOrdinal(x[i], y[j]);
+                if (c == 0) {
+                    i++;
+                    j++;
+                }
+                else {
+                    if (result.Length == 0 || x[i].Length < result.Length) {
+                        result = x[i];
+                    }
+
+                    if (c < 0) {
+                        i++;
+                    }
+                    else {
+                        j++;
+                    }
+                }
+            }
+
+            if (result.Length == 0) {
+                result = $"E{result.Length}";
+            }
+            else {
+                if (result.Length > 25) {
+                    result = $"{AppConsts.CharEllipsis}{result.Substring(result.Length - 25, 25)}";
+                }
+            }
+
+            return result;
+        }
     }
 }

@@ -14,7 +14,7 @@ namespace ImgSoh
         public DateTime LastCheck { get; }
         public string Next { get; }
         public bool Verified { get; }
-        public int Family { get; }
+        public float Distance { get; }
 
         private readonly float[] _vector;
         public float[] GetVector()
@@ -48,16 +48,6 @@ namespace ImgSoh
             return _history.Remove(hash);
         }
 
-        public bool ClearHistory()
-        {
-            if (_history.Count == 0) {
-                return false;
-            }
-
-            _history.Clear();
-            return true;
-        }
-
         public Img(
             string hash,
             string folder,
@@ -67,7 +57,7 @@ namespace ImgSoh
             DateTime lastcheck,
             string next,
             bool verified,
-            int family,
+            float distance,
             string history
             )
         {
@@ -79,7 +69,7 @@ namespace ImgSoh
             LastCheck = lastcheck;
             Next = next;
             Verified = verified;
-            Family = family;
+            Distance = distance;
             _history = Helper.StringToSortedSet(history);
         }
     }

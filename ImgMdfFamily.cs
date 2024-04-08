@@ -1,11 +1,10 @@
-﻿using System;
-
-namespace ImgSoh
+﻿namespace ImgSoh
 {
     public static partial class ImgMdf
     {
         public static void CombineToFamily()
         {
+            /*
             if (!AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 return;
             }
@@ -36,10 +35,12 @@ namespace ImgSoh
                     }
                 }
             }
+            */
         }
 
         public static void DetachFromFamily()
         {
+            /*
             if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 var family = AppDatabase.GetNewFamily();
                 AppDatabase.SetFamily(imgX.Hash, family);
@@ -49,6 +50,7 @@ namespace ImgSoh
                 var family = AppDatabase.GetNewFamily();
                 AppDatabase.SetFamily(imgY.Hash, family);
             }
+            */
         }
     }
 }

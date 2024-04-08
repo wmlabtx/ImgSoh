@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 
 namespace ImgSoh
 {
@@ -37,14 +36,10 @@ namespace ImgSoh
                 }
 
                 var hashY = imgX.Next;
-                if (imgX.Family > 0 && AppVars.RandomNext(5) == 0) {
-                    var members = AppDatabase.GetFamily(imgX.Family);
-                    var list = members.ToList();
-                    list.Remove(hashX);
-                    if (list.Count > 0) {
-                        var rindex = AppVars.RandomNext(list.Count);
-                        hashY = list[rindex];
-                    }
+                var historyarray = imgX.GetHistoryArray();
+                if (historyarray.Length > 0 && AppVars.RandomNext(10) == 0) {
+                    var rindex = AppVars.RandomNext(historyarray.Length);
+                    hashY = historyarray[rindex];
                 }
 
                 if (hashX.Equals(hashY)) {

@@ -131,7 +131,7 @@ namespace ImgSoh
                 next: hash,
                 lastcheck: lastView,
                 verified: false,
-                family: 0,
+                distance: 1f,
                 history: string.Empty
             );
 
@@ -226,13 +226,6 @@ namespace ImgSoh
 
                 var candidates = AppDatabase.GetCandidates();
                 candidates.Remove(hashX);
-                if (imgX.Family > 0) {
-                    var family = AppDatabase.GetFamily(imgX.Family);
-                    foreach (var e in family) {
-                        candidates.Remove(e);
-                    }
-                }
-
                 var history = imgX.GetHistoryArray();
                 if (history.Length > 0) {
                     foreach (var e in history) {
@@ -242,7 +235,17 @@ namespace ImgSoh
 
                         candidates.Remove(e);
                     }
+                }
 
+                var selfpointers = AppDatabase.GetPointers(hashX);
+                if (selfpointers.Length > 1) {
+                    for (var j = 1; j < selfpointers.Length; j++) {
+                        AppDatabase.SetNext(selfpointers[j].Hash, string.Empty);
+                    }
+                }
+
+                if (selfpointers.Length >= 1) {
+                    candidates.Remove(selfpointers[0].Hash);
                 }
 
                 if (!AppDatabase.TryGetImg(hashX, out imgX)) {
@@ -261,17 +264,43 @@ namespace ImgSoh
                     }
                 }
 
-                if (bestNext != null && !imgX.Next.Equals(bestNext)) {
-                    var prevDistance = 1f;
-                    if (AppDatabase.TryGetImg(imgX.Next, out var imgP)) {
-                        if (imgP.GetVector().Length == AppConsts.VectorLength) {
-                            prevDistance = VitHelper.GetDistance(imgX.GetVector(), imgP.GetVector());
-                        }
+                var pointers = AppDatabase.GetPointers(bestNext);
+                if (pointers.Length > 1) {
+                    for (var j = 1; j < pointers.Length; j++) {
+                        AppDatabase.SetNext(pointers[j].Hash, string.Empty);
+                        AppDatabase.SetLastCheck(pointers[j].Hash, AppDatabase.GetMinLastCheck());
+                    }
+                }
+
+                if (pointers.Length >= 1) {
+                    if (
+                        (bestDistance < pointers[0].Distance && ((!imgX.Verified && !pointers[0].Verified) || (imgX.Verified && pointers[0].Verified))) || 
+                         (!imgX.Verified && pointers[0].Verified)) {
+                        AppDatabase.SetNext(pointers[0].Hash, string.Empty);
+                        AppDatabase.SetLastCheck(pointers[0].Hash, AppDatabase.GetMinLastCheck());
+                    }
+                    else {
+                        bestNext = null;
+                    }
+                }
+
+                if (string.IsNullOrEmpty(bestNext)) {
+                    if (!string.IsNullOrWhiteSpace(imgX.Next)) {
+                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
+                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {AppConsts.CharRightArrow} ||");
                     }
 
-                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                    var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {prevDistance:F2} {AppConsts.CharRightArrow}  {bestDistance:F2}");
+                    AppDatabase.SetNext(hashX, string.Empty);
+                }
+                else {
+                    if (Math.Abs(bestDistance - imgX.Distance) >= 0.00001f) {
+                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
+                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");
+                        AppDatabase.SetDistance(hashX, bestDistance);
+                    }
+
                     AppDatabase.SetNext(hashX, bestNext);
                 }
 
