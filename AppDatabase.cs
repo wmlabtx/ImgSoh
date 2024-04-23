@@ -12,6 +12,8 @@ namespace ImgSoh
         private static readonly SqlConnection _sqlConnection;
         private static readonly object _sqlLock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
+        //private static readonly List<float[]> _history = new List<float[]>();
+        //private const int HISTORYMAX = 200;
 
         static AppDatabase()
         {
@@ -210,55 +212,19 @@ namespace ImgSoh
             Img bestImgX = null;
             lock (_sqlLock) {
                 foreach (var imgX in _imgList.Values) {
+                    if (!IsValid(imgX)) {
+                        bestImgX = imgX;
+                        break;
+                    }
+
                     if (bestImgX == null || imgX.LastCheck < bestImgX.LastCheck) {
                         bestImgX = imgX;
                     }
                 }
-
-                /*
-                var scope = _imgList.Values.ToArray();
-                var attempts = Math.Min(1000, scope.Length);
-                var attempt = 0;
-                while (attempt < attempts) {
-                    var rindex = AppVars.RandomNext(scope.Length);
-                    var imgX = scope[rindex];
-                    if (bestImgX == null) {
-                        bestImgX = imgX;
-                    }
-                    else {
-                        if (!imgX.Verified && bestImgX.Verified) {
-                            bestImgX = imgX;
-                        }
-                        else {
-                            if ((!imgX.Verified && !bestImgX.Verified) || (imgX.Verified && bestImgX.Verified)) {
-                                if (imgX.LastView < bestImgX.LastView) {
-                                    bestImgX = imgX;
-                                }
-                            }
-                        }
-                    }
-
-                    attempt++;
-                }
-                */
             }
 
             var hash = bestImgX?.Hash;
             return hash;
-        }
-
-        public static Img[] GetPointers(string hash)
-        {
-            var pointers = new List<Img>();
-            lock (_sqlLock) {
-                foreach (var e in _imgList.Values) {
-                    if (e.Next.Equals(hash)) {
-                        pointers.Add(e);
-                    }
-                }
-            }
-
-            return pointers.OrderBy(e => e.Distance).ToArray();
         }
 
         public static SortedList<string, Img> GetCandidates()
@@ -276,28 +242,19 @@ namespace ImgSoh
             bestHash = null;
             status = null;
             int total;
-            int news;
-            int bads;
-            int count;
+            int section;
             lock (_sqlLock) {
                 total = _imgList.Count;
-                news = _imgList.Count(e => !e.Value.Verified);
-                bads = _imgList.Count(e => !IsValid(e.Value));
-                var scope = _imgList.Values.Where(IsValid).ToArray();
-                count = scope.Length;
-                var imgX = scope.OrderBy(e => e.Verified).ThenBy(e => e.LastView).FirstOrDefault();
-                /*
-                var rindex = AppVars.RandomNext(scope.Length);
-                var imgX = scope[rindex];
-                var imgY = _imgList[imgX.Next];
-                bestHash = scope[rindex].Hash;
-                */
-
-                bestHash = imgX?.Hash;
+                var validscope = _imgList.Values.Where(IsValid).ToArray();
+                var mindistance = validscope.Min(e => e.Distance);
+                var imgX = validscope.First(e => Math.Abs(e.Distance - mindistance) < 0.0001f);
+                bestHash = imgX.Hash;
+                var mint = (int)(mindistance * 10000);
+                section = validscope.Count(e => (int)(e.Distance * 10000) == mint);
             }
-
+             
             var sb = new StringBuilder();
-            sb.Append($"{news}/b{bads}/v{count}/{total}");
+            sb.Append($"{section}/{total}");
             status = sb.ToString();
         }
 

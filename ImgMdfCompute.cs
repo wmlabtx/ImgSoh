@@ -237,64 +237,20 @@ namespace ImgSoh
                     }
                 }
 
-                var selfpointers = AppDatabase.GetPointers(hashX);
-                if (selfpointers.Length > 1) {
-                    for (var j = 1; j < selfpointers.Length; j++) {
-                        AppDatabase.SetNext(selfpointers[j].Hash, string.Empty);
-                    }
-                }
-
-                if (selfpointers.Length >= 1) {
-                    candidates.Remove(selfpointers[0].Hash);
-                }
-
-                if (!AppDatabase.TryGetImg(hashX, out imgX)) {
-                    return;
-                }
-
                 string bestNext = null;
-                var bestDistance = float.MaxValue;
+                var bestDistance = 2f;
                 var vectorX = imgX.GetVector();
                 foreach (var candidate in candidates) {
                     var vectorY = candidate.Value.GetVector();
                     var distance = VitHelper.GetDistance(vectorX, vectorY);
                     if (distance < bestDistance) {
+                        bestDistance = distance; 
                         bestNext = candidate.Key;
-                        bestDistance = distance;
                     }
                 }
 
-                var pointers = AppDatabase.GetPointers(bestNext);
-                if (pointers.Length > 1) {
-                    for (var j = 1; j < pointers.Length; j++) {
-                        AppDatabase.SetNext(pointers[j].Hash, string.Empty);
-                        AppDatabase.SetLastCheck(pointers[j].Hash, AppDatabase.GetMinLastCheck());
-                    }
-                }
-
-                if (pointers.Length >= 1) {
-                    if (
-                        (bestDistance < pointers[0].Distance && ((!imgX.Verified && !pointers[0].Verified) || (imgX.Verified && pointers[0].Verified))) || 
-                         (!imgX.Verified && pointers[0].Verified)) {
-                        AppDatabase.SetNext(pointers[0].Hash, string.Empty);
-                        AppDatabase.SetLastCheck(pointers[0].Hash, AppDatabase.GetMinLastCheck());
-                    }
-                    else {
-                        bestNext = null;
-                    }
-                }
-
-                if (string.IsNullOrEmpty(bestNext)) {
-                    if (!string.IsNullOrWhiteSpace(imgX.Next)) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
-                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {AppConsts.CharRightArrow} ||");
-                    }
-
-                    AppDatabase.SetNext(hashX, string.Empty);
-                }
-                else {
-                    if (Math.Abs(bestDistance - imgX.Distance) >= 0.00001f) {
+                if (!string.IsNullOrEmpty(bestNext)) {
+                    if (Math.Abs(bestDistance - imgX.Distance) > 0.00004f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
                         backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");

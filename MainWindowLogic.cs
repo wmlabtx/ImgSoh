@@ -144,7 +144,7 @@ namespace ImgSoh
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
                 if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out _)) {
+                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
                         pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
@@ -175,7 +175,12 @@ namespace ImgSoh
                         }
                         else {
                             if (history.Length > 0) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                if (imgX.IsInHistory(imgY.Hash)) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                                }
+                                else {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                }
                             }
                         }
                     }
