@@ -15,6 +15,7 @@ namespace ImgSoh
         public string Next { get; }
         public bool Verified { get; }
         public float Distance { get; }
+        public int Family { get; }
 
         private readonly float[] _vector;
         public float[] GetVector()
@@ -58,7 +59,8 @@ namespace ImgSoh
             string next,
             bool verified,
             float distance,
-            string history
+            string history,
+            int family
             )
         {
             Hash = hash;
@@ -71,6 +73,7 @@ namespace ImgSoh
             Verified = verified;
             Distance = distance;
             _history = Helper.StringToSortedSet(history);
+            Family = family;
         }
     }
 }

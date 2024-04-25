@@ -39,5 +39,6 @@
         public const string AttributeVerified = "Verified";
         public const string AttributeDistance = "Distance";
         public const string AttributeHistory = "History";
+        public const string AttributeFamily = "Family";
     }
 }

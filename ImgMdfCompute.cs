@@ -1,4 +1,5 @@
-﻿using System;
+﻿using MetadataExtractor;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -132,7 +133,8 @@ namespace ImgSoh
                 lastcheck: lastView,
                 verified: false,
                 distance: 1f,
-                history: string.Empty
+                history: string.Empty,
+                family: 0
             );
 
             AppDatabase.AddImg(imgnew);
@@ -237,6 +239,16 @@ namespace ImgSoh
                     }
                 }
 
+                if (imgX.Family > 0) {
+                    var family = AppDatabase.GetFamily(imgX.Family);
+                    if (family.Length > 0) {
+                        foreach (var e in family) {
+                            candidates.Remove(e);
+                            AppDatabase.RemoveFromHistory(imgX.Hash, e);
+                        }
+                    }
+                }
+
                 string bestNext = null;
                 var bestDistance = 2f;
                 var vectorX = imgX.GetVector();
@@ -250,7 +262,7 @@ namespace ImgSoh
                 }
 
                 if (!string.IsNullOrEmpty(bestNext)) {
-                    if (Math.Abs(bestDistance - imgX.Distance) > 0.00004f) {
+                    if (!imgX.Next.Equals(bestNext) || Math.Abs(bestDistance - imgX.Distance) > 0.00000001f) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
                         backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");

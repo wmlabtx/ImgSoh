@@ -21,6 +21,7 @@
                 <MenuItem Header="Rotate 90" Tag="1" Click="RotateClick" />
                 <MenuItem Header="Rotate 270" Tag="2" Click="RotateClick" />
                 <MenuItem Header="Rotate 180" Tag="3" Click="RotateClick" />
+                <MenuItem Header="Mirror" Tag="4" Click="RotateClick" />
             </MenuItem>
             <MenuItem Header="Family">
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />

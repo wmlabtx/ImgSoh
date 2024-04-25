@@ -165,11 +165,6 @@ namespace ImgSoh
             return scb;
         }
 
-        public static string GetShortDateTaken(DateTime dateTaken)
-        {
-            return $"{dateTaken.Year}:{dateTaken.Month:D2}:{dateTaken.Day:D2}";
-        }
-
         public static byte RotateFlipTypeToByte(RotateFlipType rft)
         {
             switch (rft) {
@@ -181,6 +176,8 @@ namespace ImgSoh
                     return 2;
                 case RotateFlipType.Rotate180FlipNone:
                     return 3;
+                case RotateFlipType.RotateNoneFlipX:
+                    return 4;
                 default:
                     return 0;
             }
@@ -197,6 +194,8 @@ namespace ImgSoh
                     return RotateFlipType.Rotate270FlipNone;
                 case 3:
                     return RotateFlipType.Rotate180FlipNone;
+                case 4:
+                    return RotateFlipType.RotateNoneFlipX;
                 default:
                     return RotateFlipType.RotateNoneFlipNone;
             }

@@ -156,6 +156,11 @@ namespace ImgSoh
                         }
 
                         sb.Append($" [{imgX.Distance:F4}]");
+                        if (imgX.Family > 0) {
+                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
+                            sb.Append($" F{imgX.Family}:{familysize}");
+                        }
+
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -174,12 +179,17 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            if (history.Length > 0) {
-                                if (imgX.IsInHistory(imgY.Hash)) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
-                                }
-                                else {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                            }
+                            else {
+                                if (history.Length > 0) {
+                                    if (imgX.IsInHistory(imgY.Hash)) {
+                                        pLabels[index].Background = System.Windows.Media.Brushes.GreenYellow;
+                                    }
+                                    else {
+                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                    }
                                 }
                             }
                         }
@@ -276,10 +286,10 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private void CombineToFamily()
+        private async void CombineToFamily()
         {
             DisableElements();
-            ImgMdf.CombineToFamily();
+            await Task.Run(() => { ImgMdf.CombineToFamily(AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
