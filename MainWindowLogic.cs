@@ -150,17 +150,7 @@ namespace ImgSoh
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                        var history = imgX.GetHistoryArray();
-                        if (history.Length > 0) {
-                            sb.Append($" H{history.Length}");
-                        }
-
-                        sb.Append($" [{imgX.Distance:F4}]");
-                        if (imgX.Family > 0) {
-                            var familysize = AppDatabase.GetFamily(imgX.Family).Length;
-                            sb.Append($" F{imgX.Family}:{familysize}");
-                        }
-
+                        sb.Append($" [{imgX.Horizon}:{imgX.Distance:F4}]");
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -179,17 +169,12 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
-                            }
-                            else {
-                                if (history.Length > 0) {
-                                    if (imgX.IsInHistory(imgY.Hash)) {
-                                        pLabels[index].Background = System.Windows.Media.Brushes.GreenYellow;
-                                    }
-                                    else {
-                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                                    }
+                            if (imgX.Horizon > 0) {
+                                if (imgX.Next.Equals(imgY.Hash)) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                }
+                                else {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                                 }
                             }
                         }
@@ -286,20 +271,24 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private async void CombineToFamily()
+        private static void CombineToFamily()
         {
+            /*
             DisableElements();
             await Task.Run(() => { ImgMdf.CombineToFamily(AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
+            */
         }
 
-        private void DetachFromFamily()
+        private static void DetachFromFamily()
         {
+            /*
             DisableElements();
             ImgMdf.DetachFromFamily();
             DrawCanvas();
             EnableElements();
+            */
         }
 
         private void OnKeyDown(Key key)

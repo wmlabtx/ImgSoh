@@ -1,5 +1,4 @@
-﻿using MetadataExtractor;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Drawing;
@@ -132,9 +131,9 @@ namespace ImgSoh
                 next: hash,
                 lastcheck: lastView,
                 verified: false,
-                distance: 1f,
-                history: string.Empty,
-                family: 0
+                distance: 0f,
+                horizon: 0,
+                prev: hash
             );
 
             AppDatabase.AddImg(imgnew);
@@ -228,48 +227,47 @@ namespace ImgSoh
 
                 var candidates = AppDatabase.GetCandidates();
                 candidates.Remove(hashX);
-                var history = imgX.GetHistoryArray();
-                if (history.Length > 0) {
-                    foreach (var e in history) {
-                        if (!AppDatabase.TryGetImg(e, out _)) {
-                            AppDatabase.RemoveFromHistory(imgX.Hash, e);
-                        }
 
-                        candidates.Remove(e);
-                    }
-                }
-
-                if (imgX.Family > 0) {
-                    var family = AppDatabase.GetFamily(imgX.Family);
-                    if (family.Length > 0) {
-                        foreach (var e in family) {
-                            candidates.Remove(e);
-                            AppDatabase.RemoveFromHistory(imgX.Hash, e);
-                        }
-                    }
-                }
-
-                string bestNext = null;
-                var bestDistance = 2f;
+                var nl = new List<Tuple<Img, float>>();
                 var vectorX = imgX.GetVector();
                 foreach (var candidate in candidates) {
                     var vectorY = candidate.Value.GetVector();
                     var distance = VitHelper.GetDistance(vectorX, vectorY);
-                    if (distance < bestDistance) {
-                        bestDistance = distance; 
-                        bestNext = candidate.Key;
+                    nl.Add(Tuple.Create(candidate.Value, distance));
+                }
+
+                var sl = nl.OrderBy(e => e.Item2).ToArray();
+                var bestPrev = imgX.Hash;
+                var bestLastView = DateTime.MaxValue;
+                for (var i = 0; i < imgX.Horizon; i++) {
+                    if (sl[i].Item1.LastView < bestLastView) {
+                        bestPrev = sl[i].Item1.Hash;
+                        bestLastView = sl[i].Item1.LastView;
                     }
                 }
 
-                if (!string.IsNullOrEmpty(bestNext)) {
-                    if (!imgX.Next.Equals(bestNext) || Math.Abs(bestDistance - imgX.Distance) > 0.00000001f) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
-                        var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                        backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");
-                        AppDatabase.SetDistance(hashX, bestDistance);
+                var bestNext = imgX.Hash;
+                var bestDistance = 2f;
+                for (var i = imgX.Horizon; i < sl.Length; i++) {
+                    if (sl[i].Item2 < bestDistance) {
+                        bestNext = sl[i].Item1.Hash;
+                        bestDistance = sl[i].Item2;
                     }
+                }
 
+                if (!imgX.Prev.Equals(bestPrev)) {
+                    AppDatabase.SetPrev(hashX, bestPrev);
+                }
+
+                if (!imgX.Next.Equals(bestNext)) {
+                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
+                    var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
+                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");
                     AppDatabase.SetNext(hashX, bestNext);
+                }
+
+                if (Math.Abs(bestDistance - imgX.Distance) >= 0.0001f) {
+                    AppDatabase.SetDistance(hashX, bestDistance);
                 }
 
                 AppDatabase.SetLastCheck(hashX, DateTime.Now);

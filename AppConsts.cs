@@ -38,7 +38,7 @@
         public const string AttributeLastCheck = "LastCheck";
         public const string AttributeVerified = "Verified";
         public const string AttributeDistance = "Distance";
-        public const string AttributeHistory = "History";
-        public const string AttributeFamily = "Family";
+        public const string AttributePrev = "Prev";
+        public const string AttributeHorizon = "Horizon";
     }
 }

@@ -36,17 +36,8 @@ namespace ImgSoh
                 }
 
                 var hashY = imgX.Next;
-                var historyarray = imgX.GetHistoryArray();
-                if (historyarray.Length > 0 && AppVars.RandomNext(10) == 0) {
-                    var lv = DateTime.MaxValue;
-                    foreach (var hash in historyarray) {
-                        if (AppDatabase.TryGetImg(hash, out var img)) {
-                            if (img.LastView < lv) {
-                                hashY = hash;
-                                lv = img.LastView;
-                            }
-                        }
-                    }
+                if (AppVars.RandomNext(10) == 0 && !imgX.Hash.Equals(imgX.Prev) && AppDatabase.TryGetImg(imgX.Prev, out _)) {
+                    hashY = imgX.Prev;
                 }
 
                 if (hashX.Equals(hashY)) {
