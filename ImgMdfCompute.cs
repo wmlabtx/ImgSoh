@@ -16,7 +16,7 @@ namespace ImgSoh
         private static void ImportFile(string orgfilename, BackgroundWorker backgroundworker)
         {
             var name = Path.GetFileNameWithoutExtension(orgfilename);
-            var lastView = DateTime.Now.AddYears(-5);
+            var lastView = DateTime.Now;
             backgroundworker.ReportProgress(0, $"importing {name} (a:{_added})/f:{_found}/b:{_bad}){AppConsts.CharEllipsis}");
 
             var lastmodified = File.GetLastWriteTime(orgfilename);
@@ -132,8 +132,8 @@ namespace ImgSoh
                 lastcheck: lastView,
                 verified: false,
                 distance: 0f,
-                horizon: 0,
-                prev: hash
+                history: string.Empty,
+                family: 0
             );
 
             AppDatabase.AddImg(imgnew);
@@ -227,42 +227,41 @@ namespace ImgSoh
 
                 var candidates = AppDatabase.GetCandidates();
                 candidates.Remove(hashX);
+                var history = imgX.GetHistoryArray();
+                if (history.Length > 0) {
+                    foreach (var e in history) {
+                        if (!AppDatabase.TryGetImg(e, out _)) {
+                            AppDatabase.RemoveFromHistory(imgX.Hash, e);
+                        }
 
-                var nl = new List<Tuple<Img, float>>();
-                var vectorX = imgX.GetVector();
-                foreach (var candidate in candidates) {
-                    var vectorY = candidate.Value.GetVector();
-                    var distance = VitHelper.GetDistance(vectorX, vectorY);
-                    nl.Add(Tuple.Create(candidate.Value, distance));
+                        candidates.Remove(e);
+                    }
                 }
 
-                var sl = nl.OrderBy(e => e.Item2).ToArray();
-                var bestPrev = imgX.Hash;
-                var bestLastView = DateTime.MaxValue;
-                for (var i = 0; i < imgX.Horizon; i++) {
-                    if (sl[i].Item1.LastView < bestLastView) {
-                        bestPrev = sl[i].Item1.Hash;
-                        bestLastView = sl[i].Item1.LastView;
+                var family = AppDatabase.GetFamily(imgX.Family);
+                if (family.Length > 0) {
+                    foreach (var e in family) {
+                        AppDatabase.RemoveFromHistory(imgX.Hash, e.Hash);
+                        candidates.Remove(e.Hash);
                     }
                 }
 
                 var bestNext = imgX.Hash;
                 var bestDistance = 2f;
-                for (var i = imgX.Horizon; i < sl.Length; i++) {
-                    if (sl[i].Item2 < bestDistance) {
-                        bestNext = sl[i].Item1.Hash;
-                        bestDistance = sl[i].Item2;
+                var vectorX = imgX.GetVector();
+                foreach (var candidate in candidates) {
+                    var vectorY = candidate.Value.GetVector();
+                    var distance = VitHelper.GetDistance(vectorX, vectorY);
+                    if (distance < bestDistance) {
+                        bestNext = candidate.Key; 
+                        bestDistance = distance;
                     }
-                }
-
-                if (!imgX.Prev.Equals(bestPrev)) {
-                    AppDatabase.SetPrev(hashX, bestPrev);
                 }
 
                 if (!imgX.Next.Equals(bestNext)) {
                     var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
                     var shortfilename = Helper.GetShortFileName(imgX.Folder, imgX.Hash);
-                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");
+                    backgroundworker.ReportProgress(0, $"[{age} ago] {shortfilename} ({history.Length}) {imgX.Distance:F4} {AppConsts.CharRightArrow} {bestDistance:F4}");
                     AppDatabase.SetNext(hashX, bestNext);
                 }
 

@@ -150,7 +150,13 @@ namespace ImgSoh
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                        sb.Append($" [{imgX.Horizon}:{imgX.Distance:F4}]");
+                        if (imgX.Family > 0) {
+                            var fla = AppDatabase.GetFamily(imgX.Family);
+                            sb.Append($" [{imgX.Family}:{fla.Length}]");
+                        }
+
+                        var history = imgX.GetHistoryArray();
+                        sb.Append($" [{history.Length}/{imgX.Distance:F4}]");
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -169,8 +175,8 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            if (imgX.Horizon > 0) {
-                                if (imgX.Next.Equals(imgY.Hash)) {
+                            if (imgX.Family > 0) {
+                                if (imgX.Family != imgY.Family) {
                                     pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                                 }
                                 else {
@@ -271,24 +277,20 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private static void CombineToFamily()
+        private async void CombineToFamily()
         {
-            /*
             DisableElements();
-            await Task.Run(() => { ImgMdf.CombineToFamily(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
-            */
         }
 
-        private static void DetachFromFamily()
+        private async void DetachFromFamily()
         {
-            /*
             DisableElements();
-            ImgMdf.DetachFromFamily();
+            await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
-            */
         }
 
         private void OnKeyDown(Key key)

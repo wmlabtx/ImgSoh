@@ -35,11 +35,7 @@ namespace ImgSoh
                     continue;
                 }
 
-                var hashY = imgX.Next;
-                if (AppVars.RandomNext(10) == 0 && !imgX.Hash.Equals(imgX.Prev) && AppDatabase.TryGetImg(imgX.Prev, out _)) {
-                    hashY = imgX.Prev;
-                }
-
+                var hashY = AppDatabase.GetHashY(hashX);
                 if (hashX.Equals(hashY)) {
                     throw new Exception();
                 }

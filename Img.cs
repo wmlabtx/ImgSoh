@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -13,14 +15,40 @@ namespace ImgSoh
         public string Next { get; }
         public bool Verified { get; }
         public float Distance { get; }
-        public string Prev { get; }
-        public int Horizon { get; }
+        public int Family { get; }
 
         private readonly float[] _vector;
         public float[] GetVector()
         {
             return _vector;
         }
+
+        private readonly SortedSet<string> _history;
+        public string GetHistory()
+        {
+            return Helper.SortedSetToString(_history);
+        }
+
+        public string[] GetHistoryArray()
+        {
+            return _history.ToArray();
+        }
+
+        public bool IsInHistory(string hash)
+        {
+            return _history.Contains(hash);
+        }
+
+        public bool AddToHistory(string hash)
+        {
+            return _history.Add(hash);
+        }
+
+        public bool RemoveFromHistory(string hash)
+        {
+            return _history.Remove(hash);
+        }
+
 
         public Img(
             string hash,
@@ -32,8 +60,8 @@ namespace ImgSoh
             string next,
             bool verified,
             float distance,
-            int horizon,
-            string prev
+            string history,
+            int family
             )
         {
             Hash = hash;
@@ -45,8 +73,8 @@ namespace ImgSoh
             Next = next;
             Verified = verified;
             Distance = distance;
-            Horizon = horizon;
-            Prev = prev;
+            _history = Helper.StringToSortedSet(history);
+            Family = family;
         }
     }
 }
