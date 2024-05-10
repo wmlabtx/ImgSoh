@@ -42,33 +42,11 @@
         public static void DetachFromFamily()
         {
             if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
-                AppDatabase.SetFamily(imgX.Hash, 0);
-            }
-
-            if (AppDatabase.TryGetImg(AppPanels.GetImgPanel(1).Hash, out var imgY)) {
-                AppDatabase.SetFamily(imgY.Hash, 0);
-            }
-        }
-
-        /*
-        public static void RefreshFamily(int family)
-        {
-            if (family <= 0) {
-                return;
-            }
-
-            var familyarray = AppDatabase.GetFamily(family);
-            Img oldest = null;
-            foreach (var img in familyarray) {
-                if (oldest == null || img.LastView < oldest.LastView) {
-                    oldest = img;
+                var family = AppDatabase.GetFamily(imgX.Family);
+                foreach (var e in family) {
+                    AppDatabase.SetFamily(e.Hash, 0);
                 }
             }
-
-            if (oldest != null) {
-                AppDatabase.SetNext(oldest.Hash, oldest.Hash);
-            }
         }
-        */
     }
 }

@@ -201,8 +201,15 @@ namespace ImgSoh
             lock (_sqlLock) {
                 if (imgX.GetVector() == null ||
                     imgX.GetVector().Length != AppConsts.VectorLength ||
-                    imgX.Next.Equals(imgX.Hash) ||
-                    !_imgList.ContainsKey(imgX.Next)) {
+                    imgX.Next.Equals(imgX.Hash)) {
+                    return false;
+                }
+
+                if (!_imgList.TryGetValue(imgX.Next, out var imgY)) {
+                    return false;
+                }
+
+                if (imgX.Family > 0 && imgX.Family == imgY.Family) {
                     return false;
                 }
             }
@@ -246,34 +253,22 @@ namespace ImgSoh
             status = null;
             int total;
 
-            /*
-             * 0 - !Verified
-             * 1 = Family > 0
-             * 2 - History > 0, Family = 0
-             * 3 - others
-             */
-
-            var imgs = new Img[] { null, null, null, null };
-            var cnts = new [] { 0, 0, 0, 0 };
+            Img imgX = null;
+            var cnts = new [] { 0, 0, 0 };
             lock (_sqlLock) {
                 total = _imgList.Count;
                 foreach (var img in _imgList.Values) {
                     if (!IsValid(img)) {
-                        continue;
+                        continue; 
                     }
 
                     if (!img.Verified) {
-                        if (imgs[0] == null || img.Distance < imgs[0].Distance) {
-                            imgs[0] = img;
-                        }
-
                         cnts[0]++;
-                        continue;
                     }
 
                     if (img.Family > 0) {
-                        if (imgs[1] == null || img.LastView < imgs[1].LastView) {
-                            imgs[1] = img;
+                        if (imgX == null || img.LastView < imgX.LastView) {
+                            imgX = img;
                         }
 
                         cnts[1]++;
@@ -281,27 +276,11 @@ namespace ImgSoh
                     }
 
                     if (img.GetHistoryArray().Length > 0) {
-                        if (imgs[2] == null || img.LastView < imgs[2].LastView) {
-                            imgs[2] = img;
-                        }
-
                         cnts[2]++;
-                        continue;
-                    }
-
-                    if (imgs[3] == null || string.CompareOrdinal(img.Hash, imgs[3].Hash) < 0) {
-                        imgs[3] = img;
-                    }
-
-                    cnts[3]++;
-                }
-
-                while (bestHash == null) {
-                    var rindex = AppVars.RandomNext(imgs.Length);
-                    if (imgs[rindex] != null) {
-                        bestHash = imgs[rindex].Hash;
                     }
                 }
+
+                bestHash = imgX?.Hash;
             }
 
             var sb = new StringBuilder();
@@ -347,7 +326,19 @@ namespace ImgSoh
                 }
 
                 while (hashY == null) {
-                    var rindex = AppVars.RandomNext(imgs.Length);
+                    var rindex = AppVars.RandomNext(100);
+                    if (rindex == 99) {
+                        rindex = 2;
+                    }
+                    else {
+                        if (rindex == 98) {
+                            rindex = 1;
+                        }
+                        else {
+                            rindex = 0;
+                        }
+                    }
+
                     if (imgs[rindex] != null) {
                         hashY = imgs[rindex].Hash;
                     }
