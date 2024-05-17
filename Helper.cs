@@ -218,34 +218,12 @@ namespace ImgSoh
             return folder;
         }
 
-        public static string SortedSetToString(IEnumerable<string> set)
+        public static string GetRadius(string hash, float distance)
         {
-            var result = string.Join(string.Empty, set.Select(e => e).ToArray());
-            return result;
-        }
-
-        public static SortedSet<string> StringToSortedSet(string str)
-        {
-            var result = new SortedSet<string>();
-            var offset = 0;
-            while (offset + 12 <= str.Length) {
-                result.Add(str.Substring(offset, 12));
-                offset += 12;
-            }
-
-            return result;
-        }
-
-        public static string FingerPrintToString(IEnumerable<string> set)
-        {
-            var result = string.Join("|", set.Select(e => e).ToArray());
-            return result;
-        }
-
-        public static string[] StringToFingerPrint(string str)
-        {
-            var par = str.Split('|');
-            return par;
+            var rounded = (int)Math.Round(distance * 10000);
+            rounded = Math.Max(0, Math.Min(9999, rounded));
+            var radius = $"{rounded:D4}{hash}";
+            return radius;
         }
     }
 }

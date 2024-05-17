@@ -139,24 +139,19 @@ namespace ImgSoh
             if (panels[0] == null || panels[1] == null) {
                 return;
             }
-
+             
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
                 if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
+                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out _)) {
                         pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
                         sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
 
-                        if (imgX.Family > 0) {
-                            var fla = AppDatabase.GetFamily(imgX.Family);
-                            sb.Append($" [{imgX.Family}:{fla.Length}]");
-                        }
-
-                        var history = imgX.GetHistoryArray();
-                        sb.Append($" [{history.Length}/{imgX.Distance:F4}]");
+                        var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
+                        sb.Append($" [{imgX.Counter}:{next}]");
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -175,13 +170,8 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                         }
                         else {
-                            if (imgX.Family > 0) {
-                                if (imgX.Family != imgY.Family) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                                }
-                                else {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
-                                }
+                            if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                             }
                         }
                     }
@@ -277,20 +267,24 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private async void CombineToFamily()
+        private static void CombineToFamily()
         {
+            /*
             DisableElements();
             await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
+            */
         }
 
-        private async void DetachFromFamily()
+        private static void DetachFromFamily()
         {
+            /*
             DisableElements();
             await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
+            */
         }
 
         private void OnKeyDown(Key key)
