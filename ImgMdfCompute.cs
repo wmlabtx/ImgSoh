@@ -237,10 +237,8 @@ namespace ImgSoh
                     var radius = Helper.GetRadius(candidate.Key, distance);
 
                     if (string.IsNullOrEmpty(imgX.Horizon) || (!string.IsNullOrEmpty(imgX.Horizon) && string.CompareOrdinal(radius, imgX.Horizon) > 0)) {
-                        if (!candidate.Value.Verified || DateTime.Now.Subtract(candidate.Value.LastView).TotalDays >= 27.0) {
-                            if (radiusNext == null || string.CompareOrdinal(radius, radiusNext) < 0) {
-                                radiusNext = radius;
-                            }
+                        if (radiusNext == null || string.CompareOrdinal(radius, radiusNext) < 0) {
+                            radiusNext = radius;
                         }
                     }
 

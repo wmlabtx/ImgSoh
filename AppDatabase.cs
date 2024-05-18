@@ -243,8 +243,8 @@ namespace ImgSoh
             bestHash = null;
             status = null;
             int total;
-
-            Img imgX = null;
+            var candidates = new List<Img>();
+            var notverified = new List<Img>();
             var cntNotVerified = 0;
             var cntPrev = 0;
             lock (_sqlLock) {
@@ -262,27 +262,32 @@ namespace ImgSoh
                         cntPrev++;
                     }
 
-                    if (imgX == null) {
-                        imgX = img;
-                        continue;
+                    if (!img.Verified) {
+                        notverified.Add(img);
                     }
-
-                    if (img.Counter < imgX.Counter) {
-                        imgX = img;
-                        continue;
-                    }
-
-                    if (img.Counter > imgX.Counter) {
-                        continue;
-                    }
-
-                    if (string.CompareOrdinal(img.Next, imgX.Next) < 0) {
-                        imgX = img;
-                        continue;
+                    else {
+                        if (candidates.Count == 0) {
+                            candidates.Add(img);
+                        }
+                        else {
+                            if (img.Counter < candidates[0].Counter) {
+                                candidates.Clear();
+                                candidates.Add(img);
+                            }
+                            else {
+                                if (img.Counter == candidates[0].Counter) {
+                                    candidates.Add(img);
+                                }
+                            }
+                        }
                     }
                 }
 
-                bestHash = imgX?.Hash;
+                candidates.AddRange(notverified);
+                if (candidates.Count > 0) {
+                    var irandom = AppVars.RandomNext(candidates.Count);
+                    bestHash = candidates[irandom].Hash;
+                }
             }
 
             var sb = new StringBuilder();

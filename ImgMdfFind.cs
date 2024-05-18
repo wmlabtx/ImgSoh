@@ -57,21 +57,6 @@ namespace ImgSoh
                 var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
                 progress.Report($"{status} [{age} ago] {shortfilename} {distance:F4}");
 
-                if (imgX.Verified && DateTime.Now.Subtract(imgX.LastView).TotalDays < 27.0 &&
-                    imgY.Verified && DateTime.Now.Subtract(imgY.LastView).TotalDays < 27.0) {
-                    if (hashY.Equals(imgX.Next.Substring(4))) {
-                        AppDatabase.SetHorizon(hashX);
-                    }
-
-                    if (hashX.Equals(imgY.Next.Substring(4))) {
-                        AppDatabase.SetHorizon(hashY);
-                    }
-
-                    AppDatabase.SetLastView(hashX);
-                    hashX = null;
-                    continue;
-                }
-
                 break;
             }
             while (true);
