@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Drawing;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -53,7 +54,7 @@ namespace ImgSoh
         {
             var stag = (string)((MenuItem)sender).Tag;
             var tag = byte.Parse(stag);
-            var rft = Helper.ByteToRotateFlipType(tag);
+            var rft = (RotateFlipType)tag;
             RotateClick(rft);
         }
 
@@ -96,6 +97,12 @@ namespace ImgSoh
         private void ToggleXorClick(object sender, RoutedEventArgs e)
         {
             ToggleXorClick();
+        }
+
+        private void MoveClick(object sender, RoutedEventArgs e)
+        {
+            var destination = (string)((MenuItem)sender).Tag;
+            MoveClick(destination);
         }
     }
 }

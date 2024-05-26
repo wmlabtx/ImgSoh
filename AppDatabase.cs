@@ -1,178 +1,213 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
 using System.Drawing;
+using System.IO;
 using System.Linq;
-using System.Text;
 
 namespace ImgSoh
 {
     public static class AppDatabase
     {
-        private static readonly SqlConnection _sqlConnection;
-        private static readonly object _sqlLock = new object();
+        private static readonly object _lock = new object();
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>();
 
-        static AppDatabase()
+        private static byte[] GetDefaultField(string attribute)
         {
-            var connectionString =
-                $"Data Source=(LocalDB)\\MSSQLLocalDB;AttachDbFilename={AppConsts.FileDatabase};Connection Timeout=300";
-            _sqlConnection = new SqlConnection(connectionString);
-            _sqlConnection.Open();
+            switch (attribute) {
+                case AppConsts.AttributeDeleted: return Helper.GetRawBool(false);
+                case AppConsts.AttributeHash: return Helper.GetRawString(string.Empty, 12);
+                case AppConsts.AttributeFolder: return Helper.GetRawString(string.Empty, 2);
+                case AppConsts.AttributeVector: return Helper.GetRawVector(new float[AppConsts.VectorLength]);
+                case AppConsts.AttributeOrientation: return Helper.GetRawOrientation(RotateFlipType.RotateNoneFlipNone);
+                case AppConsts.AttributeLastView: return Helper.GetRawDateTime(DateTime.Now);
+                case AppConsts.AttributeNext: return Helper.GetRawString(string.Empty, 16);
+                case AppConsts.AttributeHorizon: return Helper.GetRawString(string.Empty, 16);
+                case AppConsts.AttributePrev: return Helper.GetRawString(string.Empty, 16);
+                case AppConsts.AttributeLastCheck: return Helper.GetRawDateTime(DateTime.Now);
+                case AppConsts.AttributeVerified: return Helper.GetRawBool(false);
+                case AppConsts.AttributeCounter: return Helper.GetRawInt(0);
+                case AppConsts.AttributeTaken: return Helper.GetRawDateTime(DateTime.MinValue);
+                case AppConsts.AttributeMeta: return Helper.GetRawInt(0);
+                default: throw new Exception("wrong attribute");
+            }
         }
 
-        public static void Load(IProgress<string> progress)
+        private static byte[] LoadFile(string attribute, int collectionsize)
         {
-            lock (_sqlLock) {
+            byte[] filearray;
+            var filename = Helper.GetFieldFilename(attribute);
+            lock (_lock) {
+                if (!File.Exists(filename)) {
+                    var element = GetDefaultField(attribute);
+                    var array = new byte[collectionsize * element.Length];
+                    for (var i = 0; i < collectionsize; i++) {
+                        Buffer.BlockCopy(element, 0, array, i * element.Length, element.Length);
+                    }
+
+                    File.WriteAllBytes(filename, array);
+                    return array;
+                }
+
+                filearray = File.ReadAllBytes(filename);
+                if (!attribute.Equals(AppConsts.AttributeDeleted, StringComparison.OrdinalIgnoreCase)) {
+                    var element = GetDefaultField(attribute);
+                    if (filearray.Length != element.Length * collectionsize) {
+                        throw new Exception("wrong filearray.Length");
+                    }
+                }
+            }
+
+            return filearray;
+        }
+
+        private static byte[] GetRawField(string attribute, int index, byte[] array)
+        {
+            var raw = GetDefaultField(attribute);
+            var offset = raw.Length * (index - 1);
+            if (offset + raw.Length <= array.Length) {
+                Buffer.BlockCopy(array, offset, raw, 0, raw.Length);
+                return raw;
+            }
+
+            return null;
+        }
+
+        private static void SetRawField(string attribute, int index, byte[] array)
+        {
+            var raw = GetDefaultField(attribute);
+            var offset = raw.Length * (index - 1);
+            var filename = Helper.GetFieldFilename(attribute);
+            lock (_lock) {
+                using (var fs = new FileStream(filename, FileMode.OpenOrCreate, FileAccess.ReadWrite)) {
+                    fs.Seek(offset, SeekOrigin.Begin);
+                    fs.Write(array, 0, array.Length);
+                }
+            }
+        }
+
+        public static void LoadImages(IProgress<string> progress)
+        {
+            progress?.Report($"Loading images{AppConsts.CharEllipsis}");
+            lock (_lock) {
                 _imgList.Clear();
-                var sb = new StringBuilder();
-                sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeHash},"); // 0
-                sb.Append($"{AppConsts.AttributeFolder},"); // 1
-                sb.Append($"{AppConsts.AttributeVector},"); // 2
-                sb.Append($"{AppConsts.AttributeOrientation},"); // 3
-                sb.Append($"{AppConsts.AttributeLastView},"); // 4
-                sb.Append($"{AppConsts.AttributeNext},"); // 5
-                sb.Append($"{AppConsts.AttributeLastCheck},"); // 6
-                sb.Append($"{AppConsts.AttributeVerified}, "); // 7
-                sb.Append($"{AppConsts.AttributePrev},"); // 8
-                sb.Append($"{AppConsts.AttributeHorizon},"); // 9
-                sb.Append($"{AppConsts.AttributeCounter} "); // 10
-                sb.Append($"FROM {AppConsts.TableImages}");
-                using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                    sqlCommand.Connection = _sqlConnection;
-                    sqlCommand.CommandText = sb.ToString();
-                    using (var reader = sqlCommand.ExecuteReader()) {
-                        var dtn = DateTime.Now;
-                        while (reader.Read()) {
-                            var hash = reader.GetString(0);
-                            var folder = reader.GetString(1);
-                            var vector = Helper.ArrayToFloat((byte[])reader[2]);
-                            var orientation = Helper.ByteToRotateFlipType(reader.GetByte(3));
-                            var lastview = reader.GetDateTime(4);
-                            var next = reader.GetString(5);
-                            var lastcheck = reader.GetDateTime(6);
-                            var verified = reader.GetBoolean(7);
-                            var prev = reader.GetString(8);
-                            var horizon = reader.GetString(9);
-                            var counter = reader.GetInt32(10);
-                            var img = new Img(
-                                hash: hash,
-                                folder: folder,
-                                vector: vector,
-                                orientation: orientation,
-                                lastview: lastview,
-                                next: next,
-                                lastcheck: lastcheck,
-                                verified: verified,
-                                prev: prev,
-                                horizon: horizon,
-                                counter: counter
-                            );
+                var deleted_bytearray = LoadFile(AppConsts.AttributeDeleted, 0);
+                var collectionsize = deleted_bytearray.Length;
+                var hash_bytearray = LoadFile(AppConsts.AttributeHash, collectionsize);
+                var folder_bytearray = LoadFile(AppConsts.AttributeFolder, collectionsize);
+                var vector_bytearray = LoadFile(AppConsts.AttributeVector, collectionsize);
+                var orientation_bytearray = LoadFile(AppConsts.AttributeOrientation, collectionsize);
+                var lastview_bytearray = LoadFile(AppConsts.AttributeLastView, collectionsize);
+                var next_bytearray = LoadFile(AppConsts.AttributeNext, collectionsize);
+                var horizon_bytearray = LoadFile(AppConsts.AttributeHorizon, collectionsize);
+                var prev_bytearray = LoadFile(AppConsts.AttributePrev, collectionsize);
+                var lastcheck_bytearray = LoadFile(AppConsts.AttributeLastCheck, collectionsize);
+                var verified_bytearray = LoadFile(AppConsts.AttributeVerified, collectionsize);
+                var counter_bytearray = LoadFile(AppConsts.AttributeCounter, collectionsize);
+                var taken_bytearray = LoadFile(AppConsts.AttributeTaken, collectionsize);
+                var meta_bytearray = LoadFile(AppConsts.AttributeMeta, collectionsize);
+                var dtn = DateTime.Now;
+                for (var i = 1; i <= collectionsize; i++) {
+                    var deleted = Helper.SetRawBool(GetRawField(AppConsts.AttributeDeleted, i, deleted_bytearray));
+                    var hash = Helper.SetRawString(GetRawField(AppConsts.AttributeHash, i, hash_bytearray));
+                    var folder = Helper.SetRawString(GetRawField(AppConsts.AttributeFolder, i, folder_bytearray));
+                    var vector = Helper.SetRawVector(GetRawField(AppConsts.AttributeVector, i, vector_bytearray));
+                    var orientation = Helper.SetRawOrientation(GetRawField(AppConsts.AttributeOrientation, i, orientation_bytearray));
+                    var lastview = Helper.SetRawDateTime(GetRawField(AppConsts.AttributeLastView, i, lastview_bytearray));
+                    var next = Helper.SetRawString(GetRawField(AppConsts.AttributeNext, i, next_bytearray));
+                    var horizon = Helper.SetRawString(GetRawField(AppConsts.AttributeHorizon, i, horizon_bytearray));
+                    var prev = Helper.SetRawString(GetRawField(AppConsts.AttributePrev, i, prev_bytearray));
+                    var lastcheck = Helper.SetRawDateTime(GetRawField(AppConsts.AttributeLastCheck, i, lastcheck_bytearray));
+                    var verified = Helper.SetRawBool(GetRawField(AppConsts.AttributeVerified, i, verified_bytearray));
+                    var counter = Helper.SetRawInt(GetRawField(AppConsts.AttributeCounter, i, counter_bytearray));
+                    var taken = Helper.SetRawDateTime(GetRawField(AppConsts.AttributeTaken, i, taken_bytearray));
+                    var meta = Helper.SetRawInt(GetRawField(AppConsts.AttributeMeta, i, meta_bytearray));
+                    var img = new Img(
+                        index: i,
+                        deleted: deleted,
+                        hash: hash,
+                        folder: folder,
+                        vector: vector,
+                        orientation: orientation,
+                        lastview: lastview,
+                        next: next,
+                        lastcheck: lastcheck,
+                        verified: verified,
+                        prev: prev,
+                        horizon: horizon,
+                        counter: counter,
+                        taken: taken,
+                        meta: meta
+                    );
 
-                            _imgList.Add(hash, img);
-                            if (!(DateTime.Now.Subtract(dtn).TotalMilliseconds > AppConsts.TimeLapse)) {
-                                continue;
-                            }
-
-                            dtn = DateTime.Now;
-                            var count = _imgList.Count;
-                            progress?.Report($"Loading images ({count}){AppConsts.CharEllipsis}");
-                        }
+                    _imgList.Add(hash, img);
+                    if (DateTime.Now.Subtract(dtn).TotalMilliseconds > AppConsts.TimeLapse) {
+                        dtn = DateTime.Now;
+                        var count = _imgList.Count;
+                        progress?.Report($"Loading images ({count}){AppConsts.CharEllipsis}");
                     }
                 }
             }
         }
 
-        private static void ImgUpdateProperty(string hash, string key, object val)
+        public static int GetAvailableIndex(string hash)
         {
-            lock (_sqlLock) {
-                using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                    sqlCommand.Connection = _sqlConnection;
-                    sqlCommand.CommandText =
-                        $"UPDATE {AppConsts.TableImages} SET {key} = @{key} WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}";
-                    sqlCommand.Parameters.AddWithValue($"@{key}", val);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
-                    sqlCommand.ExecuteNonQuery();
-                }
-            }
-        }
+            var minIndex = 0;
+            lock (_lock) {
+                if (_imgList.TryGetValue(hash, out var img)) {
+                    if (img.Deleted) {
+                        return img.Index;
+                    }
 
-        public static void ImgDelete(string hash)
-        {
-            lock (_sqlLock) {
-                using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                    sqlCommand.Connection = _sqlConnection;
-                    sqlCommand.CommandText =
-                        $"DELETE FROM {AppConsts.TableImages} WHERE {AppConsts.AttributeHash} = @{AppConsts.AttributeHash}";
-                    sqlCommand.Parameters.Clear();
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", hash);
-                    sqlCommand.ExecuteNonQuery();
+                    return 0;
                 }
 
-                _imgList.Remove(hash);
-            }
-        }
+                foreach (var e in _imgList) {
+                    if (e.Value.Deleted) {
+                        return e.Value.Index;
+                    }
 
-        public static int ImgCount(bool newimages)
-        {
-            int count;
-            lock (_sqlLock) {
-                count = newimages ? _imgList.Count(e => !e.Value.Verified) : _imgList.Count;
+                    if (e.Value.Index > minIndex) {
+                        minIndex = e.Value.Index;
+                    }
+                }
             }
 
-            return count;
+            return minIndex + 1;
         }
 
         public static void AddImg(Img img)
         {
-            lock (_sqlLock) {
-                using (var sqlCommand = _sqlConnection.CreateCommand()) {
-                    sqlCommand.Connection = _sqlConnection;
-                    var sb = new StringBuilder();
-                    sb.Append($"INSERT INTO {AppConsts.TableImages} (");
-                    sb.Append($"{AppConsts.AttributeHash},");
-                    sb.Append($"{AppConsts.AttributeFolder},");
-                    sb.Append($"{AppConsts.AttributeVector},");
-                    sb.Append($"{AppConsts.AttributeOrientation},");
-                    sb.Append($"{AppConsts.AttributeLastView},");
-                    sb.Append($"{AppConsts.AttributeNext},");
-                    sb.Append($"{AppConsts.AttributeLastCheck},");
-                    sb.Append($"{AppConsts.AttributeVerified},");
-                    sb.Append($"{AppConsts.AttributePrev},");
-                    sb.Append($"{AppConsts.AttributeHorizon},");
-                    sb.Append($"{AppConsts.AttributeCounter}");
-                    sb.Append(") VALUES (");
-                    sb.Append($"@{AppConsts.AttributeHash},");
-                    sb.Append($"@{AppConsts.AttributeFolder},");
-                    sb.Append($"@{AppConsts.AttributeVector},");
-                    sb.Append($"@{AppConsts.AttributeOrientation},");
-                    sb.Append($"@{AppConsts.AttributeLastView},");
-                    sb.Append($"@{AppConsts.AttributeNext},");
-                    sb.Append($"@{AppConsts.AttributeLastCheck},");
-                    sb.Append($"@{AppConsts.AttributeVerified},");
-                    sb.Append($"@{AppConsts.AttributePrev},");
-                    sb.Append($"@{AppConsts.AttributeHorizon},");
-                    sb.Append($"@{AppConsts.AttributeCounter}");
-                    sb.Append(')');
-                    sqlCommand.CommandText = sb.ToString();
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFolder}", img.Folder);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVector}", 
-                        Helper.ArrayFromFloat(img.GetVector()));
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeOrientation}",
-                        Helper.RotateFlipTypeToByte(img.Orientation));
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", img.LastView);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastCheck}", img.LastCheck);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributePrev}", img.Prev);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHorizon}", img.Horizon);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeCounter}", img.Counter);
-                    sqlCommand.ExecuteNonQuery();
+            lock (_lock) {
+                foreach (var e in _imgList) {
+                    if (e.Value.Index == img.Index) {
+                        _imgList.Remove(e.Key);
+                        break;
+                    }
                 }
 
                 _imgList.Add(img.Hash, img);
+
+                SetRawField(AppConsts.AttributeDeleted, img.Index, Helper.GetRawBool(img.Deleted));
+                SetRawField(AppConsts.AttributeHash, img.Index, Helper.GetRawString(img.Hash, 12));
+                SetRawField(AppConsts.AttributeFolder, img.Index, Helper.GetRawString(img.Folder, 2));
+                SetRawField(AppConsts.AttributeVector, img.Index, Helper.GetRawVector(img.GetVector()));
+                SetRawField(AppConsts.AttributeOrientation, img.Index, Helper.GetRawOrientation(img.Orientation));
+                SetRawField(AppConsts.AttributeLastView, img.Index, Helper.GetRawDateTime(img.LastView));
+                SetRawField(AppConsts.AttributeNext, img.Index, Helper.GetRawString(img.Next, 16));
+                SetRawField(AppConsts.AttributeHorizon, img.Index, Helper.GetRawString(img.Horizon, 16));
+                SetRawField(AppConsts.AttributePrev, img.Index, Helper.GetRawString(img.Prev, 16));
+                SetRawField(AppConsts.AttributeLastCheck, img.Index, Helper.GetRawDateTime(img.LastCheck));
+                SetRawField(AppConsts.AttributeVerified, img.Index, Helper.GetRawBool(img.Verified));
+                SetRawField(AppConsts.AttributeCounter, img.Index, Helper.GetRawInt(img.Counter));
+                SetRawField(AppConsts.AttributeTaken, img.Index, Helper.GetRawDateTime(img.Taken));
+                SetRawField(AppConsts.AttributeMeta, img.Index, Helper.GetRawInt(img.Meta));
+            }
+        }
+
+        public static int ImgCount()
+        {
+            lock (_lock) {
+                return _imgList.Count(e => !e.Value.Deleted);
             }
         }
 
@@ -180,7 +215,7 @@ namespace ImgSoh
         {
             bool result;
             img = null;
-            lock (_sqlLock) {
+            lock (_lock) {
                 result = _imgList.TryGetValue(hash, out img);
             }
 
@@ -189,11 +224,12 @@ namespace ImgSoh
 
         private static bool IsValid(Img imgX)
         {
-            lock (_sqlLock) {
-                if (imgX.GetVector() == null ||
-                    imgX.GetVector().Length != AppConsts.VectorLength ||
-                    string.IsNullOrWhiteSpace(imgX.Next) ||
-                    !_imgList.ContainsKey(imgX.Next.Substring(4)) ||
+            lock (_lock) {
+                if (imgX.Deleted) {
+                    return true;
+                }
+
+                if (string.IsNullOrWhiteSpace(imgX.Next) ||
                     (!string.IsNullOrWhiteSpace(imgX.Prev) &&
                      !string.IsNullOrWhiteSpace(imgX.Horizon) &&
                      string.CompareOrdinal(imgX.Prev, imgX.Horizon) > 0) ||
@@ -203,16 +239,41 @@ namespace ImgSoh
                     ) {
                     return false;
                 }
+
+                var next = imgX.Next.Substring(4);
+                if (!TryGetImg(next, out var imgY)) {
+                    return false;
+                }
+
+                if (imgY.Deleted) {
+                    return false;
+                }
             }
 
             return true;
         }
 
+        public static DateTime GetLastView()
+        {
+            var lastview = DateTime.Now;
+            lock (_lock) {
+                if (_imgList.Count > 0) {
+                    lastview = _imgList.Min(e => e.Value.LastView).AddSeconds(-1);
+                }
+            }
+
+            return lastview;
+        }
+
         public static string GetNextCheck()
         {
             Img bestImgX = null;
-            lock (_sqlLock) {
+            lock (_lock) {
                 foreach (var imgX in _imgList.Values) {
+                    if (imgX.Deleted) {
+                        continue;
+                    }
+
                     if (!IsValid(imgX)) {
                         bestImgX = imgX;
                         break;
@@ -228,11 +289,11 @@ namespace ImgSoh
             return hash;
         }
 
-        public static SortedList<string, Img> GetCandidates()
+        public static List<Img> GetCandidates(string hashX)
         {
-            SortedList<string, Img> shadow;
-            lock (_sqlLock) {
-                shadow = new SortedList<string, Img>(_imgList);
+            List<Img> shadow;
+            lock (_lock) {
+                shadow = _imgList.Values.Where(e => !e.Hash.Equals(hashX) && !e.Deleted).ToList();
             }
 
             return shadow;
@@ -242,57 +303,18 @@ namespace ImgSoh
         {
             bestHash = null;
             status = null;
-            int total;
-            var candidates = new List<Img>();
-            var notverified = new List<Img>();
-            var cntNotVerified = 0;
-            var cntPrev = 0;
-            lock (_sqlLock) {
-                total = _imgList.Count;
-                foreach (var img in _imgList.Values) {
-                    if (!IsValid(img)) {
-                        continue; 
-                    }
-
-                    if (!img.Verified) {
-                        cntNotVerified++;
-                    }
-
-                    if (img.Counter > 0) {
-                        cntPrev++;
-                    }
-
-                    if (!img.Verified) {
-                        notverified.Add(img);
-                    }
-                    else {
-                        if (candidates.Count == 0) {
-                            candidates.Add(img);
-                        }
-                        else {
-                            if (img.Counter < candidates[0].Counter) {
-                                candidates.Clear();
-                                candidates.Add(img);
-                            }
-                            else {
-                                if (img.Counter == candidates[0].Counter) {
-                                    candidates.Add(img);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                candidates.AddRange(notverified);
-                if (candidates.Count > 0) {
-                    var irandom = AppVars.RandomNext(candidates.Count);
-                    bestHash = candidates[irandom].Hash;
+            var total = ImgCount();
+            lock (_lock) {
+                var scopeValid = _imgList.Values.Where(e => IsValid(e) && !e.Deleted).ToArray();
+                if (scopeValid.Length > 0) {
+                    var minCounter = scopeValid.Min(e => e.Counter);
+                    var scopeCount = scopeValid.Where(e => e.Counter == minCounter).ToArray();
+                    var minNext = scopeCount.Min(e => e.Next.Substring(0, 2));
+                    var scopeNext = scopeCount.Where(e => e.Next.Substring(0, 2).Equals(minNext)).ToArray();
+                    bestHash = scopeNext[0].Hash;
+                    status = $"{minCounter}:{scopeCount.Length}/{minNext}:{scopeNext.Length}/{total}";
                 }
             }
-
-            var sb = new StringBuilder();
-            sb.Append($"{cntNotVerified}/{cntPrev}/{total}");
-            status = sb.ToString();
         }
 
         public static string GetHashY(string hashX)
@@ -302,15 +324,19 @@ namespace ImgSoh
             }
 
             if (!string.IsNullOrWhiteSpace(imgX.Prev) && TryGetImg(imgX.Prev.Substring(4), out var imgP)) {
-                if (AppVars.RandomNext(100) == 0) {
+                if (AppVars.RandomNext(10) == 0 && !imgP.Deleted) {
                     return imgP.Hash;
                 }
 
                 if (!string.IsNullOrWhiteSpace(imgX.Next) && TryGetImg(imgX.Next.Substring(4), out var imgN)) {
                     return imgN.Hash;
                 }
-                
-                return imgP.Hash; 
+
+                if (!imgP.Deleted) {
+                    return imgP.Hash;
+                }
+
+                return null;
             }
             else {
                 if (!string.IsNullOrWhiteSpace(imgX.Next) && TryGetImg(imgX.Next.Substring(4), out var imgN)) {
@@ -321,104 +347,52 @@ namespace ImgSoh
             }
         }
 
-        public static void SetVector(string hash, float[] vector)
+        public static void SetDeleted(string hash)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: vector,
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeVector, Helper.ArrayFromFloat(n.GetVector()));
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Deleted = true;
+                    SetRawField(AppConsts.AttributeDeleted, _imgList[hash].Index, Helper.GetRawBool(true));
                 }
             }
         }
 
-        public static void SetOrientation(string hash, RotateFlipType rft)
+        public static void SetVector(string hash, float[] vector)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: rft,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].SetVector(vector);
+                    SetRawField(AppConsts.AttributeVector, _imgList[hash].Index, Helper.GetRawVector(vector));
+                }
+            }
+        }
 
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeOrientation, Helper.RotateFlipTypeToByte(n.Orientation));
+        public static void SetOrientation(string hash, RotateFlipType orientation)
+        {
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Orientation = orientation;
+                    SetRawField(AppConsts.AttributeOrientation, _imgList[hash].Index, Helper.GetRawOrientation(orientation));
                 }
             }
         }
 
         public static void SetLastView(string hash)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: DateTime.Now, 
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeLastView, n.LastView);
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].LastView = DateTime.Now;
+                    SetRawField(AppConsts.AttributeLastView, _imgList[hash].Index, Helper.GetRawDateTime(_imgList[hash].LastView));
                 }
             }
         }
 
         public static void SetVerified(string hash)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    if (!o.Verified) {
-                        var n = new Img(
-                            hash: o.Hash,
-                            folder: o.Folder,
-                            vector: o.GetVector(),
-                            orientation: o.Orientation,
-                            lastview: o.LastView,
-                            next: o.Next,
-                            lastcheck: o.LastCheck,
-                            verified: true,
-                            prev: o.Prev,
-                            horizon: o.Horizon,
-                            counter: o.Counter
-                        );
-
-                        _imgList.Remove(hash);
-                        _imgList.Add(hash, n);
-                        ImgUpdateProperty(hash, AppConsts.AttributeVerified, n.Verified);
-                    }
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Verified = true;
+                    SetRawField(AppConsts.AttributeVerified, _imgList[hash].Index, Helper.GetRawBool(true));
                 }
             }
         }
@@ -431,125 +405,70 @@ namespace ImgSoh
 
         private static void SetLastCheck(string hash, DateTime lastcheck)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: lastcheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeLastCheck, n.LastCheck);
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].LastCheck = lastcheck;
+                    SetRawField(AppConsts.AttributeLastCheck, _imgList[hash].Index, Helper.GetRawDateTime(lastcheck));
                 }
             }
         }
 
         public static void SetNext(string hash, string next)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeNext, n.Next);
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Next = next;
+                    SetRawField(AppConsts.AttributeNext, _imgList[hash].Index, Helper.GetRawString(next, 16));
                 }
             }
         }
 
         public static void SetPrev(string hash, string prev)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: prev,
-                        horizon: o.Horizon,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributePrev, n.Prev);
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Prev = prev;
+                    SetRawField(AppConsts.AttributePrev, _imgList[hash].Index, Helper.GetRawString(prev, 16));
                 }
             }
         }
 
         public static void SetHorizon(string hash)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Next,
-                        counter: o.Counter
-                    );
-
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributePrev, n.Prev);
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Horizon = _imgList[hash].Next;
+                    SetRawField(AppConsts.AttributeHorizon, _imgList[hash].Index, Helper.GetRawString(_imgList[hash].Next, 16));
                 }
             }
         }
 
         public static void SetCounter(string hash, int counter)
         {
-            lock (_sqlLock) {
-                if (_imgList.TryGetValue(hash, out var o)) {
-                    var n = new Img(
-                        hash: o.Hash,
-                        folder: o.Folder,
-                        vector: o.GetVector(),
-                        orientation: o.Orientation,
-                        lastview: o.LastView,
-                        next: o.Next,
-                        lastcheck: o.LastCheck,
-                        verified: o.Verified,
-                        prev: o.Prev,
-                        horizon: o.Horizon,
-                        counter: counter
-                    );
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Counter = counter;
+                    SetRawField(AppConsts.AttributeCounter, _imgList[hash].Index, Helper.GetRawInt(counter));
+                }
+            }
+        }
 
-                    _imgList.Remove(hash);
-                    _imgList.Add(hash, n);
-                    ImgUpdateProperty(hash, AppConsts.AttributeCounter, n.Counter);
+        public static void SetTaken(string hash, DateTime taken)
+        {
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Taken = taken;
+                    SetRawField(AppConsts.AttributeTaken, _imgList[hash].Index, Helper.GetRawDateTime(taken));
+                }
+            }
+        }
+
+        public static void SetMeta(string hash, int meta)
+        {
+            lock (_lock) {
+                if (_imgList.ContainsKey(hash)) {
+                    _imgList[hash].Meta = meta;
+                    SetRawField(AppConsts.AttributeMeta, _imgList[hash].Index, Helper.GetRawInt(meta));
                 }
             }
         }

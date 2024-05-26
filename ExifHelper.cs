@@ -9,6 +9,7 @@ namespace ImgSoh
 {
     public static class ExifHelper
     {
+        /*
         public static string[] GetFingerPrint(byte[] imagedata)
         {
             var fplist = new SortedSet<string>();
@@ -80,12 +81,17 @@ namespace ImgSoh
             return result;
         }
 
-        public static string GetDiff(string[] x, string[] y)
+        public static void GetDiff(string[] x, string[] y, out string result, out bool jfif)
         {
-            var result = string.Empty;
+            result = string.Empty;
+            jfif = false;
             var i = 0;
             var j = 0;
             while (i < x.Length && j < y.Length) {
+                if (x[i].StartsWith("JFIF-")) {
+                    jfif = true;
+                }
+
                 var c = string.CompareOrdinal(x[i], y[j]);
                 if (c == 0) {
                     i++;
@@ -113,8 +119,6 @@ namespace ImgSoh
                     result = $"{AppConsts.CharEllipsis}{result.Substring(result.Length - 25, 25)}";
                 }
             }
-
-            return result;
-        }
+        }*/
     }
 }

@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
+using System.Text;
 
 namespace ImgSoh
 {
@@ -66,139 +64,9 @@ namespace ImgSoh
             }
         }
 
-        public static byte[] ArrayFrom16(ushort[] array)
+        public static string GetFieldFilename(string attribute)
         {
-            var buffer = new byte[array.Length * sizeof(ushort)];
-            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
-            return buffer;
-        }
-
-        public static ushort[] ArrayTo16(byte[] buffer)
-        {
-            var array = new ushort[buffer.Length / sizeof(ushort)];
-            Buffer.BlockCopy(buffer, 0, array, 0, buffer.Length);
-            return array;
-        }
-
-        public static byte[] ArrayFrom32(int[] array)
-        {
-            var buffer = new byte[array.Length * sizeof(int)];
-            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
-            return buffer;
-        }
-
-        public static int[] ArrayTo32(byte[] buffer)
-        {
-            var array = new int[buffer.Length / sizeof(int)];
-            Buffer.BlockCopy(buffer, 0, array, 0, buffer.Length);
-            return array;
-        }
-
-        public static byte[] ArrayFrom64(ulong[] array)
-        {
-            var buffer = new byte[array.Length * sizeof(ulong)];
-            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
-            return buffer;
-        }
-
-        public static ulong[] ArrayTo64(byte[] buffer)
-        {
-            var array = new ulong[buffer.Length / sizeof(ulong)];
-            Buffer.BlockCopy(buffer, 0, array, 0, buffer.Length);
-            return array;
-        }
-
-        public static byte[] ArrayFromFloat(float[] array)
-        {
-            var buffer = new byte[array.Length * sizeof(float)];
-            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
-            return buffer;
-        }
-
-        public static float[] ArrayToFloat(byte[] buffer)
-        {
-            var array = new float[buffer.Length / sizeof(float)];
-            Buffer.BlockCopy(buffer, 0, array, 0, buffer.Length);
-            return array;
-        }
-
-        public static int GetMatch(byte[] x, byte[] y)
-        {
-            if (x == null || x.Length == 0 || y == null || y.Length == 0) {
-                return 0;
-            }
-
-            var m = 0;
-            var i = 0;
-            var j = 0;
-            while (i < x.Length && j < y.Length) {
-                if (x[i] == y[j]) {
-                    m++;
-                    i++;
-                    j++;
-                }
-                else {
-                    if (x[i] < y[j]) {
-                        i++;
-                    }
-                    else {
-                        j++;
-                    }
-                }
-            }
-
-            return m;
-        }
-
-        public static System.Windows.Media.SolidColorBrush GetBrush(int id)
-        {
-            byte rByte, gByte, bByte;
-            var array = BitConverter.GetBytes(id);
-            using (var md5 = MD5.Create()) {
-                var hashMD5 = md5.ComputeHash(array);
-                rByte = (byte)(hashMD5[4] | 0x80);
-                gByte = (byte)(hashMD5[7] | 0x80);
-                bByte = (byte)(hashMD5[10] | 0x80);
-            }
-
-            var scb = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(rByte, gByte, bByte));
-            return scb;
-        }
-
-        public static byte RotateFlipTypeToByte(RotateFlipType rft)
-        {
-            switch (rft) {
-                case RotateFlipType.RotateNoneFlipNone: 
-                    return 0;
-                case RotateFlipType.Rotate90FlipNone: 
-                    return 1;
-                case RotateFlipType.Rotate270FlipNone:
-                    return 2;
-                case RotateFlipType.Rotate180FlipNone:
-                    return 3;
-                case RotateFlipType.RotateNoneFlipX:
-                    return 4;
-                default:
-                    return 0;
-            }
-        }
-
-        public static RotateFlipType ByteToRotateFlipType(byte b)
-        {
-            switch (b) {
-                case 0:
-                    return RotateFlipType.RotateNoneFlipNone;
-                case 1:
-                    return RotateFlipType.Rotate90FlipNone;
-                case 2:
-                    return RotateFlipType.Rotate270FlipNone;
-                case 3:
-                    return RotateFlipType.Rotate180FlipNone;
-                case 4:
-                    return RotateFlipType.RotateNoneFlipX;
-                default:
-                    return RotateFlipType.RotateNoneFlipNone;
-            }
+            return $"{AppConsts.PathRoot}\\{attribute}{AppConsts.DatExtension}";
         }
 
         public static string GetFileName(string folder, string hash)
@@ -224,6 +92,75 @@ namespace ImgSoh
             rounded = Math.Max(0, Math.Min(9999, rounded));
             var radius = $"{rounded:D4}{hash}";
             return radius;
+        }
+
+        public static byte[] GetRawString(string hash, int pad)
+        {
+            var raw = Encoding.ASCII.GetBytes(hash.PadLeft(pad));
+            if (raw.Length != pad) {
+                throw new Exception("wrong raw.Length");
+            }
+
+            return raw;
+        }
+
+        public static byte[] GetRawDateTime(DateTime dt)
+        {
+            return BitConverter.GetBytes(dt.Ticks);
+        }
+
+        public static byte[] GetRawBool(bool flag)
+        {
+            return BitConverter.GetBytes(flag);
+        }
+
+        public static byte[] GetRawInt(int counter)
+        {
+            return BitConverter.GetBytes(counter);
+        }
+
+        public static byte[] GetRawVector(float[] vector)
+        {
+            var array = new byte[AppConsts.VectorLength * sizeof(float)];
+            Buffer.BlockCopy(vector, 0, array, 0, array.Length);
+            return array;
+        }
+
+        public static byte[] GetRawOrientation(RotateFlipType orientation)
+        {
+            return new[] { (byte)orientation };
+        }
+
+        public static string SetRawString(byte[] raw)
+        {
+            return Encoding.ASCII.GetString(raw);
+        }
+
+        public static DateTime SetRawDateTime(byte[] raw)
+        {
+            return DateTime.FromBinary(BitConverter.ToInt64(raw, 0));
+        }
+
+        public static bool SetRawBool(byte[] raw)
+        {
+            return BitConverter.ToBoolean(raw, 0);
+        }
+
+        public static int SetRawInt(byte[] raw)
+        {
+            return BitConverter.ToInt32(raw, 0);
+        }
+
+        public static float[] SetRawVector(byte[] raw)
+        {
+            var array = new float[AppConsts.VectorLength];
+            Buffer.BlockCopy(raw, 0, array, 0, raw.Length);
+            return array;
+        }
+
+        public static RotateFlipType SetRawOrientation(byte[] raw)
+        {
+            return (RotateFlipType)raw[0];
         }
     }
 }

@@ -104,31 +104,6 @@ namespace ImgSoh
             }
         }
 
-        public static DateTime GetDateTaken(MagickImage magickImage, DateTime defaultValue)
-        {
-            var exif = magickImage.GetExifProfile();
-            if (exif == null) {
-                return defaultValue;
-            }
-
-            var possibleExifTags = new[] { ExifTag.DateTimeOriginal, ExifTag.DateTimeDigitized, ExifTag.DateTime };
-            foreach (var tag in possibleExifTags) {
-                var field = exif.GetValue(tag);
-                if (field == null) {
-                    continue;
-                }
-
-                var value = field.ToString();
-                if (!DateTime.TryParseExact(value, "yyyy:MM:dd HH:mm:ss", CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt)) {
-                    continue;
-                }
-
-                return dt;
-            }
-
-            return defaultValue;
-        }
-
         public static Bitmap ScaleAndCut(Bitmap bitmap, int dim, int border)
         {
             Bitmap bitmapdim;

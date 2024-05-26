@@ -14,7 +14,7 @@
                     AppDatabase.SetHorizon(hashX);
                 }
 
-                if (hashX.Equals(imgY.Next.Substring(4))) {
+                if (!string.IsNullOrWhiteSpace(imgY.Next) && hashX.Equals(imgY.Next.Substring(4))) {
                     AppDatabase.SetHorizon(hashY);
                 }
             }

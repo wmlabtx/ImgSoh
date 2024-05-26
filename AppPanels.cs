@@ -1,6 +1,4 @@
-﻿using System.IO;
-
-namespace ImgSoh
+﻿namespace ImgSoh
 {
     public static class AppPanels
     {
@@ -18,21 +16,17 @@ namespace ImgSoh
             }
 
             var filename = Helper.GetFileName(img.Folder, hash);
-            //var lastmodified = File.GetLastWriteTime(filename);
             var imagedata = FileHelper.ReadEncryptedFile(filename);
             if (imagedata == null) {
                 return false;
             }
 
-            var fingerPrint = ExifHelper.GetFingerPrint(imagedata);
             using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
                     return false;
                 }
 
                 var format = magickImage.Format.ToString().ToLower();
-                //var datetaken =  BitmapHelper.GetDateTaken(magickImage, lastmodified);
-                var datetaken = ExifHelper.GetDateTaken(fingerPrint);
                 var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, img.Orientation);
                 if (bitmap != null) {
                     if (AppVars.ShowXOR && idPanel == 1 && _imgPanels[0].Bitmap.Width == bitmap.Width && _imgPanels[0].Bitmap.Height == bitmap.Height) {
@@ -45,9 +39,7 @@ namespace ImgSoh
                         hash: hash,
                         size: imagedata.LongLength,
                         bitmap: bitmap,
-                        format: format,
-                        fingerPrint: fingerPrint,
-                        dateTaken: datetaken);
+                        format: format);
 
                     _imgPanels[idPanel] = imgpanel;
                 }

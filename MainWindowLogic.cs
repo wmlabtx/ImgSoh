@@ -52,7 +52,7 @@ namespace ImgSoh
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
             await Task.Run(() => { VitHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
-            await Task.Run(() => { AppDatabase.Load(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppDatabase.LoadImages(AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
 
@@ -144,7 +144,7 @@ namespace ImgSoh
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
                 if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out _)) {
+                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
                         pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         var shortfilename = Helper.GetShortFileName(imgX.Folder, panels[index].Hash);
@@ -156,22 +156,31 @@ namespace ImgSoh
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
                         sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
+                        sb.Append($" #{imgX.Index}");
                         sb.AppendLine();
 
                         sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
-                        var ediff = ExifHelper.GetDiff(panels[index].FingerPrint, panels[1 - index].FingerPrint);
-                        sb.Append(!string.IsNullOrEmpty(panels[index].DateTaken)
-                            ? $" {panels[index].DateTaken}"
-                            : $" {ediff}");
+                        if (imgX.Meta > 0) {
+                            sb.Append($" [{imgX.Meta}]");
+                        }
+
+                        if (!imgX.Taken.Equals(DateTime.MinValue)) {
+                            sb.Append($" {imgX.Taken}");
+                        }
 
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
-                        if (!imgX.Verified) {
-                            pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                        if (!string.IsNullOrWhiteSpace(imgX.Prev) && imgX.Prev.Substring(4).Equals(imgY.Hash)) {
+                            pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                         }
                         else {
-                            if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                            if (!imgX.Verified) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                            }
+                            else {
+                                if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                }
                             }
                         }
                     }
@@ -267,6 +276,15 @@ namespace ImgSoh
             EnableElements();
         }
 
+        private async void MoveClick(string destination)
+        {
+            DisableElements();
+            await Task.Run(() => { ImgMdf.Move(destination, AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
+            DrawCanvas();
+            EnableElements();
+        }
+
         private static void CombineToFamily()
         {
             /*
@@ -312,7 +330,6 @@ namespace ImgSoh
             Thread.CurrentThread.Priority = ThreadPriority.Lowest;
             while (!_backgroundWorker.CancellationPending) {
                 ImgMdf.BackgroundWorker(_backgroundWorker);
-                Thread.Sleep(10);
             }
 
             args.Cancel = true;

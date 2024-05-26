@@ -8,7 +8,7 @@ namespace ImgSoh
         {
             var status = string.Empty;
             do {
-                var totalcount = AppDatabase.ImgCount(false);
+                var totalcount = AppDatabase.ImgCount();
                 if (totalcount < 2) {
                     progress?.Report($"totalcount = {totalcount}");
                     return;

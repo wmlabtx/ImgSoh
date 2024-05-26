@@ -8,12 +8,14 @@ namespace ImgSoh
         private static void Delete(string hashD, string suffix, IProgress<string> progress)
         {
             if (AppDatabase.TryGetImg(hashD, out var imgD)) {
-                var folderD = imgD.Folder;
-                var shortname = Helper.GetShortFileName(folderD, hashD);
-                progress?.Report($"Delete {shortname}");
-                AppDatabase.ImgDelete(hashD);
-                var filename = Helper.GetFileName(folderD, hashD);
-                DeleteFile(filename, suffix);
+                if (!imgD.Deleted) {
+                    var folderD = imgD.Folder;
+                    var shortname = Helper.GetShortFileName(folderD, hashD);
+                    progress?.Report($"Delete {shortname}");
+                    AppDatabase.SetDeleted(hashD);
+                    var filename = Helper.GetFileName(folderD, hashD);
+                    DeleteFile(filename, suffix);
+                }
             }
         }
 
