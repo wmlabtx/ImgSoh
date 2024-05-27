@@ -23,6 +23,7 @@
                 <MenuItem Header="Rotate 180" Tag="2" Click="RotateClick" />
                 <MenuItem Header="Mirror" Tag="4" Click="RotateClick" />
             </MenuItem>
+            <!--
             <MenuItem Header="Move">
                 <MenuItem Header="Erotica" Tag="D:\Users\Murad\Pictures\Erotica" Click="MoveClick" />
             </MenuItem>
@@ -30,6 +31,7 @@
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />
                 <MenuItem Header="Remove (D)" Click="RemoveFromFamilyClick" />
             </MenuItem>
+            -->
         </Menu>
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBar.ItemsPanel>
