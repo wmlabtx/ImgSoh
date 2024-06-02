@@ -15,8 +15,8 @@
                 return false;
             }
 
-            var filename = Helper.GetFileName(img.Folder, hash);
-            var imagedata = FileHelper.ReadEncryptedFile(filename);
+            var filename = Helper.GetFileName(img.Path, hash, img.Ext);
+            var imagedata = FileHelper.ReadFile(filename);
             if (imagedata == null) {
                 return false;
             }

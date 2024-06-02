@@ -16,7 +16,8 @@ namespace ImgSoh
             switch (attribute) {
                 case AppConsts.AttributeDeleted: return Helper.GetRawBool(false);
                 case AppConsts.AttributeHash: return Helper.GetRawString(string.Empty, 12);
-                case AppConsts.AttributeFolder: return Helper.GetRawString(string.Empty, 2);
+                case AppConsts.AttributePath: return Helper.GetRawString(string.Empty, AppConsts.MaxPath);
+                case AppConsts.AttributeExt: return Helper.GetRawString(string.Empty, 4);
                 case AppConsts.AttributeVector: return Helper.GetRawVector(new float[AppConsts.VectorLength]);
                 case AppConsts.AttributeOrientation: return Helper.GetRawOrientation(RotateFlipType.RotateNoneFlipNone);
                 case AppConsts.AttributeLastView: return Helper.GetRawDateTime(DateTime.Now);
@@ -32,10 +33,15 @@ namespace ImgSoh
             }
         }
 
+        private static string GetFieldFilename(string attribute)
+        {
+            return $"{AppConsts.PathRoot}\\{attribute}.{AppConsts.DatExtension}";
+        }
+
         private static byte[] LoadFile(string attribute, int collectionsize)
         {
             byte[] filearray;
-            var filename = Helper.GetFieldFilename(attribute);
+            var filename = GetFieldFilename(attribute);
             lock (_lock) {
                 if (!File.Exists(filename)) {
                     var element = GetDefaultField(attribute);
@@ -60,6 +66,20 @@ namespace ImgSoh
             return filearray;
         }
 
+        private static void SetFileSize(string attribute, int collectionsize)
+        {
+            var filename = GetFieldFilename(attribute);
+            lock (_lock) {
+                var element = GetDefaultField(attribute);
+                var length = collectionsize * element.Length;
+                if (File.Exists(filename)) {
+                    using (var file = File.Open(filename, FileMode.Open)) {
+                        file.SetLength(length);
+                    }
+                }
+            }
+        }
+
         private static byte[] GetRawField(string attribute, int index, byte[] array)
         {
             var raw = GetDefaultField(attribute);
@@ -76,7 +96,7 @@ namespace ImgSoh
         {
             var raw = GetDefaultField(attribute);
             var offset = raw.Length * (index - 1);
-            var filename = Helper.GetFieldFilename(attribute);
+            var filename = GetFieldFilename(attribute);
             lock (_lock) {
                 using (var fs = new FileStream(filename, FileMode.OpenOrCreate, FileAccess.ReadWrite)) {
                     fs.Seek(offset, SeekOrigin.Begin);
@@ -93,7 +113,8 @@ namespace ImgSoh
                 var deleted_bytearray = LoadFile(AppConsts.AttributeDeleted, 0);
                 var collectionsize = deleted_bytearray.Length;
                 var hash_bytearray = LoadFile(AppConsts.AttributeHash, collectionsize);
-                var folder_bytearray = LoadFile(AppConsts.AttributeFolder, collectionsize);
+                var path_bytearray = LoadFile(AppConsts.AttributePath, collectionsize);
+                var ext_bytearray = LoadFile(AppConsts.AttributeExt, collectionsize);
                 var vector_bytearray = LoadFile(AppConsts.AttributeVector, collectionsize);
                 var orientation_bytearray = LoadFile(AppConsts.AttributeOrientation, collectionsize);
                 var lastview_bytearray = LoadFile(AppConsts.AttributeLastView, collectionsize);
@@ -109,7 +130,8 @@ namespace ImgSoh
                 for (var i = 1; i <= collectionsize; i++) {
                     var deleted = Helper.SetRawBool(GetRawField(AppConsts.AttributeDeleted, i, deleted_bytearray));
                     var hash = Helper.SetRawString(GetRawField(AppConsts.AttributeHash, i, hash_bytearray));
-                    var folder = Helper.SetRawString(GetRawField(AppConsts.AttributeFolder, i, folder_bytearray));
+                    var path = Helper.SetRawString(GetRawField(AppConsts.AttributePath, i, path_bytearray));
+                    var ext = Helper.SetRawString(GetRawField(AppConsts.AttributeExt, i, ext_bytearray));
                     var vector = Helper.SetRawVector(GetRawField(AppConsts.AttributeVector, i, vector_bytearray));
                     var orientation = Helper.SetRawOrientation(GetRawField(AppConsts.AttributeOrientation, i, orientation_bytearray));
                     var lastview = Helper.SetRawDateTime(GetRawField(AppConsts.AttributeLastView, i, lastview_bytearray));
@@ -125,7 +147,8 @@ namespace ImgSoh
                         index: i,
                         deleted: deleted,
                         hash: hash,
-                        folder: folder,
+                        path: path,
+                        ext: ext,
                         vector: vector,
                         orientation: orientation,
                         lastview: lastview,
@@ -144,6 +167,22 @@ namespace ImgSoh
                         dtn = DateTime.Now;
                         var count = _imgList.Count;
                         progress?.Report($"Loading images ({count}){AppConsts.CharEllipsis}");
+                    }
+                }
+            }
+        }
+
+        public static void Populate(IProgress<string> progress)
+        {
+            lock (_lock) {
+                var dtn = DateTime.Now;
+                var count = 0;
+                foreach (var hash in _imgList.Keys) {
+                    SetVerified(hash);
+                    count++;
+                    if (DateTime.Now.Subtract(dtn).TotalMilliseconds > AppConsts.TimeLapse) {
+                        dtn = DateTime.Now;
+                        progress?.Report($"Populating images ({count}){AppConsts.CharEllipsis}");
                     }
                 }
             }
@@ -189,7 +228,8 @@ namespace ImgSoh
 
                 SetRawField(AppConsts.AttributeDeleted, img.Index, Helper.GetRawBool(img.Deleted));
                 SetRawField(AppConsts.AttributeHash, img.Index, Helper.GetRawString(img.Hash, 12));
-                SetRawField(AppConsts.AttributeFolder, img.Index, Helper.GetRawString(img.Folder, 2));
+                SetRawField(AppConsts.AttributePath, img.Index, Helper.GetRawString(img.Path, AppConsts.MaxPath));
+                SetRawField(AppConsts.AttributeExt, img.Index, Helper.GetRawString(img.Ext, 4));
                 SetRawField(AppConsts.AttributeVector, img.Index, Helper.GetRawVector(img.GetVector()));
                 SetRawField(AppConsts.AttributeOrientation, img.Index, Helper.GetRawOrientation(img.Orientation));
                 SetRawField(AppConsts.AttributeLastView, img.Index, Helper.GetRawDateTime(img.LastView));
@@ -304,16 +344,52 @@ namespace ImgSoh
             bestHash = null;
             status = null;
             var total = ImgCount();
+            int deleted; 
             lock (_lock) {
+                deleted = _imgList.Count(e => e.Value.Deleted);
+                var valids = _imgList.Values.Where(e => !e.Deleted && IsValid(e)).ToArray();
+                var notverifiedCounter = valids.Count(e => !e.Verified);
+                var scopeActual = notverifiedCounter > 0 ? valids.Where(e => !e.Verified).ToArray() : valids;
+                var minNext = scopeActual.Min(e => e.Next.Substring(0, 4));
+                if (minNext.StartsWith("0000")) {
+                    scopeActual = scopeActual.Where(e => e.Next.Substring(0, 4).Equals(minNext)).ToArray();
+                }
+                else {
+                    if (minNext.StartsWith("000")) {
+                        scopeActual = scopeActual.Where(e => e.Next.Substring(0, 3).Equals("000")).ToArray();
+                    }
+                    else {
+                        if (minNext.StartsWith("00")) {
+                            scopeActual = scopeActual.Where(e => e.Next.Substring(0, 2).Equals("00")).ToArray();
+                        }
+                        else {
+                            if (minNext.StartsWith("0")) {
+                                scopeActual = scopeActual.Where(e => e.Next.Substring(0, 1).Equals("0")).ToArray();
+                            }
+                        }
+                    }
+                }
+
+                var minCounter = scopeActual.Min(e => e.Counter);
+                var scopeCounter = scopeActual.Where(e => e.Counter == minCounter).ToArray();
+                status = $"*{notverifiedCounter}/{AppConsts.CharCross}{deleted}/{minCounter}:{scopeCounter.Length}/{total}";
+                var rindex = AppVars.RandomNext(scopeCounter.Length);
+                bestHash = scopeCounter[rindex].Hash;
+
+                /*
                 var scopeValid = _imgList.Values.Where(e => IsValid(e) && !e.Deleted).ToArray();
                 if (scopeValid.Length > 0) {
-                    var minCounter = scopeValid.Min(e => e.Counter);
-                    var scopeCount = scopeValid.Where(e => e.Counter == minCounter).ToArray();
-                    var minNext = scopeCount.Min(e => e.Next.Substring(0, 2));
-                    var scopeNext = scopeCount.Where(e => e.Next.Substring(0, 2).Equals(minNext)).ToArray();
-                    bestHash = scopeNext[0].Hash;
-                    status = $"{minCounter}:{scopeCount.Length}/{minNext}:{scopeNext.Length}/{total}";
+                    var notverifiedCounter = scopeValid.Count(e => !e.Verified);
+                    var scopeActual =  notverifiedCounter > 0 ? scopeValid.Where(e => !e.Verified).ToArray() : scopeValid;
+                    var minCounter = scopeActual.Min(e => e.Counter);
+                    var scopeCounter = scopeActual.Where(e => e.Counter == minCounter).ToArray();
+                    var minNext = scopeCounter.Min(e => e.Next.Substring(0, 2));
+                    var scopeNext = scopeCounter.Where(e => e.Next.StartsWith(minNext)).ToArray();
+                    var minlastview = scopeNext.Min(e => e.LastView);
+                    bestHash = scopeNext.First(e => e.LastView == minlastview).Hash;
+                    status = $"n{notverifiedCounter}/{minCounter}:{scopeCounter.Length}/{minNext}:{scopeNext.Length}/{total}";
                 }
+                */
             }
         }
 
@@ -453,24 +529,108 @@ namespace ImgSoh
             }
         }
 
-        public static void SetTaken(string hash, DateTime taken)
+        public static void SetPath(string hash, string path)
         {
             lock (_lock) {
                 if (_imgList.ContainsKey(hash)) {
-                    _imgList[hash].Taken = taken;
-                    SetRawField(AppConsts.AttributeTaken, _imgList[hash].Index, Helper.GetRawDateTime(taken));
+                    _imgList[hash].Path = path;
+                    SetRawField(AppConsts.AttributePath, _imgList[hash].Index, Helper.GetRawString(path, AppConsts.MaxPath));
                 }
             }
         }
 
-        public static void SetMeta(string hash, int meta)
+        public static void SetExt(string hash, string ext)
         {
             lock (_lock) {
                 if (_imgList.ContainsKey(hash)) {
-                    _imgList[hash].Meta = meta;
-                    SetRawField(AppConsts.AttributeMeta, _imgList[hash].Index, Helper.GetRawInt(meta));
+                    _imgList[hash].Ext = ext;
+                    SetRawField(AppConsts.AttributeExt, _imgList[hash].Index, Helper.GetRawString(ext, 4));
                 }
             }
+        }
+
+        public static void Compact(IProgress<string> progress)
+        {
+            int countMoved;
+            do {
+                countMoved = 0;
+                Img imgDst = null;
+                Img imgSrc = null;
+                lock (_lock) {
+                    foreach (var img in _imgList.Values) {
+                        if (img.Deleted && imgDst == null) {
+                            imgDst = img;
+                        }
+
+                        if (imgSrc == null) {
+                            imgSrc = img;
+                        }
+                        else {
+                            if (img.Index > imgSrc.Index) {
+                                imgSrc = img;
+                            }
+                        }
+                    }
+
+                    // check if the last is deleted
+                    if (imgSrc != null && imgSrc.Deleted) {
+                        _imgList.Remove(imgSrc.Hash);
+                        progress?.Report($"Trimmed: {imgSrc.Index}");
+                        countMoved = 1;
+                    }
+                    else {
+                        if (imgSrc != null && imgDst != null && imgDst.Index < imgSrc.Index) {
+                            var imgMov = new Img(
+                                index: imgDst.Index,
+                                deleted: false,
+                                hash: imgSrc.Hash,
+                                path: imgSrc.Path,
+                                ext: imgSrc.Ext,
+                                vector: imgSrc.GetVector(),
+                                orientation: imgSrc.Orientation,
+                                lastview: imgSrc.LastView,
+                                next: imgSrc.Next,
+                                lastcheck: imgSrc.LastCheck,
+                                verified: imgSrc.Verified,
+                                prev: imgSrc.Prev,
+                                horizon: imgSrc.Horizon,
+                                counter: imgSrc.Counter,
+                                taken: imgSrc.Taken,
+                                 meta: imgSrc.Meta
+                            );
+
+                            _imgList.Remove(imgSrc.Hash);
+                            _imgList.Remove(imgDst.Hash);
+                            _imgList.Add(imgMov.Hash, imgMov);
+                            progress?.Report($"Moved: {imgSrc.Index}{AppConsts.CharRightArrow}{imgDst.Index}");
+                            countMoved = 1;
+                        }
+                    }
+
+                    if (countMoved > 0) {
+                        var collectionsize = _imgList.Count;
+                        var filename = GetFieldFilename(AppConsts.AttributeDeleted);
+                        var filesize = new FileInfo(filename).Length;
+                        if (filesize > collectionsize) {
+                            SetFileSize(AppConsts.AttributeDeleted, collectionsize);
+                            SetFileSize(AppConsts.AttributeHash, collectionsize);
+                            SetFileSize(AppConsts.AttributePath, collectionsize);
+                            SetFileSize(AppConsts.AttributeExt, collectionsize);
+                            SetFileSize(AppConsts.AttributeVector, collectionsize);
+                            SetFileSize(AppConsts.AttributeOrientation, collectionsize);
+                            SetFileSize(AppConsts.AttributeLastView, collectionsize);
+                            SetFileSize(AppConsts.AttributeNext, collectionsize);
+                            SetFileSize(AppConsts.AttributeHorizon, collectionsize);
+                            SetFileSize(AppConsts.AttributePrev, collectionsize);
+                            SetFileSize(AppConsts.AttributeLastCheck, collectionsize);
+                            SetFileSize(AppConsts.AttributeVerified, collectionsize);
+                            SetFileSize(AppConsts.AttributeCounter, collectionsize);
+                            SetFileSize(AppConsts.AttributeTaken, collectionsize);
+                            SetFileSize(AppConsts.AttributeMeta, collectionsize);
+                        }
+                    }
+                }
+            } while (countMoved > 0);
         }
     }
 }

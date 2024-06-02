@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Security.Cryptography;
 using System.Threading;
 
 namespace ImgSoh
@@ -10,13 +11,16 @@ namespace ImgSoh
         public static bool ShowXOR { get; set; }
         public static bool ImportRequested { get; set; }
 
-        private static readonly Random _random = new Random();
+        private static readonly RandomNumberGenerator _random = RandomNumberGenerator.Create();
         public static int RandomNext(int maxValue)
         {
             int result;
             if (Monitor.TryEnter(_random, AppConsts.LockTimeout)) {
                 try {
-                    result = _random.Next(maxValue);
+                    var buffer = new byte[8];
+                    _random.GetBytes(buffer);
+                    var rulong = BitConverter.ToUInt64(buffer, 0);
+                    result = (int)(rulong % (ulong)maxValue);
                 }
                 finally { 
                     Monitor.Exit(_random); 
@@ -28,7 +32,5 @@ namespace ImgSoh
 
             return result;
         }
-
-        public static DateTime DateTakenLast { get; set; }
     }
 }

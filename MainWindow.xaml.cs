@@ -69,11 +69,6 @@ namespace ImgSoh
             ImportClick();
         }
 
-        private void ExportClick(object sender, RoutedEventArgs e)
-        {
-            ExportClick();
-        }
-
         private void RefreshClick(object sender, RoutedEventArgs e)
         {
             RefreshClick();
@@ -101,8 +96,9 @@ namespace ImgSoh
 
         private void MoveClick(object sender, RoutedEventArgs e)
         {
-            var destination = (string)((MenuItem)sender).Tag;
-            MoveClick(destination);
+            var stag = (string)((MenuItem)sender).Tag;
+            var tag = int.Parse(stag);
+            Move(tag);
         }
     }
 }

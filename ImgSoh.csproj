@@ -143,7 +143,6 @@
     <Compile Include="ImgMdfConfirm.cs" />
     <Compile Include="ImgMdfDelete.cs" />
     <Compile Include="ImgMdfEdit.cs" />
-    <Compile Include="ImgMdfExport.cs" />
     <Compile Include="ImgMdfFamily.cs" />
     <Compile Include="ImgMdfFind.cs" />
     <Compile Include="MainWindowLogic.cs" />

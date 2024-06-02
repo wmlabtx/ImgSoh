@@ -7,7 +7,8 @@ namespace ImgSoh
     {
         public int Index { get; }
         public string Hash { get; }
-        public string Folder { get; }
+        public string Path { get; set; }
+        public string Ext { get; set; }
         public bool Deleted { get; set; }
         public RotateFlipType Orientation { get; set; }
         public DateTime LastView { get; set; }
@@ -35,7 +36,8 @@ namespace ImgSoh
             int index,
             bool deleted,
             string hash,
-            string folder,
+            string path,
+            string ext,
             float[] vector,
             DateTime lastview,
             RotateFlipType orientation,
@@ -52,7 +54,8 @@ namespace ImgSoh
             Index = index;
             Deleted = deleted;
             Hash = hash;
-            Folder = folder;
+            Path = path;
+            Ext = ext;
             _vector = vector;
             Orientation = orientation;
             LastView = lastview;

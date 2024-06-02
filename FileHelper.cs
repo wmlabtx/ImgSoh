@@ -32,30 +32,26 @@ namespace ImgSoh
 
         public static byte[] ReadFile(string filename)
         {
+            if (!File.Exists(filename)) {
+                return null;
+            }
+
             var data = File.ReadAllBytes(filename);
             return data;
         }
 
-        public static void WriteFile(string filename, byte[] data)
+        public static void CreateDirectory(string filename)
         {
             var directory = Path.GetDirectoryName(filename);
             if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) {
                 Directory.CreateDirectory(directory);
             }
-
-            File.WriteAllBytes(filename, data);
         }
 
-        public static void WriteEncryptedFile(string filename, byte[] data)
+        public static void WriteFile(string filename, byte[] data)
         {
-            var directory = Path.GetDirectoryName(filename);
-            if (!string.IsNullOrEmpty(directory) && !Directory.Exists(directory)) {
-                Directory.CreateDirectory(directory);
-            }
-
-            var password = Path.GetFileNameWithoutExtension(filename);
-            var encryptedData = EncryptionHelper.Encrypt(data, password);
-            File.WriteAllBytes(filename, encryptedData);
+            CreateDirectory(filename);
+            File.WriteAllBytes(filename, data);
         }
     }
 }

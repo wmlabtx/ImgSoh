@@ -9,7 +9,7 @@
         <Menu Name="Menu" DockPanel.Dock="Top">
             <MenuItem Header="File">
                 <MenuItem Header="Import" Click="ImportClick" />
-                <MenuItem Header="Export" Click="ExportClick" />
+                <MenuItem Header="Compact" Click="CompactClick" />
                 <MenuItem Header="Exit" Click="ExitClick" />
             </MenuItem>
             <MenuItem Header="Edit">
@@ -23,10 +23,11 @@
                 <MenuItem Header="Rotate 180" Tag="2" Click="RotateClick" />
                 <MenuItem Header="Mirror" Tag="4" Click="RotateClick" />
             </MenuItem>
-            <!--
             <MenuItem Header="Move">
-                <MenuItem Header="Erotica" Tag="D:\Users\Murad\Pictures\Erotica" Click="MoveClick" />
+                <MenuItem Header="Left to Right" Tag="0" Click="MoveClick" />
+                <MenuItem Header="Right to Left" Tag="1" Click="MoveClick" />
             </MenuItem>
+            <!--
             <MenuItem Header="Family">
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />
                 <MenuItem Header="Remove (D)" Click="RemoveFromFamilyClick" />

@@ -50,7 +50,7 @@ namespace ImgSoh
             Taken = DateTime.MinValue;
 
             var args =
-                $"/c {AppConsts.FileExifTool} -fast -q -q -m -t -a -u -G0 -s --File:all --ExifTool:all {filename}";
+                $"/c {AppConsts.FileExifTool} -fast -q -q -m -t -a -u -G0 -s --File:all --ExifTool:all \"{filename}\"";
             var psi = new ProcessStartInfo("cmd.exe", args) {
                 CreateNoWindow = true,
                 UseShellExecute = false,

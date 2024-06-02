@@ -5,45 +5,33 @@ namespace ImgSoh
 {
     public static partial class ImgMdf
     {
-        private static void Delete(string hashD, string suffix, IProgress<string> progress)
+        private static void Delete(string hashD)
         {
-            if (AppDatabase.TryGetImg(hashD, out var imgD)) {
-                if (!imgD.Deleted) {
-                    var folderD = imgD.Folder;
-                    var shortname = Helper.GetShortFileName(folderD, hashD);
-                    progress?.Report($"Delete {shortname}");
-                    AppDatabase.SetDeleted(hashD);
-                    var filename = Helper.GetFileName(folderD, hashD);
-                    DeleteFile(filename, suffix);
-                }
+            if (!AppDatabase.TryGetImg(hashD, out var imgD)) {
+                return;
             }
+
+            if (imgD.Deleted) {
+                return;
+            }
+
+            AppDatabase.SetDeleted(hashD);
+            var pathD = imgD.Path;
+            var extD = imgD.Ext;
+            var filename = Helper.GetFileName(pathD, hashD, extD);
+            DeleteFile(filename);
         }
 
-        private static void DeleteFile(string filename, string suffix)
+        private static void DeleteFile(string filename)
         {
+            if (!File.Exists(filename)) {
+                return;
+            }
+
             var name = Path.GetFileNameWithoutExtension(filename).ToLower();
             var extension = Path.GetExtension(filename);
-            byte[] imagedata;
-            if (extension.Equals(AppConsts.DatExtension, StringComparison.OrdinalIgnoreCase) ||
-                extension.Equals(AppConsts.MzxExtension, StringComparison.OrdinalIgnoreCase)) {
-                imagedata = File.ReadAllBytes(filename);
-                
-                var decrypteddata = extension.Equals(AppConsts.DatExtension, StringComparison.OrdinalIgnoreCase) ?
-                    EncryptionHelper.DecryptDat(imagedata, name) :
-                    EncryptionHelper.Decrypt(imagedata, name);
-
-                if (decrypteddata != null) {
-                    imagedata = decrypteddata;
-                }
-            }
-            else {
-                imagedata = File.ReadAllBytes(filename);
-            }
-
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
-                if (magickImage != null) {
-                    extension = magickImage.Format.ToString().ToLower();
-                }
+            if (extension.StartsWith(".")) {
+                extension = extension.Substring(1);
             }
 
             var now = DateTime.Now;
@@ -51,7 +39,7 @@ namespace ImgSoh
             string deletedFilename;
             var counter = 0;
             do {
-                deletedFilename = $"{AppConsts.PathGbProtected}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}{suffix}.{name}";
+                deletedFilename = $"{AppConsts.PathGb}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}.{name}";
                 if (counter > 0) {
                     deletedFilename += $"({counter})";
                 }
@@ -60,15 +48,20 @@ namespace ImgSoh
                 counter++;
             }
             while (File.Exists(deletedFilename));
-            FileHelper.WriteFile(deletedFilename, imagedata);
-            File.Delete(filename);
+            FileHelper.CreateDirectory(deletedFilename);
+            File.Move(filename, deletedFilename);
         }
 
-        public static void Delete(int idpanel, string suffix, IProgress<string> progress)
+        public static void Delete(int idpanel)
         {
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
-            Delete(hashD, suffix, progress);
+            Delete(hashD);
             ConfirmOpposite(1 - idpanel);
+        }
+
+        public static void Compact(IProgress<string> progress)
+        {
+            AppDatabase.Compact(progress);
         }
     }
 } 

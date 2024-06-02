@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Drawing;
 using System.IO;
+using System.Security.Policy;
 using System.Text;
+using System.Windows.Shapes;
 
 namespace ImgSoh
 {
@@ -64,26 +66,21 @@ namespace ImgSoh
             }
         }
 
-        public static string GetFieldFilename(string attribute)
+        public static string GetFileName(string path, string hash, string ext)
         {
-            return $"{AppConsts.PathRoot}\\{attribute}{AppConsts.DatExtension}";
+            return $"{AppConsts.PathHp}\\{path}\\{hash}.{ext}";
         }
 
-        public static string GetFileName(string folder, string hash)
+        public static string GetShortFileName(string path, string hash)
         {
-            return $"{AppConsts.PathHp}\\{folder[0]}\\{folder[1]}\\{hash}{AppConsts.MzxExtension}";
+            return $"{path}\\{hash.Substring(0, 4)}.{hash.Substring(4, 4)}.{hash.Substring(8, 4)}";
         }
 
-        public static string GetShortFileName(string folder, string hash)
-        {
-            return $"{folder}\\{hash.Substring(0, 4)}.{hash.Substring(4, 4)}.{hash.Substring(8, 4)}";
-        }
-
-        public static string GetFolder()
+        public static string GetRandomPath()
         {
             var iFolder = AppVars.RandomNext(256);
             var folder = $"{iFolder:x2}";
-            return folder;
+            return $"-\\{folder[0]}\\{folder[1]}";
         }
 
         public static string GetRadius(string hash, float distance)
@@ -133,7 +130,7 @@ namespace ImgSoh
 
         public static string SetRawString(byte[] raw)
         {
-            return Encoding.ASCII.GetString(raw);
+            return Encoding.ASCII.GetString(raw).Trim();
         }
 
         public static DateTime SetRawDateTime(byte[] raw)
