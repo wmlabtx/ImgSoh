@@ -5,11 +5,9 @@ namespace ImgSoh
 {
     public class Img
     {
-        public int Index { get; }
         public string Hash { get; }
         public string Path { get; set; }
         public string Ext { get; set; }
-        public bool Deleted { get; set; }
         public RotateFlipType Orientation { get; set; }
         public DateTime LastView { get; set; }
         public DateTime LastCheck { get; set; }
@@ -18,8 +16,8 @@ namespace ImgSoh
         public string Prev { get; set; }
         public bool Verified { get; set; }
         public int Counter { get; set; }
-        public DateTime Taken { get; set; }
-        public int Meta { get; set; }
+        public DateTime Taken { get; }
+        public short Meta { get; }
 
         private float[] _vector;
         public float[] GetVector()
@@ -33,8 +31,6 @@ namespace ImgSoh
         }
 
         public Img(
-            int index,
-            bool deleted,
             string hash,
             string path,
             string ext,
@@ -48,11 +44,9 @@ namespace ImgSoh
             bool verified,
             int counter,
             DateTime taken,
-            int meta
+            short meta
             )
         {
-            Index = index;
-            Deleted = deleted;
             Hash = hash;
             Path = path;
             Ext = ext;

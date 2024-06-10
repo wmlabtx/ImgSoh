@@ -1,5 +1,4 @@
-﻿using OpenCvSharp.Flann;
-using System;
+﻿using System;
 using System.ComponentModel;
 using System.Drawing;
 using System.Text;
@@ -149,7 +148,6 @@ namespace ImgSoh
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
                         sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
-                        sb.Append($" #{imgX.Index}");
                         sb.AppendLine();
 
                         sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
@@ -163,24 +161,22 @@ namespace ImgSoh
 
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
-                        if (!string.IsNullOrWhiteSpace(imgX.Prev) && imgX.Prev.Substring(4).Equals(imgY.Hash)) {
-                            pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                        if (panels[index].IsVictim) {
+                            pLabels[index].Background = System.Windows.Media.Brushes.Goldenrod;
                         }
                         else {
-                            if (!imgX.Verified) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
+                            if (!string.IsNullOrWhiteSpace(imgX.Prev) && imgX.Prev.Substring(4).Equals(imgY.Hash)) {
+                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
-                                if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                if (!imgX.Verified) {
+                                    pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                                 }
-                            }
-                        }
-
-                        if (index == 1) {
-                            var idpanel = GetPanelToDelete();
-                            if (idpanel == 0 || idpanel == 1) {
-                                pLabels[idpanel].Background = System.Windows.Media.Brushes.Goldenrod;
+                                else {
+                                    if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
+                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
+                                    }
+                                }
                             }
                         }
                     }
@@ -188,95 +184,6 @@ namespace ImgSoh
             }
 
             RedrawCanvas();
-        }
-
-        private static int GetPanelToDelete()
-        {
-            var panelL = AppPanels.GetImgPanel(0);
-            var panelR = AppPanels.GetImgPanel(1);
-            if (!AppDatabase.TryGetImg(panelL.Hash, out var imgL)) {
-                return -1;
-            }
-
-            if (!AppDatabase.TryGetImg(panelR.Hash, out var imgR)) {
-                return -1;
-            }
-
-            if (imgL.Taken != imgR.Taken) {
-                if (imgL.Taken == DateTime.MinValue && imgR.Taken != DateTime.MinValue) {
-                    return 0;
-                }
-
-                if (imgL.Taken != DateTime.MinValue && imgR.Taken == DateTime.MinValue) {
-                    return 1;
-                }
-
-                if (imgL.Taken > imgR.Taken) {
-                    return 0;
-                }
-
-                if (imgL.Taken < imgR.Taken) {
-                    return 1;
-                }
-            }
-
-            if (imgL.Meta != imgR.Meta) {
-                if (imgL.Meta == 6 && imgR.Meta != 6) {
-                    return 0;
-                }
-
-                if (imgL.Meta != 6 && imgR.Meta == 6) {
-                    return 1;
-                }
-
-                if (imgL.Meta == 0 && imgR.Meta != 0) {
-                    return 0;
-                }
-
-                if (imgL.Meta != 0 && imgR.Meta == 0) {
-                    return 1;
-                }
-
-                if (imgL.Meta < imgR.Meta) {
-                    return 0;
-                }
-
-                if (imgL.Meta > imgR.Meta) {
-                    return 1;
-                }
-            }
-
-            if (panelL.Bitmap.Width != panelR.Bitmap.Width) {
-                if (panelL.Bitmap.Width < panelR.Bitmap.Width) {
-                    return 0;
-                }
-
-                if (panelL.Bitmap.Width > panelR.Bitmap.Width) {
-                    return 1;
-                }
-            }
-
-            if (panelL.Bitmap.Height != panelR.Bitmap.Height) {
-                if (panelL.Bitmap.Height < panelR.Bitmap.Height) {
-                    return 0;
-                }
-
-                if (panelL.Bitmap.Height > panelR.Bitmap.Height) {
-                    return 1;
-                }
-            }
-
-            if (panelL.Size != panelR.Size) {
-                if (panelL.Size < panelR.Size) {
-                    return 0;
-                }
-
-                if (panelL.Size > panelR.Size) {
-                    return 1;
-                }
-            }
-
-            return -1;
         }
 
         private void RedrawCanvas()
@@ -421,14 +328,6 @@ namespace ImgSoh
             }
 
             args.Cancel = true;
-        }
-
-        private async void CompactClick(object sender, RoutedEventArgs e)
-        {
-            DisableElements();
-            await Task.Run(() => { ImgMdf.Compact(AppVars.Progress); }).ConfigureAwait(true);
-            DrawCanvas();
-            EnableElements();
         }
     }
 }

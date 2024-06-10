@@ -91,6 +91,20 @@ namespace ImgSoh
             return radius;
         }
 
+        public static byte[] ArrayFromFloat(float[] array)
+        {
+            var buffer = new byte[array.Length * sizeof(float)];
+            Buffer.BlockCopy(array, 0, buffer, 0, buffer.Length);
+            return buffer;
+        }
+
+        public static float[] ArrayToFloat(byte[] buffer)
+        {
+            var array = new float[buffer.Length / sizeof(float)];
+            Buffer.BlockCopy(buffer, 0, array, 0, buffer.Length);
+            return array;
+        }
+
         public static byte[] GetRawString(string hash, int pad)
         {
             var raw = Encoding.ASCII.GetBytes(hash.PadLeft(pad));

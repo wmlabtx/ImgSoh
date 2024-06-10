@@ -31,6 +31,7 @@ namespace ImgSoh
 
         public static MagickImage ImageDataToMagickImage(byte[] data)
         {
+
             MagickImage magickImage;
             try {
                 magickImage = new MagickImage(data);
@@ -46,6 +47,29 @@ namespace ImgSoh
             }
 
             return magickImage;
+        }
+
+        public static bool GetImageSize(FileInfo fi, out int width, out int height)
+        {
+            width = 0; 
+            height = 0;
+            var magickImage = new MagickImage();
+            try {
+                magickImage.Ping(fi);
+            }
+            catch (MagickMissingDelegateErrorException) {
+                return false;
+            }
+            catch (MagickCorruptImageErrorException) {
+                return false;
+            }
+            catch (MagickCoderErrorException) {
+                return false;
+            }
+
+            width = magickImage.Width;
+            height = magickImage.Height;
+            return true;
         }
 
         public static Bitmap MagickImageToBitmap(MagickImage magickImage, RotateFlipType rft)
@@ -82,25 +106,6 @@ namespace ImgSoh
                     return ".heic";
                 default:
                     throw new Exception($"Unkown extension for {image.Format}");
-            }
-        }
-
-        public static bool BitmapToImageData(Bitmap bitmap, MagickFormat magickFormat, out byte[] imagedata)
-        {
-            try {
-                var mf = new MagickFactory();
-                using (var image = new MagickImage(mf.Image.Create(bitmap))) {
-                    image.Format = magickFormat;
-                    using (var ms = new MemoryStream()) {
-                        image.Write(ms);
-                        imagedata = ms.ToArray();
-                        return true;
-                    }
-                }
-            }
-            catch (MagickException) {
-                imagedata = null;
-                return false;
             }
         }
 
@@ -142,7 +147,7 @@ namespace ImgSoh
             return bitmapdim;
         }
 
-        public static Bitmap BitmapXor(Bitmap xb, Bitmap yb)
+        public static void BitmapXor(Bitmap xb, Bitmap yb, out Bitmap zb)
         {
             var xd = xb.LockBits(new Rectangle(0, 0, xb.Width, xb.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
             var xa = new byte[xd.Stride * xd.Height];
@@ -154,18 +159,44 @@ namespace ImgSoh
             Marshal.Copy(yd.Scan0, ya, 0, ya.Length);
             yb.UnlockBits(yd);
 
-            for (var i = 0; i < xa.Length - 2; i += 3) {
-                ya[i] = (byte)Math.Min(255, Math.Abs(xa[i] - ya[i]) << 3);
-                ya[i + 1] = (byte)Math.Min(255, Math.Abs(xa[i + 1] - ya[i + 1]) << 1);
-                ya[i + 2] = (byte)Math.Min(255, Math.Abs(xa[i + 2] - ya[i + 2]) << 1);
+            zb = null;
+            if (xb.Width == yb.Width && xb.Height == yb.Height) {
+                for (var i = 0; i < xa.Length - 2; i += 3) {
+                    ya[i] = (byte)Math.Min(255, Math.Abs(xa[i] - ya[i]) << 1);
+                    ya[i + 1] = (byte)Math.Min(255, Math.Abs(xa[i + 1] - ya[i + 1]) << 1);
+                    ya[i + 2] = (byte)Math.Min(255, Math.Abs(xa[i + 2] - ya[i + 2]) << 1);
+                }
+
+                zb = new Bitmap(yb);
+                var zd = zb.LockBits(new Rectangle(0, 0, zb.Width, zb.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
+                Marshal.Copy(ya, 0, zd.Scan0, ya.Length);
+                zb.UnlockBits(zd);
+            }
+        }
+
+        public static bool BitmapDiff(Bitmap xb, Bitmap yb)
+        {
+            if (xb.Width != yb.Width || xb.Height != yb.Height) {
+                return false;
             }
 
-            var zb = new Bitmap(yb);
-            var zd = zb.LockBits(new Rectangle(0, 0, zb.Width, zb.Height), ImageLockMode.WriteOnly, PixelFormat.Format24bppRgb);
-            Marshal.Copy(ya, 0, zd.Scan0, ya.Length);
-            zb.UnlockBits(zd);
+            var xd = xb.LockBits(new Rectangle(0, 0, xb.Width, xb.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+            var xa = new byte[xd.Stride * xd.Height];
+            Marshal.Copy(xd.Scan0, xa, 0, xa.Length);
+            xb.UnlockBits(xd);
 
-            return zb;
+            var yd = yb.LockBits(new Rectangle(0, 0, yb.Width, yb.Height), ImageLockMode.ReadOnly, PixelFormat.Format24bppRgb);
+            byte[] ya = new byte[yd.Stride * yd.Height];
+            Marshal.Copy(yd.Scan0, ya, 0, ya.Length);
+            yb.UnlockBits(yd);
+
+            for (var i = 0; i < xa.Length; i++) {
+                if (Math.Abs(xa[i] - ya[i]) >= 144) {
+                    return false;
+                }
+            }
+
+            return true;
         }
     }
 }

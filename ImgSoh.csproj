@@ -157,7 +157,6 @@
     </Compile>
     <Compile Include="AppConsts.cs" />
     <Compile Include="AppDatabase.cs" />
-    <Compile Include="AppImgs.cs" />
     <Compile Include="AppPanels.cs" />
     <Compile Include="AppVars.cs" />
     <Compile Include="BitmapHelper.cs" />

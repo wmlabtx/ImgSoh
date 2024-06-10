@@ -30,7 +30,7 @@
                 var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, img.Orientation);
                 if (bitmap != null) {
                     if (AppVars.ShowXOR && idPanel == 1 && _imgPanels[0].Bitmap.Width == bitmap.Width && _imgPanels[0].Bitmap.Height == bitmap.Height) {
-                        var bitmapxor = BitmapHelper.BitmapXor(_imgPanels[0].Bitmap, bitmap);
+                        BitmapHelper.BitmapXor(_imgPanels[0].Bitmap, bitmap, out var bitmapxor);
                         bitmap.Dispose();
                         bitmap = bitmapxor;
                     }
@@ -46,6 +46,13 @@
             }
 
             return true;
+        }
+
+        public static void SetVictim(int idPanel)
+        {
+            if (idPanel == 0 || idPanel == 1) {
+                _imgPanels[idPanel].SetVictim();
+            }
         }
     }
 }

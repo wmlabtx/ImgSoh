@@ -72,7 +72,7 @@ namespace ImgSoh
 
             var hash = FileHelper.GetHash(imagedata);
             var found = AppDatabase.TryGetImg(hash, out var imgF);
-            if (found && !imgF.Deleted) {
+            if (found) {
                 var filenameF = Helper.GetFileName(imgF.Path, hash, imgF.Ext);
                 if (File.Exists(filenameF)) {
                     // we have a file
@@ -111,15 +111,6 @@ namespace ImgSoh
                 }
             }
 
-            var index = AppDatabase.GetAvailableIndex(hash);
-            if (index <= 0) {
-                throw new Exception("wrong index");
-            }
-
-            if (index >= AppConsts.MaxImages) {
-                return false;
-            }
-
             var path = istrusted ? orgpath : Helper.GetRandomPath();
 
             float[] vector;
@@ -154,8 +145,6 @@ namespace ImgSoh
 
             var lastview = AppDatabase.GetLastView();
             var imgnew = new Img(
-                index: index,
-                deleted: false,
                 hash: hash,
                 path: path,
                 ext: ext,
@@ -169,7 +158,7 @@ namespace ImgSoh
                 horizon: string.Empty,
                 counter: 0,
                 taken: exifinfo.Taken,
-                meta: exifinfo.Items.Length
+                meta: (short)exifinfo.Items.Length
             );
 
             AppDatabase.AddImg(imgnew);
@@ -209,11 +198,18 @@ namespace ImgSoh
                 _found = 0;
                 _bad = 0;
                 ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, backgroundworker);
-                ImportFiles(AppConsts.PathRw, SearchOption.TopDirectoryOnly, backgroundworker);
-                var directoryInfo = new DirectoryInfo(AppConsts.PathRw);
-                var ds = directoryInfo.GetDirectories("*.*", SearchOption.TopDirectoryOnly).ToArray();
-                foreach (var di in ds) {
-                    ImportFiles(di.FullName, SearchOption.AllDirectories, backgroundworker);
+                if (_added < AppConsts.MaxImportFiles) {
+                    ImportFiles(AppConsts.PathRw, SearchOption.TopDirectoryOnly, backgroundworker);
+                    if (_added < AppConsts.MaxImportFiles) {
+                        var directoryInfo = new DirectoryInfo(AppConsts.PathRw);
+                        var ds = directoryInfo.GetDirectories("*.*", SearchOption.TopDirectoryOnly).ToArray();
+                        foreach (var di in ds) {
+                            ImportFiles(di.FullName, SearchOption.AllDirectories, backgroundworker);
+                            if (_added >= AppConsts.MaxImportFiles) {
+                                break;
+                            }
+                        }
+                    }
                 }
 
                 Helper.CleanupDirectories(AppConsts.PathRw, AppVars.Progress);
@@ -223,8 +219,8 @@ namespace ImgSoh
             var hashX = AppDatabase.GetNextCheck();
             if (hashX != null) {
                 if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                    var filename = Helper.GetFileName(imgX.Path, imgX.Hash, imgX.Ext);
-                    var imagedata = FileHelper.ReadFile(filename);
+                    var filenameX = Helper.GetFileName(imgX.Path, imgX.Hash, imgX.Ext);
+                    var imagedata = FileHelper.ReadFile(filenameX);
                     if (imagedata == null) {
                         Delete(hashX);
                         return;
@@ -232,37 +228,11 @@ namespace ImgSoh
 
                     var hashT = FileHelper.GetHash(imagedata);
                     if (!hashT.Equals(hashX)) {
-                        AppDatabase.SetDeleted(hashX);
+                        AppDatabase.ImgDelete(hashX);
                         return;
                     }
 
-                    var candidates = AppDatabase.GetCandidates(hashX);
-                    string radiusNext = null;
-                    string radiusPrev = null;
-                    var lastviewPrev = DateTime.MaxValue;
-                    var counter = 0;
-                    var vectorX = imgX.GetVector();
-                    foreach (var candidate in candidates) { 
-                        var vectorY = candidate.GetVector();
-                        var distance = VitHelper.GetDistance(vectorX, vectorY);
-                        var radius = Helper.GetRadius(candidate.Hash, distance);
-
-                        if (string.IsNullOrEmpty(imgX.Horizon) || (!string.IsNullOrEmpty(imgX.Horizon) &&
-                                                                   string.CompareOrdinal(radius, imgX.Horizon) > 0)) {
-                            if (radiusNext == null || string.CompareOrdinal(radius, radiusNext) < 0) {
-                                radiusNext = radius;
-                            }
-                        }
-
-                        if (!string.IsNullOrEmpty(imgX.Horizon) && string.CompareOrdinal(radius, imgX.Horizon) <= 0) {
-                            counter++;
-                            if (radiusPrev == null || candidate.LastView < lastviewPrev) {
-                                radiusPrev = radius;
-                                lastviewPrev = candidate.LastView;
-                            }
-                        }
-                    }
-
+                    AppDatabase.Find(imgX, out var radiusNext, out var radiusPrev, out var counter);
                     if (!string.IsNullOrWhiteSpace(radiusPrev) && !imgX.Prev.Equals(radiusPrev)) {
                         AppDatabase.SetPrev(hashX, radiusPrev);
                     }
@@ -290,6 +260,81 @@ namespace ImgSoh
                     }
 
                     AppDatabase.SetLastCheck(hashX);
+
+                    /*
+                    if (AppDatabase.TryGetImg(imgX.Next.Substring(4), out var imgY)) {
+                        var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
+                        if (distance < 0.1f) {
+                            Img imgD = null;
+                            var filenameY = Helper.GetFileName(imgY.Path, imgY.Hash, imgY.Ext);
+                            var fiX = new FileInfo(filenameX);
+                            var fiY = new FileInfo(filenameY);
+                            if (BitmapHelper.GetImageSize(fiX, out var wX, out var hX) &&
+                                BitmapHelper.GetImageSize(fiY, out var wY, out var hY)) {
+                                if (imgX.Taken == imgY.Taken && imgX.Meta == imgY.Meta && wX == wY && hX == hY) {
+                                    imgD = fiX.Length <= fiY.Length ? imgX : imgY;
+                                }
+
+                                if (imgD == null && imgX.Taken == imgY.Taken && wX == wY && hX == hY) {
+                                    if (imgX.Meta == 6 && imgY.Meta != 6) {
+                                        imgD = imgX;
+                                    }
+                                    else {
+                                        if (imgX.Meta != 6 && imgY.Meta == 6) {
+                                            imgD = imgY;
+                                        }
+                                        else {
+                                            if (imgX.Meta == 11 && imgY.Meta != 11) {
+                                                imgD = imgY;
+                                            }
+                                            else {
+                                                if (imgX.Meta != 11 && imgY.Meta == 11) {
+                                                    imgD = imgX;
+                                                }
+                                                else {
+                                                    imgD = imgX.Meta <= imgY.Meta ? imgX : imgY;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+
+                                if (imgD == null && imgX.Meta == imgY.Meta && wX == wY && hX == hY) {
+                                    if (imgX.Taken == DateTime.MinValue && imgY.Taken != DateTime.MinValue) {
+                                        imgD = imgX;
+                                    }
+                                    else {
+                                        if (imgX.Taken != DateTime.MinValue && imgY.Taken == DateTime.MinValue) {
+                                            imgD = imgY;
+                                        }
+                                        else {
+                                            imgD = imgX.Taken <= imgY.Taken ? imgY : imgX;
+                                        }
+                                    }
+                                }
+
+                                if (imgD == null && wX == wY && hX == hY) {
+                                    if (imgX.Taken == DateTime.MinValue && imgY.Taken != DateTime.MinValue && imgX.Meta <= imgY.Meta && imgX.Meta != 11) {
+                                        imgD = imgX;
+                                    }
+                                    else {
+                                        if (imgX.Taken != DateTime.MinValue && imgY.Taken == DateTime.MinValue && imgX.Meta >= imgY.Meta && imgY.Meta != 11) {
+                                            imgD = imgY;
+                                        }
+                                    }
+                                }
+
+                                if (imgD != null) {
+                                    var shortfilename = Helper.GetShortFileName(imgX.Path, imgX.Hash);
+                                    backgroundworker.ReportProgress(0,
+                                        $"DELETE {shortfilename} M={imgD.Meta} T={imgD.Taken.ToShortDateString()}");
+                                    AppDatabase.ImgDelete(imgX.Hash);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    */
                 }
             }
 

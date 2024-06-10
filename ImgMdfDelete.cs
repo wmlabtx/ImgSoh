@@ -11,11 +11,7 @@ namespace ImgSoh
                 return;
             }
 
-            if (imgD.Deleted) {
-                return;
-            }
-
-            AppDatabase.SetDeleted(hashD);
+            AppDatabase.ImgDelete(hashD);
             var pathD = imgD.Path;
             var extD = imgD.Ext;
             var filename = Helper.GetFileName(pathD, hashD, extD);
@@ -57,11 +53,6 @@ namespace ImgSoh
             var hashD = AppPanels.GetImgPanel(idpanel).Hash;
             Delete(hashD);
             ConfirmOpposite(1 - idpanel);
-        }
-
-        public static void Compact(IProgress<string> progress)
-        {
-            AppDatabase.Compact(progress);
         }
     }
 } 

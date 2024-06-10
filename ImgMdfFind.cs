@@ -1,4 +1,6 @@
-﻿using System;
+﻿using MetadataExtractor;
+using System;
+using System.IO;
 
 namespace ImgSoh
 {
@@ -52,86 +54,106 @@ namespace ImgSoh
                     continue;
                 }
 
-                var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                var shortfilename = Helper.GetShortFileName(imgX.Path, hashX);
-                var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
-                progress.Report($"{status} [{age} ago] {shortfilename} {distance:F4}");
-
                 /*
-                var panelX = AppPanels.GetImgPanel(0);
-                var panelY = AppPanels.GetImgPanel(1);
-                if (distance < 0.002f &&
-                    panelX.Bitmap.Width == panelY.Bitmap.Width &&
-                    panelX.Bitmap.Height == panelY.Bitmap.Height) {
-                    var indexToDelete = -1;
-                    if (imgX.Taken != imgY.Taken) {
-                        if (imgX.Taken == DateTime.MinValue && imgY.Taken != DateTime.MinValue) {
-                            indexToDelete = 0;
-                        }
-                        else {
-                            if (imgX.Taken != DateTime.MinValue && imgY.Taken == DateTime.MinValue) {
-                                indexToDelete = 1;
-                            }
-                            else {
-                                if (imgX.Taken < imgY.Taken) {
-                                    indexToDelete = 0;
-                                }
-                                else {
-                                    indexToDelete = 1;
-                                }
-                            }
-                        }
-                    }
-                    else {
-                        if (imgX.Meta != imgY.Meta) {
-                            if (imgX.Meta == 6 && imgY.Meta != 6) {
-                                indexToDelete = 0;
-                            }
-                            else {
-                                if (imgX.Meta != 6 && imgY.Meta == 6) {
-                                    indexToDelete = 1;
-                                }
-                                else {
-                                    if (imgX.Meta == 0 && imgY.Meta > 0) {
-                                        indexToDelete = 0;
-                                    }
-                                    else {
-                                        if (imgX.Meta > 0 && imgY.Meta == 0) {
-                                            indexToDelete = 1;
-                                        }
-                                        else {
-                                            if (imgX.Meta < imgY.Meta) {
-                                                indexToDelete = 0;
-                                            }
-                                            else {
-                                                indexToDelete = 1;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        else {
-                            if (panelX.Size <= panelY.Size) {
-                                indexToDelete = 0;
-                            }
-                            else {
-                                indexToDelete = 1;
-                            }
-                        }
-                    }
-
-                    var panelD = AppPanels.GetImgPanel(indexToDelete);
-                    progress?.Report($"Delete {indexToDelete}:{panelD.Hash}");
-                    Delete(panelD.Hash);
-                    hashX = null;
-                    continue;
-                }
+                var victim = ChooseVictim(imgX, imgY);
+                AppPanels.SetVictim(victim);
                 */
 
-                break;
+                //if (victim != 0 && victim != 1) {
+                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                    var shortfilename = Helper.GetShortFileName(imgX.Path, hashX);
+                    var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
+                    progress?.Report($"{status} [{age} ago] {shortfilename} {distance:F4}");
+                    break;
+                    /*
+                }
+                else {
+                    var imgs = new Img[2];
+                    imgs[0] = imgX;
+                    imgs[1] = imgY;
+                    var shortfilename = Helper.GetShortFileName(imgX.Path, hashX);
+                    progress?.Report($"{status} DELETE {shortfilename}");
+                    Delete(imgs[victim].Hash);
+                    hashX = null;
+                }
+                    */
             }
             while (true);
+        }
+
+        private static int ChooseVictim(Img imgX, Img imgY)
+        {
+            var imgs = new Img[2];
+            imgs[0] = imgX;
+            imgs[1] = imgY;
+            var panels = new ImgPanel[2];
+            panels[0] = AppPanels.GetImgPanel(0);
+            panels[1] = AppPanels.GetImgPanel(1);
+            var diff = BitmapHelper.BitmapDiff(panels[0].Bitmap, panels[1].Bitmap);
+            if (!diff) {
+                return -1;
+            }
+
+            var sizes = new long[2];
+            sizes[0] = new FileInfo(Helper.GetFileName(imgX.Path, imgX.Hash, imgX.Ext)).Length;
+            sizes[1] = new FileInfo(Helper.GetFileName(imgY.Path, imgY.Hash, imgY.Ext)).Length;
+            for (var i = 0; i < 2; i++) {
+                if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta && sizes[i] <= sizes[1]) {
+                    return i;
+                }
+            }
+
+            for (var i = 0; i < 2; i++) {
+                if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta != imgs[1 - i].Meta) {
+                    if (imgs[i].Meta == 11) {
+                        return 1 - i;
+                    }
+
+                    if (imgs[i].Meta == 6) {
+                        return i;
+                    }
+
+                    if (imgs[i].Meta == 0 && imgs[1 - i].Meta != 6) {
+                        return i;
+                    }
+
+                    if (imgs[i].Meta < imgs[1 - i].Meta) {
+                        return i;
+                    }
+                }
+            }
+
+            for (var i = 0; i < 2; i++) {
+                if (imgs[i].Taken != imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta) {
+                    if (imgs[i].Taken == DateTime.MinValue) {
+                        return i;
+                    }
+
+                    if (imgs[i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
+                        return i;
+                    }
+                }
+            }
+
+            for (var i = 0; i < 2; i++) {
+                if (imgs[i].Taken == DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue) {
+                    return i;
+                }
+
+                if (imgs[i].Meta == 11) {
+                    return 1 - i;
+                }
+
+                if (imgs[i].Meta == 6) {
+                    return i;
+                }
+
+                if (imgs[i].Taken != DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
+                    return 1 - i;
+                }
+            }
+
+            return -1;
         }
     }
 }
