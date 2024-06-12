@@ -1,5 +1,6 @@
 ﻿using System.Drawing;
 using System.IO;
+using System.Linq;
 using System.Security.Policy;
 
 namespace ImgSoh
@@ -28,7 +29,7 @@ namespace ImgSoh
                         return;
                     }
 
-                    var rvector = VitHelper.CalculateFloatVector(bitmap);
+                    var rvector = VitHelper.CalculateVector(bitmap).ToArray();
                     AppDatabase.SetVector(hash, rvector);
                     AppDatabase.SetOrientation(hash, rft);
                 }

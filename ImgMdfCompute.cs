@@ -124,13 +124,13 @@ namespace ImgSoh
                 }
 
                 ext = magickImage.Format.ToString().ToLower();
-                exifinfo = new ExifInfo(orgfilename);
+                exifinfo = new ExifInfo(); //new ExifInfo(orgfilename);
                 using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    vector = VitHelper.CalculateFloatVector(bitmap);
+                    vector = VitHelper.CalculateVector(bitmap).ToArray();
                 }
             }
 
-            if (vector == null) {
+            if (vector.Length != AppConsts.VectorLength) {
                 DeleteFile(orgfilename);
                 _bad++;
                 return true;

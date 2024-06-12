@@ -8,7 +8,7 @@
         private const string PathRoot = @"M:\Sp";
         public const string FileDatabase = PathRoot + @"\" + "spacer.mdf";
         public const string FileVit = PathRoot + @"\" + "model.onnx";
-        public const string FileExifTool = PathRoot + @"\" + "exiftool.exe";
+        public const string FileExifTool = @"D:\Users\Murad\Spacer\exiftool.exe";
         public const string PathHp = @"M:\Hp";
         public const string PathGb = @"M:\Gb";
         public const string PathRw = @"M:\Rw";
@@ -27,8 +27,7 @@
 
         public const string TableImages = "images";
         public const string AttributeHash = "hash";
-        public const string AttributePath = "path";
-        public const string AttributeExt = "ext";
+        public const string AttributeName = "name";
         public const string AttributeVector = "vector";
         public const string AttributeOrientation = "orientation";
         public const string AttributeLastView = "lastview";
@@ -40,5 +39,10 @@
         public const string AttributeCounter = "counter";
         public const string AttributeTaken = "taken";
         public const string AttributeMeta = "meta";
-    }
+        public const string AttributeFamily = "family";
+        public const string AttributeMagnitude = "magnitude";
+
+        public const string AttributePath = "path";
+        public const string AttributeExt = "ext";
+     }
 }

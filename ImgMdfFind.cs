@@ -1,5 +1,4 @@
-﻿using MetadataExtractor;
-using System;
+﻿using System;
 using System.IO;
 
 namespace ImgSoh

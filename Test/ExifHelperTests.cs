@@ -1,32 +1,23 @@
 ﻿using System.Diagnostics;
 using ImgSoh;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using System;
-using File = System.IO.File;
 
 namespace Test
 {
     [TestClass]
     public class ExifHelperTests
     {
-        /*
         [TestMethod]
         public void Single()
         {
             var file1 = $"DataSet1\\gab_org.jpg";
-            var imagedata = File.ReadAllBytes(file1);
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
-                if (magickImage != null) {
-                    var ext = magickImage.Format.ToString().ToLower();
-                    var tempfilename = $"{AppConsts.PathGbProtected}\\temp.{ext}";
-                    File.WriteAllBytes(tempfilename, imagedata);
-                    var exifinfo = new ExifInfo(tempfilename);
-                    File.Delete(tempfilename);
-                    Debug.WriteLine($"{exifinfo.Taken}; {exifinfo.Items.Length} entries found");
-                }
-            }
+            var exifinfo = new ExifInfo();
+            exifinfo.Read(file1);
+            Debug.WriteLine($"{exifinfo.Taken}; {exifinfo.Items.Length} entries found");
+            exifinfo.Stop();
         }
 
+/*
         [TestMethod]
         public void GetMatchSingle()
         {

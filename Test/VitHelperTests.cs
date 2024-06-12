@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using ImgSoh;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -10,15 +12,6 @@ namespace Test
     [TestClass]
     public class VitHelperTests
     {
-        [TestMethod]
-        public void GetInfo()
-        {
-            VitHelper.LoadNet(null);
-            var layers = VitHelper.GetInfo();
-            foreach (var layer in layers) {
-                Debug.WriteLine(layer);
-            }
-
             /*
 onnx_node!Conv_0
 onnx_node!Reshape_8
@@ -515,17 +508,16 @@ onnx_node!Gather_1251
 onnx_node!Gemm_1252
 logits
             */
-        }
 
         [TestMethod]
         public void Single()
         {
             VitHelper.LoadNet(null);
-            var name = $"DataSet1\\gab_org.jpg";
-            var imagedata = File.ReadAllBytes(name);
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
+            var name1 = $"DataSet1\\gab_org.jpg";
+            var imagedata1 = File.ReadAllBytes(name1);
+            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata1))
             using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                var vector = VitHelper.CalculateFloatVector(bitmap);
+                var vector = VitHelper.CalculateVector(bitmap);
             }
         }
 
@@ -541,19 +533,20 @@ logits
                 "gab_nosim1", "gab_nosim2", "gab_nosim3", "gab_nosim4", "gab_nosim5", "gab_nosim6"
             };
 
-            var vectors = new Tuple<string, float[]>[images.Length];
+            var vectors = new Tuple<string, IEnumerable<float>, float>[images.Length];
             for (var i = 0; i < images.Length; i++) {
                 var name = $"DataSet1\\{images[i]}.jpg";
                 var imagedata = File.ReadAllBytes(name);
                 using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
                 using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    var vector = VitHelper.CalculateFloatVector(bitmap);
-                    vectors[i] = new Tuple<string, float[]>(name, vector);
+                    var vector = VitHelper.CalculateVector(bitmap).ToArray();
+                    var magnitude = VitHelper.GetMagnitude(vector);
+                    vectors[i] = new Tuple<string, IEnumerable<float>, float>(name, vector, magnitude);
                 }
             }
 
             for (var i = 0; i < vectors.Length; i++) {
-                var distance = VitHelper.GetDistance(vectors[0].Item2, vectors[i].Item2);
+                var distance = VitHelper.GetDistance(vectors[0].Item2, vectors[0].Item3, vectors[i].Item2, vectors[i].Item3);
                 Debug.WriteLine($"{images[i]} = {distance:F4}");
             }
 
