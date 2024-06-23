@@ -1,5 +1,7 @@
-﻿using System;
-using System.IO;
+﻿using ImageMagick;
+using System;
+using System.Drawing.Imaging;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -9,14 +11,14 @@ namespace ImgSoh
         {
             var status = string.Empty;
             do {
-                var totalcount = AppDatabase.ImgCount();
+                var totalcount = AppImgs.Count();
                 if (totalcount < 2) {
                     progress?.Report($"totalcount = {totalcount}");
                     return;
                 }
 
                 if (hashX == null) {
-                    AppDatabase.GetNextView(out var hash, out status);
+                    AppImgs.GetNextView(out var hash, out status);
                     hashX = hash;
                     if (hashX == null) {
                         progress?.Report("not ready to view");
@@ -30,13 +32,13 @@ namespace ImgSoh
                     continue;
                 }
 
-                if (!AppDatabase.TryGetImg(hashX, out var imgX)) {
+                if (!AppImgs.TryGetImg(hashX, out var imgX)) {
                     Delete(hashX);
                     hashX = null;
                     continue;
                 }
 
-                var hashY = AppDatabase.GetHashY(hashX);
+                var hashY = imgX.Next.Substring(4);
                 if (hashX.Equals(hashY)) {
                     throw new Exception();
                 }
@@ -47,63 +49,83 @@ namespace ImgSoh
                     continue;
                 }
 
-                if (!AppDatabase.TryGetImg(hashY, out var imgY)) {
+                if (!AppImgs.TryGetImg(hashY, out var imgY)) {
                     Delete(hashY);
                     hashX = null;
                     continue;
                 }
 
-                /*
-                var victim = ChooseVictim(imgX, imgY);
-                AppPanels.SetVictim(victim);
-                */
+                var diff = 255;
+                var distance = AppVit.GetDistance(imgX.GetVector(), imgX.Magnitude, imgY.GetVector(), imgY.Magnitude);
+                if (distance < 0.25f) {
+                    GetVictim(imgX, imgY, out var victim, out diff);
+                    AppPanels.SetVictim(victim);
+                }
 
-                //if (victim != 0 && victim != 1) {
-                    var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                    var shortfilename = Helper.GetShortFileName(imgX.Path, hashX);
-                    var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
-                    progress?.Report($"{status} [{age} ago] {shortfilename} {distance:F4}");
-                    break;
-                    /*
-                }
-                else {
-                    var imgs = new Img[2];
-                    imgs[0] = imgX;
-                    imgs[1] = imgY;
-                    var shortfilename = Helper.GetShortFileName(imgX.Path, hashX);
-                    progress?.Report($"{status} DELETE {shortfilename}");
-                    Delete(imgs[victim].Hash);
-                    hashX = null;
-                }
-                    */
+                var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
+                progress?.Report($"{status} [{age} ago] {imgX.Name} {distance:F4} D{diff}");
+                break;
             }
             while (true);
         }
 
-        private static int ChooseVictim(Img imgX, Img imgY)
+        private static int GetVictim(Img x, Img y)
         {
-            var imgs = new Img[2];
-            imgs[0] = imgX;
-            imgs[1] = imgY;
-            var panels = new ImgPanel[2];
-            panels[0] = AppPanels.GetImgPanel(0);
-            panels[1] = AppPanels.GetImgPanel(1);
-            var diff = BitmapHelper.BitmapDiff(panels[0].Bitmap, panels[1].Bitmap);
-            if (!diff) {
-                return -1;
-            }
-
-            var sizes = new long[2];
-            sizes[0] = new FileInfo(Helper.GetFileName(imgX.Path, imgX.Hash, imgX.Ext)).Length;
-            sizes[1] = new FileInfo(Helper.GetFileName(imgY.Path, imgY.Hash, imgY.Ext)).Length;
-            for (var i = 0; i < 2; i++) {
-                if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta && sizes[i] <= sizes[1]) {
-                    return i;
+            var imgs = new Img[] { x, y };
+            var px = AppPanels.GetImgPanel(0);
+            var py = AppPanels.GetImgPanel(0);
+            var panels = new[] { px, py };
+            if (px.Bitmap.Width == py.Bitmap.Width && px.Bitmap.Height == py.Bitmap.Height) {
+                for (var i = 0; i < 2; i++) {
+                    if (imgs[i].Meta == 11 && imgs[1 - i].Meta != 11) {
+                         return 1 - i;
+                    }
                 }
-            }
 
-            for (var i = 0; i < 2; i++) {
-                if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta != imgs[1 - i].Meta) {
+                for (var i = 0; i < 2; i++) {
+                    if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta && panels[i].Size <= panels[1 - i].Size) {
+                        return i;
+                    }
+                }
+
+
+                for (var i = 0; i < 2; i++) {
+                    if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta != imgs[1 - i].Meta) {
+                        if (imgs[i].Meta == 11) {
+                            return 1 - i;
+                        }
+
+                        if (imgs[i].Meta == 6) {
+                            return i;
+                        }
+
+                        if (imgs[i].Meta == 0 && imgs[1 - i].Meta != 6) {
+                            return i;
+                        }
+
+                        if (imgs[i].Meta < imgs[1 - i].Meta) {
+                            return i;
+                        }
+                    }
+                }
+
+                for (var i = 0; i < 2; i++) {
+                    if (imgs[i].Taken != imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta) {
+                        if (imgs[i].Taken == DateTime.MinValue) {
+                            return i;
+                        }
+
+                        if (imgs[i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
+                            return i;
+                        }
+                    }
+                }
+
+                for (var i = 0; i < 2; i++) {
+                    if (imgs[i].Taken == DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue) {
+                        return i;
+                    }
+
                     if (imgs[i].Meta == 11) {
                         return 1 - i;
                     }
@@ -112,47 +134,48 @@ namespace ImgSoh
                         return i;
                     }
 
-                    if (imgs[i].Meta == 0 && imgs[1 - i].Meta != 6) {
-                        return i;
+                    if (imgs[i].Taken != DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
+                        return 1 - i;
                     }
-
-                    if (imgs[i].Meta < imgs[1 - i].Meta) {
-                        return i;
-                    }
-                }
-            }
-
-            for (var i = 0; i < 2; i++) {
-                if (imgs[i].Taken != imgs[1 - i].Taken && imgs[i].Meta == imgs[1 - i].Meta) {
-                    if (imgs[i].Taken == DateTime.MinValue) {
-                        return i;
-                    }
-
-                    if (imgs[i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
-                        return i;
-                    }
-                }
-            }
-
-            for (var i = 0; i < 2; i++) {
-                if (imgs[i].Taken == DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue) {
-                    return i;
-                }
-
-                if (imgs[i].Meta == 11) {
-                    return 1 - i;
-                }
-
-                if (imgs[i].Meta == 6) {
-                    return i;
-                }
-
-                if (imgs[i].Taken != DateTime.MinValue && imgs[1 - i].Taken != DateTime.MinValue && imgs[i].Taken < imgs[1 - i].Taken) {
-                    return 1 - i;
                 }
             }
 
             return -1;
+        }
+
+        private static void GetVictim(Img x, Img y, out int victim, out int diff)
+        {
+            victim = -1;
+            diff = 255;
+            var xf = AppFile.GetFileName(x.Name, AppConsts.PathHp);
+            var xd = AppFile.ReadEncryptedFile(xf);
+            var xm = AppBitmap.ImageDataToMagickImage(xd);
+            var yf = AppFile.GetFileName(y.Name, AppConsts.PathHp);
+            var yd = AppFile.ReadEncryptedFile(yf);
+            var ym = AppBitmap.ImageDataToMagickImage(yd);
+            var g = new MagickGeometry {
+                Width = 128,
+                Height = 128,
+                IgnoreAspectRatio = true
+            };
+            xm.Grayscale();
+            xm.Resize(g);
+            ym.Grayscale();
+            ym.Resize(g);
+            var zm = new MagickImage(xm);
+            zm.Composite(ym, CompositeOperator.Difference);
+            var p = zm.GetPixels();
+            var raw = p.ToByteArray(PixelMapping.RGB);
+            if (raw != null) {
+                diff = raw.Max();
+                if (diff < 32) {
+                    victim = GetVictim(x, y);
+                }
+            }
+
+            zm.Dispose();
+            ym.Dispose();
+            xm.Dispose();
         }
     }
 }

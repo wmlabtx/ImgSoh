@@ -1,4 +1,5 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Windows;
@@ -61,7 +62,7 @@ namespace ImgSoh
 
         private void ExitClick(object sender, EventArgs e)
         {
-            Close();
+            CloseApp();
         }
 
         private void ImportClick(object sender, RoutedEventArgs e)
@@ -94,11 +95,14 @@ namespace ImgSoh
             ToggleXorClick();
         }
 
-        private void MoveClick(object sender, RoutedEventArgs e)
+        private void OnClosed(object sender, EventArgs e)
         {
-            var stag = (string)((MenuItem)sender).Tag;
-            var tag = int.Parse(stag);
-            Move(tag);
+            ReleaseResources();
+        }
+
+        private void RandomClick(object sender, RoutedEventArgs e)
+        {
+            RandomClick();
         }
     }
 }

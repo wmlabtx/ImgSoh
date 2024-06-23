@@ -4,11 +4,12 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d"
-        Title="ImageBank" Height="446" Width="800" Loaded="WindowLoaded" WindowStartupLocation="Manual" Icon="app.ico" Cursor="Arrow" SizeToContent="Manual" ResizeMode="CanMinimize" KeyDown="OnKeyDown">
-    <DockPanel Name="DockPanel" LastChildFill="true">
+        Title="ImageBank" Height="446" Width="800" Loaded="WindowLoaded" WindowStartupLocation="Manual" Icon="app.ico" Cursor="Arrow" SizeToContent="Manual" ResizeMode="CanMinimize" KeyDown="OnKeyDown" Closed="OnClosed">
+    <DockPanel LastChildFill="true">
         <Menu Name="Menu" DockPanel.Dock="Top">
             <MenuItem Header="File">
                 <MenuItem Header="Import" Click="ImportClick" />
+                <MenuItem Header="Random" Click="RandomClick" />
                 <MenuItem Header="Exit" Click="ExitClick" />
             </MenuItem>
             <MenuItem Header="Edit">
@@ -22,16 +23,10 @@
                 <MenuItem Header="Rotate 180" Tag="2" Click="RotateClick" />
                 <MenuItem Header="Mirror" Tag="4" Click="RotateClick" />
             </MenuItem>
-            <MenuItem Header="Move">
-                <MenuItem Header="Left to Right" Tag="0" Click="MoveClick" />
-                <MenuItem Header="Right to Left" Tag="1" Click="MoveClick" />
-            </MenuItem>
-            <!--
             <MenuItem Header="Family">
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />
                 <MenuItem Header="Remove (D)" Click="RemoveFromFamilyClick" />
             </MenuItem>
-            -->
         </Menu>
         <StatusBar DockPanel.Dock="Bottom">
             <StatusBar.ItemsPanel>

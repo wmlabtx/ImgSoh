@@ -61,9 +61,9 @@ namespace ImgSoh
         public DateTime Taken { get; private set; }
 
         private const string _args = "-stay_open 1 -@ - -common_args -charset UTF8 -fast -m -t -a -u -G0 -s --File:all --ExifTool:all -charset UTF8";
-        private readonly Process _process;
-        private readonly StreamWriter _stdin;
-        private readonly StreamReader _stdout;
+        private Process _process;
+        private StreamWriter _stdin;
+        private StreamReader _stdout;
 
         public ExifInfo()
         {
@@ -149,8 +149,11 @@ namespace ImgSoh
                 }
 
                 _stdout?.Dispose();
+                _stdout = null;
                 _stdin?.Dispose();
+                _stdin = null;
                 _process.Dispose();
+                _process = null;
             }
         }
     }

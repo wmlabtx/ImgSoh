@@ -512,12 +512,12 @@ logits
         [TestMethod]
         public void Single()
         {
-            VitHelper.LoadNet(null);
+            AppVit.LoadNet(null);
             var name1 = $"DataSet1\\gab_org.jpg";
             var imagedata1 = File.ReadAllBytes(name1);
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata1))
-            using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                var vector = VitHelper.CalculateVector(bitmap);
+            using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata1))
+            using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                var vector = AppVit.CalculateVector(bitmap);
             }
         }
 
@@ -525,7 +525,7 @@ logits
         [TestMethod]
         public void GetDistanceSingle()
         {
-            VitHelper.LoadNet(null);
+            AppVit.LoadNet(null);
             var images = new[] {
                 "gab_org", "gab_bw", "gab_scale", "gab_flip", "gab_r90", "gab_crop", "gab_toside",
                 "gab_blur", "gab_exp", "gab_logo", "gab_noice", "gab_r3", "gab_r10",
@@ -537,16 +537,16 @@ logits
             for (var i = 0; i < images.Length; i++) {
                 var name = $"DataSet1\\{images[i]}.jpg";
                 var imagedata = File.ReadAllBytes(name);
-                using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata))
-                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    var vector = VitHelper.CalculateVector(bitmap).ToArray();
-                    var magnitude = VitHelper.GetMagnitude(vector);
+                using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata))
+                using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                    var vector = AppVit.CalculateVector(bitmap).ToArray();
+                    var magnitude = AppVit.GetMagnitude(vector);
                     vectors[i] = new Tuple<string, IEnumerable<float>, float>(name, vector, magnitude);
                 }
             }
 
             for (var i = 0; i < vectors.Length; i++) {
-                var distance = VitHelper.GetDistance(vectors[0].Item2, vectors[0].Item3, vectors[i].Item2, vectors[i].Item3);
+                var distance = AppVit.GetDistance(vectors[0].Item2, vectors[0].Item3, vectors[i].Item2, vectors[i].Item3);
                 Debug.WriteLine($"{images[i]} = {distance:F4}");
             }
 

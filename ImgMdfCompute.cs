@@ -14,154 +14,148 @@ namespace ImgSoh
         private static int _added;
         private static int _bad;
         private static int _found;
-        private static int _moved;
 
         private static bool ImportFile(string orgfilename, BackgroundWorker backgroundworker)
         {
-            var name = Path.GetFileNameWithoutExtension(orgfilename);
-            if (name.Length == 12) {
-                if (AppDatabase.TryGetImg(name, out var imgE)) {
-                    var filenameF = Helper.GetFileName(imgE.Path, imgE.Hash, imgE.Ext);
-                    if (orgfilename.Equals(filenameF)) {
-                        // existing file
-                        return true;
-                    }
+            var orgname = Path.GetFileNameWithoutExtension(orgfilename).ToLowerInvariant();
+            if (AppImgs.TryGetImg(orgname, out var imgE)) {
+                var filenameF = AppFile.GetFileName(imgE.Name, AppConsts.PathHp);
+                if (orgfilename.Equals(filenameF)) {
+                    // existing file
+                    return true;
                 }
             }
 
-            var istrusted = false;
-            var orgpath = Path.GetDirectoryName(orgfilename);
             var orgext = Path.GetExtension(orgfilename);
             if (orgext.StartsWith(".")) {
                 orgext = orgext.Substring(1);
             }
 
-            if (orgpath != null && orgpath.StartsWith(AppConsts.PathHp) && orgpath.Length > AppConsts.PathHp.Length) {
-                orgpath = orgpath.Substring(AppConsts.PathHp.Length + 1);
-                if (!orgpath.StartsWith("-")) {
-                    istrusted = true;
-                }
-            }
-
-            backgroundworker.ReportProgress(0, $"importing {name} (a:{_added})/f:{_found}/m:{_moved}/b:{_bad}){AppConsts.CharEllipsis}");
+            backgroundworker.ReportProgress(0,
+                $"importing {orgfilename} (a:{_added})/f:{_found}/b:{_bad}){AppConsts.CharEllipsis}");
             var lastmodified = File.GetLastWriteTime(orgfilename);
             if (lastmodified > DateTime.Now) {
                 lastmodified = DateTime.Now;
             }
-             
-            byte[] imagedata;
+
+            var imagedata = AppFile.ReadFile(orgfilename);
+            string hash;
+            DateTime taken;
+            int meta;
             if (orgext.Equals(AppConsts.DatExtension, StringComparison.OrdinalIgnoreCase) ||
                 orgext.Equals(AppConsts.MzxExtension, StringComparison.OrdinalIgnoreCase)) {
-                imagedata = File.ReadAllBytes(orgfilename);
-                var decrypteddata = orgext.Equals(AppConsts.DatExtension, StringComparison.OrdinalIgnoreCase) ?
-                    EncryptionHelper.DecryptDat(imagedata, name) :
-                    EncryptionHelper.Decrypt(imagedata, name);
-
-                if (decrypteddata != null) {
-                    imagedata = decrypteddata;
-                    orgext = "tmp";
-                    var tmporgfilename = orgfilename + "." + orgext;
-                    File.WriteAllBytes(tmporgfilename, imagedata);
-                    File.Delete(orgfilename);
-                    orgfilename = tmporgfilename;
+                var decrypteddata = orgext.Equals(AppConsts.DatExtension, StringComparison.OrdinalIgnoreCase)
+                    ? AppEncryption.DecryptDat(imagedata, orgname)
+                    : AppEncryption.Decrypt(imagedata, orgname);
+                if (decrypteddata == null) {
+                    DeleteFile(orgfilename);
+                    _bad++;
+                    return true;
                 }
-            }
-            else {
-                imagedata = File.ReadAllBytes(orgfilename);
-            }
 
-            var hash = FileHelper.GetHash(imagedata);
-            var found = AppDatabase.TryGetImg(hash, out var imgF);
-            if (found) {
-                var filenameF = Helper.GetFileName(imgF.Path, hash, imgF.Ext);
-                if (File.Exists(filenameF)) {
-                    // we have a file
-                    var imagedataF = FileHelper.ReadFile(filenameF);
-                    var foundhash = FileHelper.GetHash(imagedataF);
-                    if (hash.Equals(foundhash)) {
-                        // and file is okay
-                        if (!istrusted) {
-                            // we have trusted image
+                hash = AppHash.GetHash(decrypteddata);
+                if (AppImgs.TryGetImg(hash, out var imgF)) {
+                    var filenameF = AppFile.GetFileName(imgF.Name, AppConsts.PathHp);
+                    if (File.Exists(filenameF)) {
+                        // we have a file
+                        var imagedataF = AppFile.ReadEncryptedFile(filenameF);
+                        var foundhash = AppHash.GetHash(imagedataF);
+                        if (hash.Equals(foundhash)) {
+                            // ...and file is okay
+                            // delete incoming file
                             File.Delete(orgfilename);
                             _found++;
                             return true;
                         }
-
-                        // delete unstrusted image and work with new trusted one
-                        Delete(hash);
-                    }
-                    else {
-                        // but found file was changed or corrupted
-                        Delete(hash);
-                    }
-                }
-                else {
-                    // ...but file is missing
-                    if (istrusted) {
-                        // set new trusted location
-                        AppDatabase.SetPath(hash, orgpath);
-                        AppDatabase.SetExt(hash, orgext);
-                        File.Delete(filenameF);
-                        _moved++;
-                        return true;
                     }
 
-                    // delete record with missing file
+                    // ...but found file is missing or changed
+                    // delete record with changed file and continue
                     Delete(hash);
                 }
+
+                var tmporgfilename = $"{AppConsts.PathGbProtected}\\{orgname}.temp";
+                File.WriteAllBytes(tmporgfilename, decrypteddata);
+                AppBitmap.Read(tmporgfilename, out taken, out meta);
+                File.Delete(tmporgfilename);
+                imagedata = decrypteddata;
+            }
+            else {
+                hash = AppHash.GetHash(imagedata);
+                if (AppImgs.TryGetImg(hash, out var imgF)) {
+                    var filenameF = AppFile.GetFileName(imgF.Name, AppConsts.PathHp);
+                    if (File.Exists(filenameF)) {
+                        // we have a file
+                        var imagedataF = AppFile.ReadEncryptedFile(filenameF);
+                        var foundhash = AppHash.GetHash(imagedataF);
+                        if (hash.Equals(foundhash)) {
+                            // ...and file is okay
+                            // delete incoming file
+                            File.SetAttributes(orgfilename, FileAttributes.Normal);
+                            File.Delete(orgfilename);
+                            _found++;
+                            return true;
+                        }
+                    }
+
+                    // ...but found file is missing or changed
+                    // delete record with changed file and continue
+                    Delete(hash);
+                }
+
+                AppBitmap.Read(orgfilename, out taken, out meta);
             }
 
-            var path = istrusted ? orgpath : Helper.GetRandomPath();
-
             float[] vector;
-            ExifInfo exifinfo;
-            string ext;
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
+            float magnitude;
+            using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
                     DeleteFile(orgfilename);
                     _bad++;
                     return true;
                 }
 
-                ext = magickImage.Format.ToString().ToLower();
-                exifinfo = new ExifInfo(); //new ExifInfo(orgfilename);
-                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
-                    vector = VitHelper.CalculateVector(bitmap).ToArray();
+                using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, RotateFlipType.RotateNoneFlipNone)) {
+                    vector = AppVit.CalculateVector(bitmap).ToArray();
+                    if (vector.Length != AppConsts.VectorLength) {
+                        DeleteFile(orgfilename);
+                        _bad++;
+                        return true;
+                    }
+
+                    magnitude = AppVit.GetMagnitude(vector);
                 }
             }
 
-            if (vector.Length != AppConsts.VectorLength) {
-                DeleteFile(orgfilename);
-                _bad++;
-                return true;
-            }
-
-            var newfilename = Helper.GetFileName(path, hash, ext);
+            var name = AppImgs.GetName(hash);
+            var newfilename = AppFile.GetFileName(name, AppConsts.PathHp);
             if (!orgfilename.Equals(newfilename)) {
-                FileHelper.WriteFile(newfilename, imagedata);
+                AppFile.WriteEncryptedFile(newfilename, imagedata);
                 File.SetLastWriteTime(newfilename, lastmodified);
+                File.SetAttributes(orgfilename, FileAttributes.Normal);
                 File.Delete(orgfilename);
             }
 
-            var lastview = AppDatabase.GetLastView();
+            var lastview = DateTime.Now;
             var imgnew = new Img(
                 hash: hash,
-                path: path,
-                ext: ext,
+                name: name,
                 vector: vector,
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastview,
                 next: string.Empty,
                 lastcheck: DateTime.Now,
                 verified: false,
-                prev: string.Empty,
                 horizon: string.Empty,
                 counter: 0,
-                taken: exifinfo.Taken,
-                meta: (short)exifinfo.Items.Length
+                taken: taken,
+                meta: meta,
+                family: 0,
+                magnitude: magnitude
             );
 
             AppDatabase.AddImg(imgnew);
+            AppImgs.Add(imgnew);
             _added++;
 
             return true;
@@ -199,9 +193,9 @@ namespace ImgSoh
                 _bad = 0;
                 ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, backgroundworker);
                 if (_added < AppConsts.MaxImportFiles) {
-                    ImportFiles(AppConsts.PathRw, SearchOption.TopDirectoryOnly, backgroundworker);
+                    ImportFiles(AppConsts.PathRawProtected, SearchOption.TopDirectoryOnly, backgroundworker);
                     if (_added < AppConsts.MaxImportFiles) {
-                        var directoryInfo = new DirectoryInfo(AppConsts.PathRw);
+                        var directoryInfo = new DirectoryInfo(AppConsts.PathRawProtected);
                         var ds = directoryInfo.GetDirectories("*.*", SearchOption.TopDirectoryOnly).ToArray();
                         foreach (var di in ds) {
                             ImportFiles(di.FullName, SearchOption.AllDirectories, backgroundworker);
@@ -212,134 +206,71 @@ namespace ImgSoh
                     }
                 }
 
-                Helper.CleanupDirectories(AppConsts.PathRw, AppVars.Progress);
+                Helper.CleanupDirectories(AppConsts.PathRawProtected, AppVars.Progress);
                 AppVars.ImportRequested = false;
+                ((IProgress<string>)AppVars.Progress).Report($"Imported a:{_added}/f:{_found}/b:{_bad}");
             }
 
-            var hashX = AppDatabase.GetNextCheck();
+            var hashX = AppImgs.GetNextCheck();
             if (hashX != null) {
-                if (AppDatabase.TryGetImg(hashX, out var imgX)) {
-                    var filenameX = Helper.GetFileName(imgX.Path, imgX.Hash, imgX.Ext);
-                    var imagedata = FileHelper.ReadFile(filenameX);
+                if (AppImgs.TryGetImg(hashX, out var imgX)) {
+                    var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
+                    var imagedata = AppFile.ReadEncryptedFile(filenameX);
                     if (imagedata == null) {
                         Delete(hashX);
                         return;
                     }
 
-                    var hashT = FileHelper.GetHash(imagedata);
+                    var hashT = AppHash.GetHash(imagedata);
                     if (!hashT.Equals(hashX)) {
-                        AppDatabase.ImgDelete(hashX);
+                        Delete(hashX);
                         return;
                     }
 
-                    AppDatabase.Find(imgX, out var radiusNext, out var radiusPrev, out var counter);
-                    if (!string.IsNullOrWhiteSpace(radiusPrev) && !imgX.Prev.Equals(radiusPrev)) {
-                        AppDatabase.SetPrev(hashX, radiusPrev);
+                    if (imgX.Magnitude <= 0f) {
+                        using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
+                            using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, imgX.Orientation)) {
+                                var vector = AppVit.CalculateVector(bitmap).ToArray();
+                                var magnitude = AppVit.GetMagnitude(vector);
+                                AppDatabase.SetVector(hashX, vector, magnitude);
+                            }
+                        }
+                    }
+
+                    AppImgs.Find(imgX, out var radiusNext, out var counter);
+                    if (counter != imgX.Counter && counter > 0) {
+                        counter = 0;
                     }
 
                     if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
                         var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
-                        var shortfilename = Helper.GetShortFileName(imgX.Path, imgX.Hash);
                         var radiusLast = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                         backgroundworker.ReportProgress(0,
-                            $"[{age} ago] {shortfilename} ({imgX.Counter}) {radiusLast} {AppConsts.CharRightArrow} ({counter}) {radiusNext.Substring(0, 4)}");
+                            $"[{age} ago] {imgX.Name} ({imgX.Counter}) {radiusLast} {AppConsts.CharRightArrow} ({counter}) {radiusNext.Substring(0, 4)}");
                         AppDatabase.SetNext(hashX, radiusNext);
                         _delay = 0;
                     }
 
                     if (counter != imgX.Counter) {
-                        if (counter != imgX.Counter + 1) {
-                            AppDatabase.SetPrev(hashX, string.Empty);
-                            AppDatabase.SetNext(hashX, string.Empty);
-                            AppDatabase.SetHorizon(hashX);
-                            AppDatabase.SetCounter(hashX, 0);
-                        }
-                        else {
-                            AppDatabase.SetCounter(hashX, counter);
-                        }
+                        AppDatabase.SetNext(hashX, string.Empty);
+                        AppDatabase.SetHorizon(hashX);
+                        AppDatabase.SetCounter(hashX, 0);
                     }
 
                     AppDatabase.SetLastCheck(hashX);
-
-                    /*
-                    if (AppDatabase.TryGetImg(imgX.Next.Substring(4), out var imgY)) {
-                        var distance = VitHelper.GetDistance(imgX.GetVector(), imgY.GetVector());
-                        if (distance < 0.1f) {
-                            Img imgD = null;
-                            var filenameY = Helper.GetFileName(imgY.Path, imgY.Hash, imgY.Ext);
-                            var fiX = new FileInfo(filenameX);
-                            var fiY = new FileInfo(filenameY);
-                            if (BitmapHelper.GetImageSize(fiX, out var wX, out var hX) &&
-                                BitmapHelper.GetImageSize(fiY, out var wY, out var hY)) {
-                                if (imgX.Taken == imgY.Taken && imgX.Meta == imgY.Meta && wX == wY && hX == hY) {
-                                    imgD = fiX.Length <= fiY.Length ? imgX : imgY;
-                                }
-
-                                if (imgD == null && imgX.Taken == imgY.Taken && wX == wY && hX == hY) {
-                                    if (imgX.Meta == 6 && imgY.Meta != 6) {
-                                        imgD = imgX;
-                                    }
-                                    else {
-                                        if (imgX.Meta != 6 && imgY.Meta == 6) {
-                                            imgD = imgY;
-                                        }
-                                        else {
-                                            if (imgX.Meta == 11 && imgY.Meta != 11) {
-                                                imgD = imgY;
-                                            }
-                                            else {
-                                                if (imgX.Meta != 11 && imgY.Meta == 11) {
-                                                    imgD = imgX;
-                                                }
-                                                else {
-                                                    imgD = imgX.Meta <= imgY.Meta ? imgX : imgY;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (imgD == null && imgX.Meta == imgY.Meta && wX == wY && hX == hY) {
-                                    if (imgX.Taken == DateTime.MinValue && imgY.Taken != DateTime.MinValue) {
-                                        imgD = imgX;
-                                    }
-                                    else {
-                                        if (imgX.Taken != DateTime.MinValue && imgY.Taken == DateTime.MinValue) {
-                                            imgD = imgY;
-                                        }
-                                        else {
-                                            imgD = imgX.Taken <= imgY.Taken ? imgY : imgX;
-                                        }
-                                    }
-                                }
-
-                                if (imgD == null && wX == wY && hX == hY) {
-                                    if (imgX.Taken == DateTime.MinValue && imgY.Taken != DateTime.MinValue && imgX.Meta <= imgY.Meta && imgX.Meta != 11) {
-                                        imgD = imgX;
-                                    }
-                                    else {
-                                        if (imgX.Taken != DateTime.MinValue && imgY.Taken == DateTime.MinValue && imgX.Meta >= imgY.Meta && imgY.Meta != 11) {
-                                            imgD = imgY;
-                                        }
-                                    }
-                                }
-
-                                if (imgD != null) {
-                                    var shortfilename = Helper.GetShortFileName(imgX.Path, imgX.Hash);
-                                    backgroundworker.ReportProgress(0,
-                                        $"DELETE {shortfilename} M={imgD.Meta} T={imgD.Taken.ToShortDateString()}");
-                                    AppDatabase.ImgDelete(imgX.Hash);
-                                    return;
-                                }
-                            }
-                        }
-                    }
-                    */
                 }
             }
 
             _delay = Math.Min(2500, _delay + 10);
             Thread.Sleep(_delay);
+        }
+
+        public static void Random(string path, IProgress<string> progress)
+        {
+            var dirs = Directory.GetDirectories(path, "*.*", SearchOption.AllDirectories);
+            var rindex = AppVars.RandomNext(dirs.Length);
+            var dir = dirs[rindex];
+            progress?.Report($"Get {dir}");
         }
     }
 }

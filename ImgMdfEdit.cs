@@ -1,7 +1,5 @@
 ﻿using System.Drawing;
-using System.IO;
 using System.Linq;
-using System.Security.Policy;
 
 namespace ImgSoh
 {
@@ -9,46 +7,31 @@ namespace ImgSoh
     {
         public static void Rotate(string hash, RotateFlipType rft)
         {
-            if (!AppDatabase.TryGetImg(hash, out var imgR)) {
+            if (!AppImgs.TryGetImg(hash, out var img)) {
                 return;
             }
 
-            var filename = Helper.GetFileName(imgR.Path, hash, imgR.Ext);
-            var imagedata = FileHelper.ReadFile(filename);
+            var filename = AppFile.GetFileName(img.Name, AppConsts.PathHp);
+            var imagedata = AppFile.ReadEncryptedFile(filename);
             if (imagedata == null) {
                 return;
             }
 
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
+            using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
                 if (magickImage == null) {
                     return;
                 }
 
-                using (var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, rft)) {
+                using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, rft)) {
                     if (bitmap == null) {
                         return;
                     }
 
-                    var rvector = VitHelper.CalculateVector(bitmap).ToArray();
-                    AppDatabase.SetVector(hash, rvector);
+                    var rvector = AppVit.CalculateVector(bitmap).ToArray();
+                    var rmagnitude = AppVit.GetMagnitude(rvector);
+                    AppDatabase.SetVector(hash, rvector, rmagnitude);
                     AppDatabase.SetOrientation(hash, rft);
                 }
-            }
-        }
-
-        public static void Move(int idpanel)
-        {
-            var hashX = AppPanels.GetImgPanel(idpanel).Hash;
-            var hashY = AppPanels.GetImgPanel(1 - idpanel).Hash;
-            if (AppDatabase.TryGetImg(hashX, out var imgX) && AppDatabase.TryGetImg(hashY, out var imgY)) {
-                if (imgX.Path.Equals(imgY.Path)) {
-                    return;
-                }
-
-                var filenameSource = Helper.GetFileName(imgX.Path, hashX, imgX.Ext);
-                var filenameDestination = Helper.GetFileName(imgY.Path, hashX, imgX.Ext);
-                File.Move(filenameSource, filenameDestination);
-                AppDatabase.SetPath(hashX, imgY.Path);
             }
         }
     }

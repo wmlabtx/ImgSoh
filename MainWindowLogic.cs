@@ -1,6 +1,8 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
+using System.Linq;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,13 +12,13 @@ using System.Windows.Input;
 
 namespace ImgSoh
 {
-    public sealed partial class MainWindow : IDisposable
+    public sealed partial class MainWindow
     {
         private double _picsMaxWidth;
         private double _picsMaxHeight;
         private double _labelMaxHeight;
 
-        private readonly NotifyIcon _notifyIcon = new NotifyIcon();
+        private NotifyIcon _notifyIcon = new NotifyIcon();
         private BackgroundWorker _backgroundWorker;
 
         private async void WindowLoaded()
@@ -51,8 +53,8 @@ namespace ImgSoh
 
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
-            await Task.Run(() => { VitHelper.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
-            await Task.Run(() => { AppDatabase.LoadImages(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppVit.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppDatabase.LoadImages(AppConsts.FileDatabase, AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
 
@@ -135,15 +137,20 @@ namespace ImgSoh
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
-                if (AppDatabase.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppDatabase.TryGetImg(panels[1 - index].Hash, out var imgY)) {
-                        pBoxes[index].Source = BitmapHelper.ImageSourceFromBitmap(panels[index].Bitmap);
+                if (AppImgs.TryGetImg(panels[index].Hash, out var imgX)) {
+                    if (AppImgs.TryGetImg(panels[1 - index].Hash, out var imgY)) {
+                        pBoxes[index].Source = AppBitmap.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
-                        var shortfilename = Helper.GetShortFileName(imgX.Path, panels[index].Hash);
-                        sb.Append($"{shortfilename}.{panels[index].Format.ToLowerInvariant()}");
+                        sb.Append($"{panels[index].Name}.{panels[index].Format}");
 
                         var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                         sb.Append($" [{imgX.Counter}:{next}]");
+
+                        if (imgX.Family > 0) {
+                            var familysize = AppImgs.GetFamily(imgX.Family).Count();
+                            sb.Append($" #{imgX.Family}:{familysize}");
+                        }
+
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -165,7 +172,7 @@ namespace ImgSoh
                             pLabels[index].Background = System.Windows.Media.Brushes.Goldenrod;
                         }
                         else {
-                            if (!string.IsNullOrWhiteSpace(imgX.Prev) && imgX.Prev.Substring(4).Equals(imgY.Hash)) {
+                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
@@ -194,7 +201,7 @@ namespace ImgSoh
                 var panel = AppPanels.GetImgPanel(index);
                 ws[index] = _picsMaxWidth / 2;
                 hs[index] = _picsMaxHeight;
-                if (panel != null && panel.Bitmap != null) {
+                if (panel?.Bitmap != null) {
                     ws[index] = panel.Bitmap.Width;
                     hs[index] = panel.Bitmap.Height;
                 }
@@ -237,27 +244,33 @@ namespace ImgSoh
             EnableElements();
         }
 
-        ~MainWindow()
+        private void ReleaseResources()
         {
-            Dispose();
-        }
-
-        public void Dispose()
-        {
-            ClassDispose();
-            GC.SuppressFinalize(this);
-        }
-
-        private void ClassDispose()
-        {
+            AppBitmap.StopExif();
             _notifyIcon?.Dispose();
+            _notifyIcon = null;
             _backgroundWorker?.CancelAsync();
             _backgroundWorker?.Dispose();
+            _backgroundWorker = null;
+        }
+
+        private void CloseApp()
+        {
+            ReleaseResources();
+            System.Windows.Application.Current.Shutdown();
         }
 
         private void RefreshClick()
         {
             DisableElements();
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private async void RandomClick()
+        {
+            DisableElements();
+            await Task.Run(() => { ImgMdf.Random(AppConsts.PathTempProtected, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
@@ -272,30 +285,18 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private static void CombineToFamily()
+        private async void CombineToFamily()
         {
-            /*
             DisableElements();
             await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
-            */
         }
 
-        private static void DetachFromFamily()
+        private async void DetachFromFamily()
         {
-            /*
             DisableElements();
             await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
-            DrawCanvas();
-            EnableElements();
-            */
-        }
-
-        private async void Move(int idpanel)
-        {
-            DisableElements();
-            await Task.Run(() => { ImgMdf.Move(idpanel); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
@@ -322,7 +323,6 @@ namespace ImgSoh
 
         private void DoCompute(object s, DoWorkEventArgs args)
         {
-            //Thread.CurrentThread.Priority = ThreadPriority.Lowest;
             while (!_backgroundWorker.CancellationPending) {
                 ImgMdf.BackgroundWorker(_backgroundWorker);
             }

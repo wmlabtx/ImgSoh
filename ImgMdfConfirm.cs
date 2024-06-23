@@ -9,13 +9,10 @@
 
             AppDatabase.SetLastView(hashY);
 
-            if (AppDatabase.TryGetImg(hashX, out var imgX) && AppDatabase.TryGetImg(hashY, out var imgY)) {
+            if (AppImgs.TryGetImg(hashX, out var imgX)) {
                 if (hashY.Equals(imgX.Next.Substring(4))) {
                     AppDatabase.SetHorizon(hashX);
-                }
-
-                if (!string.IsNullOrWhiteSpace(imgY.Next) && hashX.Equals(imgY.Next.Substring(4))) {
-                    AppDatabase.SetHorizon(hashY);
+                    AppDatabase.SetCounter(hashX, imgX.Counter + 1);
                 }
             }
 

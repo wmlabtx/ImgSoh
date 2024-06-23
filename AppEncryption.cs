@@ -4,7 +4,7 @@ using System.Text;
 
 namespace ImgSoh
 {
-    public static class EncryptionHelper
+    public static class AppEncryption
     {
         private const string PasswordSole = "{mzx}";
         private static readonly byte[] _aesIv = {
@@ -46,6 +46,23 @@ namespace ImgSoh
             }
             catch (CryptographicException) {
                 return null;
+            }
+            finally {
+                aes.Dispose();
+            }
+        }
+
+        public static byte[] Encrypt(byte[] array, string password)
+        {
+            var aes = CreateAes(password);
+            try {
+                using (var ms = new MemoryStream()) {
+                    using (var cs = new CryptoStream(ms, aes.CreateEncryptor(), CryptoStreamMode.Write)) {
+                        cs.Write(array, 0, array.Length);
+                    }
+
+                    return ms.ToArray();
+                }
             }
             finally {
                 aes.Dispose();

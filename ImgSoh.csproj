@@ -194,7 +194,8 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
-    <Compile Include="AppIms.cs" />
+    <Compile Include="AppHash.cs" />
+    <Compile Include="AppImgs.cs" />
     <Compile Include="ExifInfo.cs" />
     <Compile Include="ImgMdfCompute.cs" />
     <Compile Include="ImgMdfConfirm.cs" />
@@ -203,7 +204,7 @@
     <Compile Include="ImgMdfFamily.cs" />
     <Compile Include="ImgMdfFind.cs" />
     <Compile Include="MainWindowLogic.cs" />
-    <Compile Include="VitHelper.cs" />
+    <Compile Include="AppVit.cs" />
     <Page Include="MainWindow.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
@@ -216,9 +217,9 @@
     <Compile Include="AppDatabase.cs" />
     <Compile Include="AppPanels.cs" />
     <Compile Include="AppVars.cs" />
-    <Compile Include="BitmapHelper.cs" />
-    <Compile Include="EncryptionHelper.cs" />
-    <Compile Include="FileHelper.cs" />
+    <Compile Include="AppBitmap.cs" />
+    <Compile Include="AppEncryption.cs" />
+    <Compile Include="AppFile.cs" />
     <Compile Include="Helper.cs" />
     <Compile Include="Img.cs" />
     <Compile Include="ImgMdf.cs" />

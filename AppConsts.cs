@@ -5,17 +5,15 @@
         public const string MzxExtension = "mzx";
         public const string DatExtension = "dat";
 
-        private const string PathRoot = @"M:\Sp";
-        public const string FileDatabase = PathRoot + @"\" + "spacer.mdf";
-        public const string FileVit = PathRoot + @"\" + "model.onnx";
+        public const string FileDatabase = @"D:\Users\Murad\Spacer\spacer.db";
+        public const string FileVit = @"D:\Users\Murad\Spacer\model.onnx";
         public const string FileExifTool = @"D:\Users\Murad\Spacer\exiftool.exe";
-        public const string PathHp = @"M:\Hp";
-        public const string PathGb = @"M:\Gb";
-        public const string PathRw = @"M:\Rw";
+        public const string PathHp = @"D:\Users\Murad\Spacer\chunks";
+        public const string PathGbProtected = @"M:\removed";
+        public const string PathRawProtected = @"M:\raw";
+        public const string PathTempProtected = @"M:\temp";
 
-        public const int MaxImportFiles = 1000;
-        public const int MaxPixelDiff = 128;
-        public const int MaxScope = 10000;
+        public const int MaxImportFiles = 1000000;
 
         public const char CharEllipsis = '\u2026';
         public const char CharRightArrow = '\u2192';
@@ -33,7 +31,6 @@
         public const string AttributeLastView = "lastview";
         public const string AttributeNext = "next";
         public const string AttributeHorizon = "horizon";
-        public const string AttributePrev = "prev";
         public const string AttributeLastCheck = "lastcheck";
         public const string AttributeVerified = "verified";
         public const string AttributeCounter = "counter";
@@ -41,8 +38,5 @@
         public const string AttributeMeta = "meta";
         public const string AttributeFamily = "family";
         public const string AttributeMagnitude = "magnitude";
-
-        public const string AttributePath = "path";
-        public const string AttributeExt = "ext";
      }
 }

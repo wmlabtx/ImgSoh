@@ -6,7 +6,7 @@ namespace ImgSoh
     {
         public static void LoadImages(IProgress<string> progress)
         {
-            VitHelper.LoadNet(progress);
+            AppVit.LoadNet(progress);
         }
     }
 }

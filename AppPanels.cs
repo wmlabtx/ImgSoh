@@ -1,4 +1,7 @@
-﻿namespace ImgSoh
+﻿using System.Drawing;
+using ImageMagick;
+
+namespace ImgSoh
 {
     public static class AppPanels
     {
@@ -11,38 +14,45 @@
 
         public static bool SetImgPanel(int idPanel, string hash)
         {
-            if (!AppDatabase.TryGetImg(hash, out var img)) {
+            if (!AppImgs.TryGetImg(hash, out var img)) {
                 return false;
             }
 
-            var filename = Helper.GetFileName(img.Path, hash, img.Ext);
-            var imagedata = FileHelper.ReadFile(filename);
+            var filename = AppFile.GetFileName(img.Name, AppConsts.PathHp);
+            var imagedata = AppFile.ReadEncryptedFile(filename);
             if (imagedata == null) {
                 return false;
             }
 
-            using (var magickImage = BitmapHelper.ImageDataToMagickImage(imagedata)) {
-                if (magickImage == null) {
-                    return false;
-                }
+            var magickImage = AppBitmap.ImageDataToMagickImage(imagedata);
+            if (magickImage == null) {
+                return false;
+            }
 
-                var format = magickImage.Format.ToString().ToLower();
-                var bitmap = BitmapHelper.MagickImageToBitmap(magickImage, img.Orientation);
-                if (bitmap != null) {
-                    if (AppVars.ShowXOR && idPanel == 1 && _imgPanels[0].Bitmap.Width == bitmap.Width && _imgPanels[0].Bitmap.Height == bitmap.Height) {
-                        BitmapHelper.BitmapXor(_imgPanels[0].Bitmap, bitmap, out var bitmapxor);
+            var format = magickImage.Format.ToString().ToLower();
+            var bitmap = AppBitmap.MagickImageToBitmap(magickImage, img.Orientation);
+            if (bitmap != null) {
+                if (AppVars.ShowXOR && idPanel == 1) {
+                    using (var xb = new MagickImage())
+                    using (var yb = new MagickImage()) {
+                        xb.Read(_imgPanels[0].Bitmap);
+                        yb.Read(bitmap);
+                        AppBitmap.Composite(xb, yb, out var zb);
+                        var bitmapxor = AppBitmap.MagickImageToBitmap(zb, RotateFlipType.RotateNoneFlipNone);
+                        zb.Dispose();
                         bitmap.Dispose();
                         bitmap = bitmapxor;
                     }
-
-                    var imgpanel = new ImgPanel(
-                        hash: hash,
-                        size: imagedata.LongLength,
-                        bitmap: bitmap,
-                        format: format);
-
-                    _imgPanels[idPanel] = imgpanel;
                 }
+
+                var imgpanel = new ImgPanel(
+                    hash: hash,
+                    name: img.Name,
+                    size: imagedata.LongLength,
+                    bitmap: bitmap,
+                    format: format);
+
+                _imgPanels[idPanel] = imgpanel;
             }
 
             return true;

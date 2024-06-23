@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using ImageMagick;
 
 namespace ImgSoh
 {
@@ -7,15 +8,14 @@ namespace ImgSoh
     {
         private static void Delete(string hashD)
         {
-            if (!AppDatabase.TryGetImg(hashD, out var imgD)) {
+            if (!AppImgs.TryGetImg(hashD, out var imgX)) {
                 return;
             }
 
+            var filename = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
+            DeleteEncryptedFile(filename);
             AppDatabase.ImgDelete(hashD);
-            var pathD = imgD.Path;
-            var extD = imgD.Ext;
-            var filename = Helper.GetFileName(pathD, hashD, extD);
-            DeleteFile(filename);
+            AppImgs.Remove(hashD);
         }
 
         private static void DeleteFile(string filename)
@@ -24,28 +24,37 @@ namespace ImgSoh
                 return;
             }
 
-            var name = Path.GetFileNameWithoutExtension(filename).ToLower();
-            var extension = Path.GetExtension(filename);
-            if (extension.StartsWith(".")) {
-                extension = extension.Substring(1);
-            }
-
-            var now = DateTime.Now;
             File.SetAttributes(filename, FileAttributes.Normal);
-            string deletedFilename;
-            var counter = 0;
-            do {
-                deletedFilename = $"{AppConsts.PathGb}\\{now.Year}-{now.Month:D2}-{now.Day:D2}\\{now.Hour:D2}{now.Minute:D2}{now.Second:D2}.{name}";
-                if (counter > 0) {
-                    deletedFilename += $"({counter})";
-                }
-
-                deletedFilename += $".{extension}";
-                counter++;
+            var name = Path.GetFileNameWithoutExtension(filename).ToLower();
+            var ext = Path.GetExtension(filename);
+            if (ext.StartsWith(".")) {
+                ext = ext.Substring(1);
             }
-            while (File.Exists(deletedFilename));
-            FileHelper.CreateDirectory(deletedFilename);
-            File.Move(filename, deletedFilename);
+
+            var recycledName = AppFile.GetRecycledName(name, ext, AppConsts.PathGbProtected, DateTime.Now);
+            AppFile.CreateDirectory(recycledName);
+            File.Move(filename, recycledName);
+        }
+
+        private static void DeleteEncryptedFile(string filename)
+        {
+            if (!File.Exists(filename)) {
+                return;
+            }
+
+            File.SetAttributes(filename, FileAttributes.Normal);
+            var name = Path.GetFileNameWithoutExtension(filename).ToLower();
+            var array = AppFile.ReadEncryptedFile(filename);
+            string ext;
+            using (var magicImage = new MagickImage()) {
+                magicImage.Ping(array);
+                ext = magicImage.Format.ToString().ToLower();
+            }
+
+            var recycledName = AppFile.GetRecycledName(name, ext, AppConsts.PathGbProtected, DateTime.Now);
+            AppFile.CreateDirectory(recycledName);
+            File.WriteAllBytes(recycledName, array);
+            File.Delete(filename);
         }
 
         public static void Delete(int idpanel)

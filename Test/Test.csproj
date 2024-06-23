@@ -152,6 +152,10 @@
     <Reference Include="System.Xml.Linq" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AppBitmapTest.cs" />
+    <Compile Include="AppDatabaseTest.cs" />
+    <Compile Include="AppFileTest.cs" />
+    <Compile Include="AppHashTest.cs" />
     <Compile Include="EncryptionHelperTests.cs" />
     <Compile Include="ExifHelperTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
@@ -159,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="AppDatabase\spacer.db" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -166,6 +171,17 @@
       <Project>{cd52bb2e-a419-44f0-b796-47ab7e9042ab}</Project>
       <Name>ImgSoh</Name>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup />
+  <ItemGroup>
+    <Content Include="AppBitmap\gab_compressed.jpg" />
+    <Content Include="AppBitmap\gab_corrupted.jpg" />
+    <Content Include="AppBitmap\gab_crop.jpg" />
+    <Content Include="AppBitmap\gab_logo.jpg" />
+    <Content Include="AppBitmap\gab_org.jpg" />
+    <Content Include="AppDatabase\gab_org.jpg" />
+    <Content Include="AppFile\gab_org.jpg" />
+    <Content Include="AppHash\gab_org.jpg" />
   </ItemGroup>
   <Import Project="$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets" Condition="Exists('$(VSToolsPath)\TeamTest\Microsoft.TestTools.targets')" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
