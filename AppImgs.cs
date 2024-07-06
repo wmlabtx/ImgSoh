@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace ImgSoh
@@ -119,117 +118,92 @@ namespace ImgSoh
 
         public static void GetNextView(out string bestHash, out string status)
         {
-            bestHash = null;
-            status = null;
-            var counter = 0;
-            Img bestImg = null;
-
-
             Img[] imgArray;
             lock (_lock) {
-                imgArray = _imgList.Values.ToArray();
+                imgArray = _imgList.Values.Where(IsValid).ToArray();
             }
 
-            foreach (var img in imgArray) {
-                if (!IsValid(img)) {
-                    continue;
+            bestHash = null;
+            var m = "NONE";
+            var array = Array.Empty<Img>();
+            while (bestHash == null) {
+                var rm = AppVars.RandomNext(6);
+                switch (rm) {
+                    case 0:
+                        m = "R";
+                        array = imgArray;
+                        break;
+                    case 1:
+                        m = "L";
+                        var lvmin = imgArray.Min(e => e.LastView.Date);
+                        array = imgArray.Where(e => e.LastView.Date == lvmin).ToArray();
+                        break;
+                    case 2:
+                        m = "N";
+                        var nextmin = imgArray.Min(e => e.Next.Substring(0, 4));
+                        array = imgArray.Where(e => e.Next.Substring(0, 4).Equals(nextmin)).ToArray();
+                        break;
+                    case 3:
+                        m = "F";
+                        array = imgArray.Where(e => e.Family > 0).ToArray();
+                        break;
+                    case 4:
+                        m = "HS";
+                        array = imgArray.Where(e => e.Counter > 0).ToArray();
+                        break;
+                    case 5:
+                        m = "+";
+                        array = imgArray.Where(e => !e.Verified).ToArray();
+                        break;
                 }
 
-                if (bestImg == null) {
-                    bestImg = img;
-                    counter = 1;
-                    continue;
+                if (array.Length > 0) {
+                    var r = AppVars.RandomNext(array.Length);
+                    bestHash = imgArray[r].Hash;
                 }
 
-                if (!img.Verified && bestImg.Verified) {
-                    bestImg = img;
-                    counter = 1;
-                    continue;
-                }
-
-                if (img.Verified && !bestImg.Verified) {
-                    continue;
-                }
-
-                if (img.Counter < bestImg.Counter) {
-                    bestImg = img;
-                    counter = 1;
-                    continue;
-                }
-
-                if (img.Counter > bestImg.Counter) {
-                    continue;
-                }
-
-                if (string.CompareOrdinal(img.Next.Substring(0, 2), bestImg.Next.Substring(0, 2)) < 0) {
-                    bestImg = img;
-                    counter = 1;
-                    continue;
-                }
-
-                if (string.CompareOrdinal(img.Next.Substring(0, 2), bestImg.Next.Substring(0, 2)) > 0) {
-                    continue;
-                }
-
-                counter++;
             }
 
             var total = Count();
-            bestHash = bestImg?.Hash;
-            status = $"{bestImg?.Next.Substring(0, 2)}:{counter}/{total}";
+            status = $"{m}{array.Length}/{total}";
         }
 
         /*
         public static void GetNextView(out string bestHash, out string status)
         {
-            bestHash = null;
-            status = null;
-            var prefix = new[] { "+", "0", "#" };
-            var counters = new[] { 0, 0, 0 };
-            var candidates = new Img[] { null, null, null };
             Img[] imgArray;
             lock (_lock) {
                 imgArray = _imgList.Values.ToArray();
             }
 
-            var zeros = 0;
+            var list = new SortedList<string, Img>();
+            var counters = new SortedList<string, int>();
             foreach (var img in imgArray) {
                 if (!IsValid(img)) {
                     continue;
                 }
 
-                if (img.Counter == 0) {
-                    zeros++;
+                var key = img.Verified ? img.Next.Substring(0, 2) : "--";
+                if (!list.ContainsKey(key)) {
+                    list.Add(key, img);
+                    counters.Add(key, 1);
+                    continue;
                 }
 
-                int category;
-                if (!img.Verified) {
-                    category = 0;
-                }
-                else {
-                    category = img.Next.StartsWith("00") ? 1 : 2;
-                }
-
-                counters[category]++;
-                if (candidates[category] == null || img.LastView < candidates[category].LastView) {
-                    candidates[category] = img;
+                counters[key]++;
+                if (img.LastView < list[key].LastView) {
+                    list[key] = img;
+                    continue;
                 }
             }
 
-            if (candidates[0] == null && candidates[1] == null && candidates[2] == null) {
-                status = "no candidates";
-                return;
-            }
-
+            var keys = list.Keys.Take(10).ToArray();
+            var rindex = AppVars.RandomNext(keys.Length);
+            var rkey = keys[rindex];
+            bestHash = list[rkey].Hash;
+            var counter = counters[rkey];
             var total = Count();
-            do {
-                var rindex = AppVars.RandomNext(3);
-                if (candidates[rindex] != null) {
-                    bestHash = candidates[rindex].Hash;
-                }
-                
-                status = $"{prefix[rindex]}:{counters[rindex]}/{zeros}/{total}";
-            } while (bestHash == null);
+            status = $"{rkey}:{counter}/{total}";
         }
         */
 

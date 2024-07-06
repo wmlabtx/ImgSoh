@@ -13,6 +13,13 @@
                 if (hashY.Equals(imgX.Next.Substring(4))) {
                     AppDatabase.SetHorizon(hashX);
                     AppDatabase.SetCounter(hashX, imgX.Counter + 1);
+
+                    if (AppImgs.TryGetImg(hashY, out var imgY)) {
+                        if (imgY.Next.Equals(imgX.Hash)) {
+                            AppDatabase.SetHorizon(hashY);
+                            AppDatabase.SetCounter(hashY, imgY.Counter + 1);
+                        }
+                    }
                 }
             }
 

@@ -1,6 +1,5 @@
 ﻿using ImageMagick;
 using System;
-using System.Drawing.Imaging;
 using System.Linq;
 
 namespace ImgSoh
@@ -73,7 +72,7 @@ namespace ImgSoh
         {
             var imgs = new Img[] { x, y };
             var px = AppPanels.GetImgPanel(0);
-            var py = AppPanels.GetImgPanel(0);
+            var py = AppPanels.GetImgPanel(1);
             var panels = new[] { px, py };
             if (px.Bitmap.Width == py.Bitmap.Width && px.Bitmap.Height == py.Bitmap.Height) {
                 for (var i = 0; i < 2; i++) {
@@ -87,7 +86,6 @@ namespace ImgSoh
                         return i;
                     }
                 }
-
 
                 for (var i = 0; i < 2; i++) {
                     if (imgs[i].Taken == imgs[1 - i].Taken && imgs[i].Meta != imgs[1 - i].Meta) {
