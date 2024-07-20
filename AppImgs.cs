@@ -123,6 +123,61 @@ namespace ImgSoh
                 imgArray = _imgList.Values.Where(IsValid).ToArray();
             }
 
+            var list = new SortedList<int, List<string>>();
+            foreach (var img in imgArray) {
+                var key = !img.Verified ? -1 : img.Counter;
+                if (list.TryGetValue(key, out var value)) {
+                    value.Add(img.Hash);
+                }
+                else {
+                    list.Add(key, new List<string> {img.Hash});
+                }
+            }
+
+            var array = list.ToArray();
+            int ikey;
+            for (ikey = 0; ikey < array.Length - 1; ikey++) {
+                if (AppVars.RandomNext(5) > 0) {
+                    break;
+                }
+            }
+
+            var irandom = AppVars.RandomNext(array[ikey].Value.Count);
+            bestHash = array[ikey].Value[irandom];
+            var total = Count();
+            status = $"{ikey}:{array[ikey].Value.Count}/{total}";
+        }
+
+        /*
+        public static void GetNextView(out string bestHash, out string status)
+        {
+            Img[] imgArray;
+            lock (_lock) {
+                imgArray = _imgList.Values.Where(IsValid).ToArray();
+            }
+
+            var mincounter = imgArray.Min(e => e.Counter);
+            imgArray = imgArray.Where(e => e.Counter == mincounter).ToArray();
+            var nextmin = imgArray.Min(e => e.Next.Substring(0, 4));
+            var array = imgArray.Where(e => e.Next.Substring(0, 4).Equals(nextmin)).ToArray();
+            var r = AppVars.RandomNext(array.Length);
+            bestHash = array[r].Hash;
+            var total = Count();
+            status = $"{array.Length}/{imgArray.Length}/{total}";
+        }
+        */
+
+        /*
+        public static void GetNextView(out string bestHash, out string status)
+        {
+            Img[] imgArray;
+            lock (_lock) {
+                imgArray = _imgList.Values.Where(IsValid).ToArray();
+            }
+
+            var mincounter = imgArray.Min(e => e.Counter);
+            imgArray = imgArray.Where(e => e.Counter == mincounter).ToArray();
+
             bestHash = null;
             var m = "NONE";
             var array = Array.Empty<Img>();
@@ -148,7 +203,7 @@ namespace ImgSoh
                         array = imgArray.Where(e => e.Family > 0).ToArray();
                         break;
                     case 4:
-                        m = "HS";
+                        m = "H";
                         array = imgArray.Where(e => e.Counter > 0).ToArray();
                         break;
                     case 5:
@@ -158,52 +213,6 @@ namespace ImgSoh
                 }
 
                 if (array.Length > 0) {
-                    var r = AppVars.RandomNext(array.Length);
-                    bestHash = imgArray[r].Hash;
-                }
-
-            }
-
-            var total = Count();
-            status = $"{m}{array.Length}/{total}";
-        }
-
-        /*
-        public static void GetNextView(out string bestHash, out string status)
-        {
-            Img[] imgArray;
-            lock (_lock) {
-                imgArray = _imgList.Values.ToArray();
-            }
-
-            var list = new SortedList<string, Img>();
-            var counters = new SortedList<string, int>();
-            foreach (var img in imgArray) {
-                if (!IsValid(img)) {
-                    continue;
-                }
-
-                var key = img.Verified ? img.Next.Substring(0, 2) : "--";
-                if (!list.ContainsKey(key)) {
-                    list.Add(key, img);
-                    counters.Add(key, 1);
-                    continue;
-                }
-
-                counters[key]++;
-                if (img.LastView < list[key].LastView) {
-                    list[key] = img;
-                    continue;
-                }
-            }
-
-            var keys = list.Keys.Take(10).ToArray();
-            var rindex = AppVars.RandomNext(keys.Length);
-            var rkey = keys[rindex];
-            bestHash = list[rkey].Hash;
-            var counter = counters[rkey];
-            var total = Count();
-            status = $"{rkey}:{counter}/{total}";
         }
         */
 

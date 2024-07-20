@@ -168,7 +168,7 @@ namespace ImgSoh
                         pLabels[index].Text = sb.ToString();
                         pLabels[index].Background = System.Windows.Media.Brushes.White;
                         if (panels[index].IsVictim) {
-                            pLabels[index].Background = System.Windows.Media.Brushes.Goldenrod;
+                              pLabels[index].Background = System.Windows.Media.Brushes.Red;
                         }
                         else {
                             if (imgX.Family > 0 && imgX.Family == imgY.Family) {
