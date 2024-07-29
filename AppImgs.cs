@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -110,7 +111,7 @@ namespace ImgSoh
                 if (bestImgX == null || imgX.LastCheck < bestImgX.LastCheck) {
                     bestImgX = imgX;
                 }
-            }
+            } 
 
             var hash = bestImgX?.Hash;
             return hash;
@@ -120,33 +121,89 @@ namespace ImgSoh
         {
             Img[] imgArray;
             lock (_lock) {
+                imgArray = _imgList.Values.Where(IsValid).OrderBy(e => e.LastView).ToArray();
+            }
+
+            bestHash = imgArray[0].Hash;
+            var total = Count();
+            status = $"{total}";
+        }
+
+        public static void SetLastView(Img img)
+        {
+            Img[] imgArray;
+            lock (_lock) {
+                imgArray = _imgList.Values.OrderBy(e => e.LastView).ToArray();
+            }
+
+            var pos = img.Counter * imgArray.Length / 100 + 1;
+            var lastview = DateTime.Now;
+            if (pos < imgArray.Length) {
+                var dt1 = imgArray[pos].LastView;
+                var dt2 = imgArray[pos - 1].LastView;
+                lastview = DateTime.FromBinary((dt1.Ticks + dt2.Ticks) / 2);
+            }
+
+            AppDatabase.SetLastView(img.Hash, lastview);
+        }
+ 
+        /*
+        public static void GetNextView(out string bestHash, out string status)
+        {
+            Img[] imgArray;
+            lock (_lock) {
                 imgArray = _imgList.Values.Where(IsValid).ToArray();
             }
 
-            var list = new SortedList<int, List<string>>();
+
+            var list = new SortedList<int, Img>();
             foreach (var img in imgArray) {
-                var key = !img.Verified ? -1 : img.Counter;
+                var key = img.Verified ? img.Family : -1;
                 if (list.TryGetValue(key, out var value)) {
-                    value.Add(img.Hash);
+                    if (img.LastView < value.LastView) {
+                        list[key] = img;
+                    }
                 }
                 else {
-                    list.Add(key, new List<string> {img.Hash});
+                    list.Add(key, img);
                 }
             }
 
             var array = list.ToArray();
-            int ikey;
-            for (ikey = 0; ikey < array.Length - 1; ikey++) {
-                if (AppVars.RandomNext(5) > 0) {
-                    break;
+            var irandom = AppVars.RandomNext(array.Length);
+            bestHash = array[irandom].Value.Hash;
+            var total = Count();
+            status = $"{array[irandom].Key}/{total}";
+        }
+        */
+
+        /*
+        public static void GetNextView(out string bestHash, out string status)
+        {
+            Img[] imgArray;
+            lock (_lock) {
+                imgArray = _imgList.Values.Where(IsValid).ToArray();
+            }
+
+            var list = new SortedList<int, List<Img>>();
+            foreach (var img in imgArray) {
+                var key = Math.Min(9, !img.Verified ? -1 : img.Counter);
+                if (list.TryGetValue(key, out var value)) {
+                    value.Add(img);
+                }
+                else {
+                    list.Add(key, new List<Img> {img});
                 }
             }
 
-            var irandom = AppVars.RandomNext(array[ikey].Value.Count);
-            bestHash = array[ikey].Value[irandom];
+            var array = list.Where(e => e.Value.Count >= 100).ToArray();
+            var ikey = AppVars.RandomNext(array.Length);
+            var minlv = array[ikey].Value.Min(e => e.LastView);
+            bestHash = array[ikey].Value.First(e => e.LastView == minlv).Hash;
             var total = Count();
-            status = $"{ikey}:{array[ikey].Value.Count}/{total}";
+            status = $"{array[ikey].Key}:{array[ikey].Value.Count}/{total}";
         }
+        */
 
         /*
         public static void GetNextView(out string bestHash, out string status)

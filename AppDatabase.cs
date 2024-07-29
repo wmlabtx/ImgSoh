@@ -205,11 +205,11 @@ namespace ImgSoh
             }
         }
 
-        public static void SetLastView(string hash)
+        public static void SetLastView(string hash, DateTime lastview)
         {
             if (AppImgs.TryGetImg(hash, out var img)) {
                 img.LastView = DateTime.Now;
-                ImgUpdateProperty(hash, AppConsts.AttributeLastView, img.LastView.Ticks);
+                ImgUpdateProperty(hash, AppConsts.AttributeLastView, lastview.Ticks);
             }
         }
 
