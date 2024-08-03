@@ -32,5 +32,24 @@ namespace ImgSoh
 
             return result;
         }
+
+        public static byte[] RandomBuffer(int length)
+        {
+            byte[] buffer;
+            if (Monitor.TryEnter(_random, AppConsts.LockTimeout)) {
+                try {
+                    buffer = new byte[length];
+                    _random.GetBytes(buffer);
+                }
+                finally {
+                    Monitor.Exit(_random);
+                }
+            }
+            else {
+                throw new Exception();
+            }
+
+            return buffer;
+        }
     }
 }

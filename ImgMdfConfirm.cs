@@ -8,14 +8,16 @@
             var hashY = AppPanels.GetImgPanel(1).Hash;
 
             if (AppImgs.TryGetImg(hashY, out var imgY)) {
-                if (imgY.Family == 0) {
+                AppImgs.UpdateRank(imgY);
+                if (string.IsNullOrEmpty(imgY.Family)) {
                     var family = AppImgs.GetNewFamily();
                     AppDatabase.SetFamily(imgY.Hash, family);
                 }
             }
 
             if (AppImgs.TryGetImg(hashX, out var imgX)) {
-                if (imgX.Family == 0) {
+                AppImgs.UpdateRank(imgX);
+                if (string.IsNullOrEmpty(imgX.Family)) {
                     var family = AppImgs.GetNewFamily();
                     AppDatabase.SetFamily(imgX.Hash, family);
                 }
@@ -27,11 +29,8 @@
                     if (imgY.Next.Equals(imgX.Hash)) {
                         AppDatabase.SetHorizon(hashY);
                         AppDatabase.SetCounter(hashY, imgY.Counter + 1);
-                        AppImgs.SetLastView(imgY);
                     }
                 }
-
-                AppImgs.SetLastView(imgX);
             }
 
             AppDatabase.SetVerified(hashX);
@@ -41,7 +40,7 @@
         {
             var hashX = AppPanels.GetImgPanel(idpanel).Hash;
             if (AppImgs.TryGetImg(hashX, out var imgX)) {
-                AppImgs.SetLastView(imgX);
+                AppImgs.UpdateRank(imgX);
             }
         }
     }

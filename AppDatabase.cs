@@ -33,7 +33,9 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeMeta},"); // 10
                 sb.Append($"{AppConsts.AttributeFamily},"); // 11
                 sb.Append($"{AppConsts.AttributeMagnitude},"); // 12
-                sb.Append($"{AppConsts.AttributeHorizon} "); // 13
+                sb.Append($"{AppConsts.AttributeHorizon},"); // 13
+                sb.Append($"{AppConsts.AttributeRank},"); // 14
+                sb.Append($"{AppConsts.AttributeViewed} "); // 15
                 sb.Append($"FROM {AppConsts.TableImages};");
                 using (var command = new SQLiteCommand(sb.ToString(), _sqlConnection))
                 using (var reader = command.ExecuteReader()) {
@@ -54,9 +56,11 @@ namespace ImgSoh
                         var counter = (int)reader.GetInt64(8);
                         var taken = DateTime.FromBinary(reader.GetInt64(9));
                         var meta = (int)reader.GetInt64(10);
-                        var family = (int)reader.GetInt64(11);
+                        var family = reader.GetString(11);
                         var magnitude = reader.GetFloat(12);
                         var horizon = reader.GetString(13);
+                        var rank = reader.GetInt64(14);
+                        var viewed = (int)reader.GetInt64(15);
                         var img = new Img(
                             hash: hash,
                             name: name,
@@ -71,7 +75,9 @@ namespace ImgSoh
                             meta: meta,
                             family: family,
                             magnitude: magnitude,
-                            horizon: horizon
+                            horizon: horizon,
+                            rank: rank,
+                            viewed: viewed
                         );
 
                         AppImgs.Add(img);
@@ -141,7 +147,9 @@ namespace ImgSoh
                     sb.Append($"{AppConsts.AttributeMeta},");
                     sb.Append($"{AppConsts.AttributeFamily},");
                     sb.Append($"{AppConsts.AttributeMagnitude},");
-                    sb.Append($"{AppConsts.AttributeHorizon}");
+                    sb.Append($"{AppConsts.AttributeHorizon},");
+                    sb.Append($"{AppConsts.AttributeRank},");
+                    sb.Append($"{AppConsts.AttributeViewed}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash},");
                     sb.Append($"@{AppConsts.AttributeName},");
@@ -156,7 +164,9 @@ namespace ImgSoh
                     sb.Append($"@{AppConsts.AttributeMeta},");
                     sb.Append($"@{AppConsts.AttributeFamily},");
                     sb.Append($"@{AppConsts.AttributeMagnitude},");
-                    sb.Append($"@{AppConsts.AttributeHorizon}");
+                    sb.Append($"@{AppConsts.AttributeHorizon},");
+                    sb.Append($"@{AppConsts.AttributeRank},");
+                    sb.Append($"@{AppConsts.AttributeViewed}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
@@ -173,6 +183,8 @@ namespace ImgSoh
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeMagnitude}", img.Magnitude);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHorizon}", img.Horizon);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeRank}", img.Rank);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeViewed}", img.Viewed);
                     sqlCommand.ExecuteNonQuery();
                 }
             }
@@ -259,11 +271,27 @@ namespace ImgSoh
             }
         }
 
-        public static void SetFamily(string hash, int family)
+        public static void SetFamily(string hash, string family)
         {
             if (AppImgs.TryGetImg(hash, out var img)) {
                 img.Family = family;
                 ImgUpdateProperty(hash, AppConsts.AttributeFamily, family);
+            }
+        }
+
+        public static void SetRank(string hash, long rank)
+        {
+            if (AppImgs.TryGetImg(hash, out var img)) {
+                img.Rank = rank;
+                ImgUpdateProperty(hash, AppConsts.AttributeRank, rank);
+            }
+        }
+
+        public static void SetViewed(string hash, int viewed)
+        {
+            if (AppImgs.TryGetImg(hash, out var img)) {
+                img.Viewed = viewed;
+                ImgUpdateProperty(hash, AppConsts.AttributeViewed, viewed + 1);
             }
         }
     }

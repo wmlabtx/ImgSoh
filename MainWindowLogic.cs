@@ -143,11 +143,11 @@ namespace ImgSoh
                         sb.Append($"{panels[index].Name}.{panels[index].Format}");
 
                         var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-                        sb.Append($" [{imgX.Counter}:{next}]");
+                        sb.Append($" [{imgX.Viewed}:{imgX.Counter}:{next}]");
 
-                        if (imgX.Family > 0) {
+                        if (!string.IsNullOrEmpty(imgX.Family)) {
                             var familysize = AppImgs.GetFamily(imgX.Family).Count();
-                            sb.Append($" #{imgX.Family}:{familysize}");
+                            sb.Append($" {imgX.Family}:{familysize}");
                         }
 
                         sb.AppendLine();
@@ -171,7 +171,7 @@ namespace ImgSoh
                               pLabels[index].Background = System.Windows.Media.Brushes.Red;
                         }
                         else {
-                            if (imgX.Family > 0 && imgX.Family == imgY.Family) {
+                            if (!string.IsNullOrEmpty(imgX.Family) && imgX.Family.Equals(imgY.Family)) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
@@ -179,7 +179,7 @@ namespace ImgSoh
                                     pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                                 }
                                 else {
-                                    if (!string.IsNullOrWhiteSpace(imgX.Horizon)) {
+                                    if (!string.IsNullOrWhiteSpace(imgX.Family)) {
                                         pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                                     }
                                 }

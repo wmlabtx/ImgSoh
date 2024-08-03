@@ -136,7 +136,9 @@ namespace ImgSoh
                 File.Delete(orgfilename);
             }
 
-            var lastview = DateTime.Now;
+            var lastview = AppImgs.GetMinimalLastView();
+            var rank = AppImgs.GetMinimalRank();
+
             var imgnew = new Img(
                 hash: hash,
                 name: name,
@@ -150,9 +152,11 @@ namespace ImgSoh
                 counter: 0,
                 taken: taken,
                 meta: meta,
-                family: 0,
-                magnitude: magnitude
-            );
+                family: string.Empty,
+                magnitude: magnitude,
+                rank: rank,
+                viewed: 0
+             );
 
             AppDatabase.AddImg(imgnew);
             AppImgs.Add(imgnew);

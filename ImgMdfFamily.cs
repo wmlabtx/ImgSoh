@@ -12,27 +12,22 @@
                 return;
             }
 
-            if (imgX.Family == 0 && imgY.Family == 0) {
+            if (string.IsNullOrEmpty(imgX.Family) && string.IsNullOrEmpty(imgY.Family)) {
                 var family = AppImgs.GetNewFamily();
                 AppDatabase.SetFamily(imgX.Hash, family);
                 AppDatabase.SetFamily(imgY.Hash, family);
             }
             else {
-                if (imgX.Family > 0 && imgY.Family == 0) {
+                if (string.IsNullOrEmpty(imgY.Family)) {
                     AppDatabase.SetFamily(imgY.Hash, imgX.Family);
                 }
                 else {
-                    if (imgX.Family == 0 && imgY.Family > 0) {
+                    if (string.IsNullOrEmpty(imgX.Family)) {
                         AppDatabase.SetFamily(imgX.Hash, imgY.Family);
                     }
                     else {
-                        if (imgX.Family != imgY.Family) {
-                            if (imgX.Family < imgY.Family) {
-                                AppImgs.RenameFamily(imgY.Family, imgX.Family);
-                            }
-                            else {
-                                AppImgs.RenameFamily(imgX.Family, imgY.Family);
-                            }
+                        if (!imgX.Family.Equals(imgY.Family)) {
+                            AppImgs.RenameFamily(imgY.Family, imgX.Family);
                         }
                     }
                 }
@@ -44,7 +39,7 @@
             if (AppImgs.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
                 var family = AppImgs.GetFamily(imgX.Family);
                 foreach (var e in family) {
-                    AppDatabase.SetFamily(e.Hash, 0);
+                    AppDatabase.SetFamily(e.Hash, string.Empty);
                 }
             }
         }

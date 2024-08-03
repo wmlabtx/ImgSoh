@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.Metrics;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -121,7 +120,7 @@ namespace ImgSoh
         {
             Img[] imgArray;
             lock (_lock) {
-                imgArray = _imgList.Values.Where(IsValid).OrderBy(e => e.LastView).ToArray();
+                imgArray = _imgList.Values.Where(IsValid).OrderBy(e => e.Rank).ToArray();
             }
 
             bestHash = imgArray[0].Hash;
@@ -129,6 +128,41 @@ namespace ImgSoh
             status = $"{total}";
         }
 
+        public static void UpdateRank(Img img)
+        {
+            Img[] imgArray;
+            lock (_lock) {
+                imgArray = _imgList.Values.OrderBy(e => e.Rank).ToArray();
+            }
+
+            var viewed = img.Viewed + 1;
+            int pos;
+            switch (viewed) {
+                case 1: pos = 4; break;
+                case 2: pos = 16; break;
+                case 3: pos = 64; break;
+                case 4: pos = 256; break;
+                case 5: pos = 1024; break;
+                case 6: pos = 4096; break;
+                case 7: pos = 16384; break;
+                case 8: pos = 65536; break;
+                case 9: pos = 262144; break;
+                default: pos = 1000000; break;
+            }
+
+            var rank = DateTime.Now.Ticks;
+            if (pos < imgArray.Length) {
+                var r1 = imgArray[pos].Rank;
+                var r2 = imgArray[pos - 1].Rank;
+                rank = (r1 + r2) / 2;
+            }
+
+            AppDatabase.SetViewed(img.Hash, viewed);
+            AppDatabase.SetRank(img.Hash, rank);
+            AppDatabase.SetLastView(img.Hash, DateTime.Now);
+        }
+
+        /*
         public static void SetLastView(Img img)
         {
             Img[] imgArray;
@@ -146,6 +180,7 @@ namespace ImgSoh
 
             AppDatabase.SetLastView(img.Hash, lastview);
         }
+        */
  
         /*
         public static void GetNextView(out string bestHash, out string status)
@@ -273,21 +308,21 @@ namespace ImgSoh
         }
         */
 
-        public static IEnumerable<Img> GetFamily(int family)
+        public static Img[] GetFamily(string family)
         {
-            if (family <= 0) {
+            if (string.IsNullOrEmpty(family)) {
                 return Array.Empty<Img>();
             }
 
             Img[] array;
             lock (_lock) {
-                array = _imgList.Where(e => e.Value.Family == family && IsValid(e.Value)).Select(e => e.Value).ToArray();
+                array = _imgList.Where(e => e.Value.Family.Equals(family) && IsValid(e.Value)).Select(e => e.Value).ToArray();
             }
 
             return array;
         }
 
-        public static void RenameFamily(int oldfamily, int newfamily)
+        public static void RenameFamily(string oldfamily, string newfamily)
         {
             lock (_lock) {
                 var fo = GetFamily(oldfamily);
@@ -297,32 +332,36 @@ namespace ImgSoh
             }
         }
 
-        public static int GetNewFamily()
+        public static string GetNewFamily()
         {
-            int[] families;
+            string family;
+            int size;
+            do {
+                family = AppHash.GetFamily();
+                size = GetFamily(family).Length;
+            } while (size > 0);
+
+            return family;
+        }
+
+        public static long GetMinimalRank()
+        {
+            long rank;
             lock (_lock) {
-                families = _imgList
-                    .Where(e => e.Value.Family > 0)
-                    .Select(e => e.Value.Family)
-                    .Distinct()
-                    .OrderBy(e => e)
-                    .ToArray();
+                rank = _imgList.Min(e => e.Value.Rank);
             }
 
-            if (families.Length == 0) {
-                return 1;
+            return rank - 1;
+        }
+
+        public static DateTime GetMinimalLastView()
+        {
+            DateTime lastview;
+            lock (_lock) {
+                lastview = _imgList.Min(e => e.Value.LastView);
             }
 
-            var pos = 0;
-            while (pos < families.Length) {
-                if (families[pos] != pos + 1) {
-                    break;
-                }
-
-                pos++;
-            }
-
-            return pos + 1;
+            return lastview.AddSeconds(-1);
         }
 
         public static void Find(Img imgX, out string radiusNext, out int counter)

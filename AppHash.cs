@@ -24,5 +24,11 @@ namespace ImgSoh
             var hash = GetHexString(buffer);
             return hash;
         }
+
+        public static string GetFamily()
+        {
+            var buffer = AppVars.RandomBuffer(3);
+            return GetHexString(buffer).Substring(0, 5);
+        }
     }
 }

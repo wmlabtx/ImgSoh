@@ -16,8 +16,10 @@ namespace ImgSoh
         public int Counter { get; set; }
         public DateTime Taken { get; }
         public int Meta { get; }
-        public int Family { get; set; }
+        public string Family { get; set; }
         public float Magnitude { get; set; }
+        public long Rank { get; set; }
+        public int Viewed { get; set; }
 
         private float[] _vector;
         public float[] GetVector()
@@ -43,8 +45,10 @@ namespace ImgSoh
             int counter,
             DateTime taken,
             int meta,
-            int family,
-            float magnitude
+            string family,
+            float magnitude,
+            long rank,
+            int viewed
             )
         {
             Hash = hash;
@@ -61,6 +65,8 @@ namespace ImgSoh
             Meta = meta;
             Family = family;
             Magnitude = magnitude;
+            Rank = rank;
+            Viewed = viewed;
         }
     }
 }
