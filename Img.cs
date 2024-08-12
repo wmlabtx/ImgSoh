@@ -1,41 +1,25 @@
-﻿using System;
+﻿ using System;
 using System.Drawing;
 
 namespace ImgSoh
 {
     public class Img
     {
-        public string Hash { get; }
         public string Name { get; }
-        public RotateFlipType Orientation { get; set; }
-        public DateTime LastView { get; set; }
-        public DateTime LastCheck { get; set; }
-        public string Next { get; set; }
-        public string Horizon { get; set; }
-        public bool Verified { get; set; }
-        public int Counter { get; set; }
+        public RotateFlipType Orientation { get; }
+        public DateTime LastView { get; }
+        public DateTime LastCheck { get; }
+        public string Next { get; }
+        public string Horizon { get; }
+        public bool Verified { get; }
+        public int Counter { get; }
         public DateTime Taken { get; }
         public int Meta { get; }
-        public string Family { get; set; }
-        public float Magnitude { get; set; }
-        public long Rank { get; set; }
-        public int Viewed { get; set; }
-
-        private float[] _vector;
-        public float[] GetVector()
-        {
-            return _vector;
-        }
-
-        public void SetVector(float[] vector)
-        {
-            _vector = vector;
-        }
+        public float Magnitude { get; }
+        public int Viewed { get; }
 
         public Img(
-            string hash,
             string name,
-            float[] vector,
             DateTime lastview,
             RotateFlipType orientation,
             DateTime lastcheck,
@@ -45,15 +29,11 @@ namespace ImgSoh
             int counter,
             DateTime taken,
             int meta,
-            string family,
             float magnitude,
-            long rank,
             int viewed
             )
         {
-            Hash = hash;
             Name = name;
-            _vector = vector;
             Orientation = orientation;
             LastView = lastview;
             LastCheck = lastcheck;
@@ -63,9 +43,7 @@ namespace ImgSoh
             Counter = counter;
             Taken = taken;
             Meta = meta;
-            Family = family;
             Magnitude = magnitude;
-            Rank = rank;
             Viewed = viewed;
         }
     }

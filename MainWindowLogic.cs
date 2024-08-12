@@ -1,7 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
 using System.Drawing;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,7 +52,7 @@ namespace ImgSoh
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
             await Task.Run(() => { AppVit.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
-            await Task.Run(() => { AppDatabase.LoadImages(AppConsts.FileDatabase, AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppDatabase.LoadNamesAndVectors(AppConsts.FileDatabase, AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
 
@@ -137,19 +136,13 @@ namespace ImgSoh
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
                 if (AppImgs.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppImgs.TryGetImg(panels[1 - index].Hash, out var imgY)) {
+                    if (AppImgs.TryGetImg(panels[1 - index].Hash, out _)) {
                         pBoxes[index].Source = AppBitmap.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         sb.Append($"{panels[index].Name}.{panels[index].Format}");
 
                         var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                         sb.Append($" [{imgX.Viewed}:{imgX.Counter}:{next}]");
-
-                        if (!string.IsNullOrEmpty(imgX.Family)) {
-                            var familysize = AppImgs.GetFamily(imgX.Family).Count();
-                            sb.Append($" {imgX.Family}:{familysize}");
-                        }
-
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
@@ -171,19 +164,21 @@ namespace ImgSoh
                               pLabels[index].Background = System.Windows.Media.Brushes.Red;
                         }
                         else {
+                            /*
                             if (!string.IsNullOrEmpty(imgX.Family) && imgX.Family.Equals(imgY.Family)) {
                                 pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
                             }
                             else {
+                            */
                                 if (!imgX.Verified) {
                                     pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
                                 }
                                 else {
-                                    if (!string.IsNullOrWhiteSpace(imgX.Family)) {
+                                    if (imgX.Viewed > 0) {
                                         pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                                     }
                                 }
-                            }
+                            //}
                         }
                     }
                 }
@@ -284,18 +279,18 @@ namespace ImgSoh
             EnableElements();
         }
 
-        private async void CombineToFamily()
+        private void CombineToFamily()
         {
             DisableElements();
-            await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
+            //await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
 
-        private async void DetachFromFamily()
+        private void DetachFromFamily()
         {
             DisableElements();
-            await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
+            //await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
@@ -311,7 +306,7 @@ namespace ImgSoh
                     break;
                 case Key.V:
                     ToggleXorClick();
-                    break;
+                    break; 
             }
         }
 

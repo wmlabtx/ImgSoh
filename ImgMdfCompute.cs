@@ -9,16 +9,14 @@ namespace ImgSoh
 {
     public static partial class ImgMdf
     {
-        private static int _delay;
-
         private static int _added;
         private static int _bad;
         private static int _found;
 
-        private static bool ImportFile(string orgfilename, BackgroundWorker backgroundworker)
+        private static bool ImportFile(string orgfilename, DateTime lastview, BackgroundWorker backgroundworker)
         {
             var orgname = Path.GetFileNameWithoutExtension(orgfilename).ToLowerInvariant();
-            if (AppImgs.TryGetImg(orgname, out var imgE)) {
+            if (AppImgs.TryGetImgByName(orgname, out var imgE)) {
                 var filenameF = AppFile.GetFileName(imgE.Name, AppConsts.PathHp);
                 if (orgfilename.Equals(filenameF)) {
                     // existing file
@@ -135,14 +133,9 @@ namespace ImgSoh
                 File.SetAttributes(orgfilename, FileAttributes.Normal);
                 File.Delete(orgfilename);
             }
-
-            var lastview = AppImgs.GetMinimalLastView();
-            var rank = AppImgs.GetMinimalRank();
-
+            
             var imgnew = new Img(
-                hash: hash,
                 name: name,
-                vector: vector,
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastview,
                 next: string.Empty,
@@ -152,26 +145,24 @@ namespace ImgSoh
                 counter: 0,
                 taken: taken,
                 meta: meta,
-                family: string.Empty,
                 magnitude: magnitude,
-                rank: rank,
                 viewed: 0
              );
 
-            AppDatabase.AddImg(imgnew);
-            AppImgs.Add(imgnew);
+            AppDatabase.AddImg(hash, vector, imgnew);
+            AppImgs.Add(hash:hash, name:name, vector:vector, magnitude:magnitude);
             _added++;
 
             return true;
         }
 
-        private static void ImportFiles(string path, SearchOption so, BackgroundWorker backgroundworker)
+        private static void ImportFiles(string path, SearchOption so, DateTime lastview, BackgroundWorker backgroundworker)
         {
             var directoryInfo = new DirectoryInfo(path);
             var fs = directoryInfo.GetFiles("*.*", so).ToArray();
             foreach (var e in fs) {
                 var orgfilename = e.FullName;
-                if (!ImportFile(orgfilename, backgroundworker)) {
+                if (!ImportFile(orgfilename, lastview, backgroundworker)) {
                     break;
                 }
 
@@ -192,17 +183,18 @@ namespace ImgSoh
         private static void Compute(BackgroundWorker backgroundworker)
         {
             if (AppVars.ImportRequested) {
+                var lastview = AppDatabase.GetMinimalLastView();
                 _added = 0;
                 _found = 0;
                 _bad = 0;
-                ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, backgroundworker);
+                ImportFiles(AppConsts.PathHp, SearchOption.AllDirectories, lastview, backgroundworker);
                 if (_added < AppConsts.MaxImportFiles) {
-                    ImportFiles(AppConsts.PathRawProtected, SearchOption.TopDirectoryOnly, backgroundworker);
+                    ImportFiles(AppConsts.PathRawProtected, SearchOption.TopDirectoryOnly, lastview, backgroundworker);
                     if (_added < AppConsts.MaxImportFiles) {
                         var directoryInfo = new DirectoryInfo(AppConsts.PathRawProtected);
                         var ds = directoryInfo.GetDirectories("*.*", SearchOption.TopDirectoryOnly).ToArray();
                         foreach (var di in ds) {
-                            ImportFiles(di.FullName, SearchOption.AllDirectories, backgroundworker);
+                            ImportFiles(di.FullName, SearchOption.AllDirectories, lastview, backgroundworker);
                             if (_added >= AppConsts.MaxImportFiles) {
                                 break;
                             }
@@ -215,7 +207,7 @@ namespace ImgSoh
                 ((IProgress<string>)AppVars.Progress).Report($"Imported a:{_added}/f:{_found}/b:{_bad}");
             }
 
-            var hashX = AppImgs.GetNextCheck();
+            var hashX = AppDatabase.GetHash(AppConsts.AttributeNext);
             if (hashX != null) {
                 if (AppImgs.TryGetImg(hashX, out var imgX)) {
                     var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
@@ -240,33 +232,11 @@ namespace ImgSoh
                             }
                         }
                     }
-
-                    AppImgs.Find(imgX, out var radiusNext, out var counter);
-                    if (counter != imgX.Counter && counter > 0) {
-                        counter = 0;
-                    }
-
-                    if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
-                        var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastCheck));
-                        var radiusLast = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-                        backgroundworker.ReportProgress(0,
-                            $"[{age} ago] {imgX.Name} ({imgX.Counter}) {radiusLast} {AppConsts.CharRightArrow} ({counter}) {radiusNext.Substring(0, 4)}");
-                        AppDatabase.SetNext(hashX, radiusNext);
-                        _delay = 0;
-                    }
-
-                    if (counter != imgX.Counter) {
-                        AppDatabase.SetNext(hashX, string.Empty);
-                        AppDatabase.SetHorizon(hashX);
-                        AppDatabase.SetCounter(hashX, 0);
-                    }
-
-                    AppDatabase.SetLastCheck(hashX);
                 }
             }
 
-            _delay = Math.Min(2500, _delay + 10);
-            Thread.Sleep(_delay);
+            AppDatabase.SetLastCheck(hashX, DateTime.Now);
+            Thread.Sleep(250);
         }
 
         public static void Random(string path, IProgress<string> progress)

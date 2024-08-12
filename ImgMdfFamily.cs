@@ -2,6 +2,7 @@
 {
     public static partial class ImgMdf
     {
+        /*
         public static void CombineToFamily()
         {
             if (!AppImgs.TryGetImg(AppPanels.GetImgPanel(0).Hash, out var imgX)) {
@@ -43,5 +44,6 @@
                 }
             }
         }
+        */
     }
 }

@@ -36,9 +36,7 @@
         public const string AttributeCounter = "counter";
         public const string AttributeTaken = "taken";
         public const string AttributeMeta = "meta";
-        public const string AttributeFamily = "family";
         public const string AttributeMagnitude = "magnitude";
-        public const string AttributeRank = "rank";
         public const string AttributeViewed = "viewed";
     }
 }

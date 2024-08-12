@@ -8,7 +8,6 @@ namespace ImgSoh
     {
         public static void Find(string hashX, IProgress<string> progress)
         {
-            var status = string.Empty;
             do {
                 var totalcount = AppImgs.Count();
                 if (totalcount < 2) {
@@ -17,8 +16,9 @@ namespace ImgSoh
                 }
 
                 if (hashX == null) {
-                    AppImgs.GetNextView(out var hash, out status);
-                    hashX = hash;
+                    var carray = AppDatabase.GetCandidates();
+                    var rindex = AppVars.RandomNext(carray.Length);
+                    hashX = carray[rindex];
                     if (hashX == null) {
                         progress?.Report("not ready to view");
                         return;
@@ -37,7 +37,23 @@ namespace ImgSoh
                     continue;
                 }
 
-                var hashY = imgX.Next.Substring(4);
+                AppImgs.Find(hash:hashX, imgX.Horizon, out var radiusNext, out var counter);
+                if (counter != imgX.Counter && counter > 0) {
+                    AppDatabase.SetNext(hashX, string.Empty);
+                    AppDatabase.SetHorizon(hashX, string.Empty);
+                    AppDatabase.SetCounter(hashX, 0);
+                    continue;
+                }
+
+                if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
+                    AppDatabase.SetNext(hashX, radiusNext);
+                }
+
+                if (string.IsNullOrEmpty(radiusNext)) {
+                    throw new Exception();
+                }
+
+                var hashY = radiusNext.Substring(4);
                 if (hashX.Equals(hashY)) {
                     throw new Exception();
                 }
@@ -54,15 +70,24 @@ namespace ImgSoh
                     continue;
                 }
 
+                if (!AppImgs.TryGetVector(hashX, out var vectorX)) {
+                    throw new Exception();
+                }
+
+                if (!AppImgs.TryGetVector(hashY, out var vectorY)) {
+                    throw new Exception();
+                }
+
                 var diff = 255;
-                var distance = AppVit.GetDistance(imgX.GetVector(), imgX.Magnitude, imgY.GetVector(), imgY.Magnitude);
+                var distance = AppVit.GetDistance(vectorX, imgX.Magnitude, vectorY, imgY.Magnitude);
                 if (distance < 0.25f) {
                     GetVictim(imgX, imgY, out var victim, out diff);
                     AppPanels.SetVictim(victim);
                 }
 
-                var age = Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView));
-                progress?.Report($"{status} [{age} ago] {imgX.Name} {distance:F4} D{diff}");
+                var radiusLast = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
+                var total = AppImgs.Count();
+                progress?.Report($"{total} [{counter}] {radiusLast} {AppConsts.CharRightArrow} {radiusNext.Substring(0, 4)} D{diff}");
                 break;
             }
             while (true);
@@ -70,7 +95,7 @@ namespace ImgSoh
 
         private static int GetVictim(Img x, Img y)
         {
-            var imgs = new Img[] { x, y };
+            var imgs = new[] { x, y };
             var px = AppPanels.GetImgPanel(0);
             var py = AppPanels.GetImgPanel(1);
             var panels = new[] { px, py };

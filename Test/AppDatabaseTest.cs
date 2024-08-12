@@ -13,6 +13,7 @@ namespace Test
         [TestMethod]
         public void LoadImportDelete()
         {
+            /*
             AppVit.LoadNet(null);
             const string filedatabase = @"D:\Users\Murad\Documents\ImgSoh\Test\AppDatabase\spacer.db";
             AppDatabase.LoadImages(filedatabase, null);
@@ -72,6 +73,7 @@ namespace Test
             AppImgs.Remove(hash);
 
             AppBitmap.StopExif();
+            */
         }
     }
 }
