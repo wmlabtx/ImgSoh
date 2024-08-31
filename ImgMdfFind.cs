@@ -7,7 +7,7 @@ namespace ImgSoh
     public static partial class ImgMdf
     {
         public static void Find(string hashX, IProgress<string> progress)
-        {
+         {
             do {
                 var totalcount = AppImgs.Count();
                 if (totalcount < 2) {
@@ -16,6 +16,9 @@ namespace ImgSoh
                 }
 
                 if (hashX == null) {
+                    hashX = AppImgs.GetRandom();
+
+                    /*
                     var carray = AppDatabase.GetCandidates();
                     var rindex = AppVars.RandomNext(carray.Length);
                     hashX = carray[rindex];
@@ -23,6 +26,7 @@ namespace ImgSoh
                         progress?.Report("not ready to view");
                         return;
                     }
+                    */
                 }
 
                 if (!AppPanels.SetImgPanel(0, hashX)) {

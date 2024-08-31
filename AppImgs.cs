@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Security.Policy;
 using System.Threading.Tasks;
 
 namespace ImgSoh
@@ -44,6 +46,17 @@ namespace ImgSoh
             }
 
             return result;
+        }
+
+        public static string GetRandom()
+        {
+            string hash;
+            lock (_lock) {
+                var rindex = AppVars.RandomNext(_vectorList.Count);
+                hash = _vectorList.ElementAt(rindex).Key;
+            }
+
+            return hash;
         }
 
         public static bool TryGetImg(string hash, out Img img)

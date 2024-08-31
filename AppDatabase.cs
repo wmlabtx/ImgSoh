@@ -110,7 +110,7 @@ namespace ImgSoh
 
         public static string[] GetCandidates()
         {
-            const int limit = 100;
+            const int limit = 10;
             var clist = new List<string>();
             lock (_lock) {
                 var sb = new StringBuilder();
@@ -148,7 +148,7 @@ namespace ImgSoh
                 sb.Append($"{AppConsts.AttributeHash}"); // 0
                 sb.Append($" FROM {AppConsts.TableImages}");
                 sb.Append($" WHERE {AppConsts.AttributeVerified} = false");
-                sb.Append($" LIMIT {limit}");
+                //sb.Append($" LIMIT {limit}");
                 using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
                 using (var reader = sqlCommand.ExecuteReader()) {
                     while (reader.Read()) {
