@@ -180,23 +180,75 @@ namespace ImgSoh
             return hash;
         }
 
-        public static DateTime GetMinimalLastView()
+        public static string GetForCheck()
         {
-            var lastview = DateTime.Now;
+            string hash = null;
             lock (_lock) {
                 var sb = new StringBuilder();
                 sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeLastView}"); // 0
-                sb.Append($" FROM {AppConsts.TableImages} ORDER BY {AppConsts.AttributeLastView} LIMIT 1");
+                sb.Append($"{AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages} WHERE LENGTH({AppConsts.AttributeNext}) < 5 LIMIT 1");
                 using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
                 using (var reader = sqlCommand.ExecuteReader()) {
                     if (reader.Read()) {
-                        lastview = DateTime.FromBinary(reader.GetInt64(0));
+                        hash = reader.GetString(0);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(hash)) {
+                    sb.Clear();
+                    sb.Append("SELECT ");
+                    sb.Append($"{AppConsts.AttributeHash}"); // 0
+                    sb.Append($" FROM {AppConsts.TableImages} ORDER BY {AppConsts.AttributeLastCheck} LIMIT 1");
+                    using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
+                    using (var reader = sqlCommand.ExecuteReader()) {
+                        if (reader.Read()) {
+                            hash = reader.GetString(0);
+                        }
+                    }
+                }
+            } 
+
+            return hash;
+        }
+
+        public static string GetForView()
+        {
+            string hash = null;
+            lock (_lock) {
+                var sb = new StringBuilder();
+                sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" ORDER BY {AppConsts.AttributeCounter}, {AppConsts.AttributeViewed}, {AppConsts.AttributeHash}");
+                sb.Append($" LIMIT 1");
+                using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
+                using (var reader = sqlCommand.ExecuteReader()) {
+                    if (reader.Read()) {
+                        hash = reader.GetString(0);
                     }
                 }
             }
 
-            return lastview;
+            return hash;
+        }
+
+        public static DateTime GetMinimal(string key)
+        {
+            var dt = DateTime.Now;
+            lock (_lock) {
+                var sb = new StringBuilder();
+                sb.Append("SELECT ");
+                sb.Append($"{key}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages} ORDER BY {key} LIMIT 1");
+                using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
+                using (var reader = sqlCommand.ExecuteReader()) {
+                    if (reader.Read()) {
+                        dt = DateTime.FromBinary(reader.GetInt64(0));
+                    }
+                }
+            }
+
+            return dt.AddSeconds(-1);
         }
 
         private static void ImgUpdateProperty(string hash, string key, object val)

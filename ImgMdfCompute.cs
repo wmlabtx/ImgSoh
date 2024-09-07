@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -183,7 +184,7 @@ namespace ImgSoh
         private static void Compute(BackgroundWorker backgroundworker)
         {
             if (AppVars.ImportRequested) {
-                var lastview = AppDatabase.GetMinimalLastView();
+                var lastview = AppDatabase.GetMinimal(AppConsts.AttributeLastView);
                 _added = 0;
                 _found = 0;
                 _bad = 0;
@@ -207,7 +208,7 @@ namespace ImgSoh
                 ((IProgress<string>)AppVars.Progress).Report($"Imported a:{_added}/f:{_found}/b:{_bad}");
             }
 
-            var hashX = AppDatabase.GetHash(AppConsts.AttributeNext);
+            var hashX = AppDatabase.GetForCheck(); //AppDatabase.GetHash(AppConsts.AttributeLastCheck);
             if (hashX != null) {
                 if (AppImgs.TryGetImg(hashX, out var imgX)) {
                     var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
@@ -233,10 +234,32 @@ namespace ImgSoh
                         }
                     }
                 }
+
+                AppImgs.Find(hashX, imgX.Horizon, out var radiusNext, out var counter);
+                var message = string.Empty;
+                var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
+                var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
+                if (counter != imgX.Counter && counter > 0) {
+                    message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:0:{next}]";
+                    AppDatabase.SetNext(hashX, string.Empty);
+                    AppDatabase.SetHorizon(hashX, string.Empty);
+                    AppDatabase.SetCounter(hashX, 0);
+                }
+                else {
+                    if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
+                        message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
+                        AppDatabase.SetNext(hashX, radiusNext);
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(message)) {
+                    var span = DateTime.Now.Subtract(imgX.LastCheck).ToString();
+                    backgroundworker.ReportProgress(0, $"[{span}] [{message}]");
+                } 
             }
 
             AppDatabase.SetLastCheck(hashX, DateTime.Now);
-            Thread.Sleep(250);
+            Thread.Sleep(1000);
         }
 
         public static void Random(string path, IProgress<string> progress)

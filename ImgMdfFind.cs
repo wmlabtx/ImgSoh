@@ -16,17 +16,7 @@ namespace ImgSoh
                 }
 
                 if (hashX == null) {
-                    hashX = AppImgs.GetRandom();
-
-                    /*
-                    var carray = AppDatabase.GetCandidates();
-                    var rindex = AppVars.RandomNext(carray.Length);
-                    hashX = carray[rindex];
-                    if (hashX == null) {
-                        progress?.Report("not ready to view");
-                        return;
-                    }
-                    */
+                    hashX = AppDatabase.GetForView();
                 }
 
                 if (!AppPanels.SetImgPanel(0, hashX)) {
