@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Web.UI.WebControls;
 
 namespace ImgSoh
 {
@@ -208,7 +209,8 @@ namespace ImgSoh
                 ((IProgress<string>)AppVars.Progress).Report($"Imported a:{_added}/f:{_found}/b:{_bad}");
             }
 
-            var hashX = AppDatabase.GetForCheck(); //AppDatabase.GetHash(AppConsts.AttributeLastCheck);
+            /*
+            var hashX = AppDatabase.GetHash(AppConsts.AttributeLastCheck);
             if (hashX != null) {
                 if (AppImgs.TryGetImg(hashX, out var imgX)) {
                     var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
@@ -235,30 +237,43 @@ namespace ImgSoh
                     }
                 }
 
+                var horizon = imgX.Horizon;
                 AppImgs.Find(hashX, imgX.Horizon, out var radiusNext, out var counter);
                 var message = string.Empty;
                 var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                 var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
                 if (counter != imgX.Counter && counter > 0) {
-                    message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:0:{next}]";
-                    AppDatabase.SetNext(hashX, string.Empty);
-                    AppDatabase.SetHorizon(hashX, string.Empty);
-                    AppDatabase.SetCounter(hashX, 0);
+                    next = string.Empty;
+                    horizon = string.Empty;
+                    counter = 0;
                 }
-                else {
-                    if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
-                        message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
-                        AppDatabase.SetNext(hashX, radiusNext);
-                    }
+
+                if (imgX.Counter != counter || !imgnext.Equals(next)) {
+                    message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
+                }
+
+                if (!imgX.Next.Equals(radiusNext)) {
+                    AppDatabase.SetNext(hashX, radiusNext);
+                }
+
+                if (!imgX.Horizon.Equals(horizon)) {
+                    AppDatabase.SetHorizon(hashX, horizon);
+                }
+
+                if (imgX.Counter != counter) {
+                    AppDatabase.SetCounter(hashX, counter);
                 }
 
                 if (!string.IsNullOrEmpty(message)) {
                     var span = DateTime.Now.Subtract(imgX.LastCheck).ToString();
                     backgroundworker.ReportProgress(0, $"[{span}] [{message}]");
-                } 
+                }
             }
+            
 
             AppDatabase.SetLastCheck(hashX, DateTime.Now);
+            */
+
             Thread.Sleep(1000);
         }
 

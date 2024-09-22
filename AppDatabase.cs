@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Data.SQLite;
 using System.Text;
+using System.Diagnostics.Metrics;
+using System.Windows.Controls.Primitives;
+using System.Windows.Controls;
+using System.Windows.Forms;
 
 namespace ImgSoh
 {
@@ -108,59 +112,6 @@ namespace ImgSoh
             return img;
         }
 
-        public static string[] GetCandidates()
-        {
-            const int limit = 10;
-            var clist = new List<string>();
-            lock (_lock) {
-                var sb = new StringBuilder();
-                sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeHash}"); // 0
-                sb.Append($" FROM {AppConsts.TableImages}");
-                sb.Append($" WHERE {AppConsts.AttributeVerified} = true");
-                sb.Append($" ORDER BY {AppConsts.AttributeLastView}");
-                sb.Append($" LIMIT {limit}");
-                using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
-                using (var reader = sqlCommand.ExecuteReader()) {
-                    while (reader.Read()) {
-                        var hash = reader.GetString(0);
-                        clist.Add(hash);
-                    }
-                }
-
-                sb.Clear();
-                sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeHash}"); // 0
-                sb.Append($" FROM {AppConsts.TableImages}");
-                sb.Append($" WHERE {AppConsts.AttributeVerified} = true");
-                sb.Append($" ORDER BY {AppConsts.AttributeLastView} DESC");
-                sb.Append($" LIMIT {limit}");
-                using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
-                using (var reader = sqlCommand.ExecuteReader()) {
-                    while (reader.Read()) {
-                        var hash = reader.GetString(0);
-                        clist.Add(hash);
-                    }
-                }
-
-                sb.Clear();
-                sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeHash}"); // 0
-                sb.Append($" FROM {AppConsts.TableImages}");
-                sb.Append($" WHERE {AppConsts.AttributeVerified} = false");
-                //sb.Append($" LIMIT {limit}");
-                using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
-                using (var reader = sqlCommand.ExecuteReader()) {
-                    while (reader.Read()) {
-                        var hash = reader.GetString(0);
-                        clist.Add(hash);
-                    }
-                }
-            }
-
-            return clist.ToArray();
-        }
-
         public static string GetHash(string key)
         {
             string hash = null;
@@ -180,47 +131,71 @@ namespace ImgSoh
             return hash;
         }
 
-        public static string GetForCheck()
+        public static string GetForView()
         {
             string hash = null;
             lock (_lock) {
                 var sb = new StringBuilder();
-                sb.Append("SELECT ");
-                sb.Append($"{AppConsts.AttributeHash}"); // 0
-                sb.Append($" FROM {AppConsts.TableImages} WHERE LENGTH({AppConsts.AttributeNext}) < 5 LIMIT 1");
+                // SELECT hash, lastview, counter FROM images WHERE counter = (SELECT MIN(Counter) FROM images) ORDER BY lastview DESC LIMIT 1 OFFSET 10
+                /*
+                sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" WHERE {AppConsts.AttributeCounter} ="); 
+                sb.Append($" (SELECT MIN({AppConsts.AttributeCounter}) FROM {AppConsts.TableImages})");
+                sb.Append($" ORDER BY {AppConsts.AttributeLastView} DESC LIMIT 1 OFFSET 100");
+                */
+
+                sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" WHERE {AppConsts.AttributeViewed} > 0");
+                sb.Append($" ORDER BY {AppConsts.AttributeCounter}, {AppConsts.AttributeViewed}, {AppConsts.AttributeHash}");
+                sb.Append($" LIMIT 1");
+
+                /*
+                sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" ORDER BY {AppConsts.AttributeCounter}, {AppConsts.AttributeViewed}, {AppConsts.AttributeHash}");
+                sb.Append($" LIMIT 1");
+                */
+
                 using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
                 using (var reader = sqlCommand.ExecuteReader()) {
                     if (reader.Read()) {
                         hash = reader.GetString(0);
                     }
                 }
-
-                if (string.IsNullOrEmpty(hash)) {
-                    sb.Clear();
-                    sb.Append("SELECT ");
-                    sb.Append($"{AppConsts.AttributeHash}"); // 0
-                    sb.Append($" FROM {AppConsts.TableImages} ORDER BY {AppConsts.AttributeLastCheck} LIMIT 1");
-                    using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
-                    using (var reader = sqlCommand.ExecuteReader()) {
-                        if (reader.Read()) {
-                            hash = reader.GetString(0);
-                        }
-                    }
-                }
-            } 
+            }
 
             return hash;
         }
 
-        public static string GetForView()
+        public static string GetForCheck()
         {
             string hash = null;
             lock (_lock) {
                 var sb = new StringBuilder();
+                // SELECT hash, lastview, counter FROM images WHERE counter = (SELECT MIN(Counter) FROM images) ORDER BY lastview DESC LIMIT 1 OFFSET 10
+                /*
+                sb.Append($"SELECT {AppC onsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" WHERE {AppConsts.AttributeCounter} ="); 
+                sb.Append($" (SELECT MIN({AppConsts.AttributeCounter}) FROM {AppConsts.TableImages})");
+                sb.Append($" ORDER BY {AppConsts.AttributeLastView} DESC LIMIT 1 OFFSET 100");
+                */
+
+                sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
+                sb.Append($" FROM {AppConsts.TableImages}");
+                sb.Append($" WHERE {AppConsts.AttributeViewed} > 0");
+                sb.Append($" ORDER BY {AppConsts.AttributeCounter}, {AppConsts.AttributeViewed}, {AppConsts.AttributeHash}");
+                sb.Append($" LIMIT 1");
+
+                /*
                 sb.Append($"SELECT {AppConsts.AttributeHash}"); // 0
                 sb.Append($" FROM {AppConsts.TableImages}");
                 sb.Append($" ORDER BY {AppConsts.AttributeCounter}, {AppConsts.AttributeViewed}, {AppConsts.AttributeHash}");
                 sb.Append($" LIMIT 1");
+                */
+
                 using (var sqlCommand = new SQLiteCommand(sb.ToString(), _sqlConnection))
                 using (var reader = sqlCommand.ExecuteReader()) {
                     if (reader.Read()) {

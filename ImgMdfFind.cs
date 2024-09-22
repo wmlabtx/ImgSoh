@@ -32,7 +32,10 @@ namespace ImgSoh
                 }
 
                 AppImgs.Find(hash:hashX, imgX.Horizon, out var radiusNext, out var counter);
+                var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
+                var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
                 if (counter != imgX.Counter && counter > 0) {
+                    progress?.Report($"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:0:{next}]");
                     AppDatabase.SetNext(hashX, string.Empty);
                     AppDatabase.SetHorizon(hashX, string.Empty);
                     AppDatabase.SetCounter(hashX, 0);
@@ -79,9 +82,8 @@ namespace ImgSoh
                     AppPanels.SetVictim(victim);
                 }
 
-                var radiusLast = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                 var total = AppImgs.Count();
-                progress?.Report($"{total} [{counter}] {radiusLast} {AppConsts.CharRightArrow} {radiusNext.Substring(0, 4)} D{diff}");
+                progress?.Report($"{total} [{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{counter}:{next}] D{diff}");
                 break;
             }
             while (true);
