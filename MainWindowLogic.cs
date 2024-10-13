@@ -52,7 +52,7 @@ namespace ImgSoh
             AppVars.Progress = new Progress<string>(message => Status.Text = message);
 
             await Task.Run(() => { AppVit.LoadNet(AppVars.Progress); }).ConfigureAwait(true);
-            await Task.Run(() => { AppDatabase.LoadNamesAndVectors(AppConsts.FileDatabase, AppVars.Progress); }).ConfigureAwait(true);
+            await Task.Run(() => { AppImgs.LoadNamesAndVectors(AppConsts.FileDatabase, AppVars.Progress); }).ConfigureAwait(true);
             //await Task.Run(() => { AppDatabase.Populate(AppVars.Progress); }).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
 
@@ -135,8 +135,8 @@ namespace ImgSoh
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
-                if (AppImgs.TryGetImg(panels[index].Hash, out var imgX)) {
-                    if (AppImgs.TryGetImg(panels[1 - index].Hash, out _)) {
+                if (AppImgs.TryGet(panels[index].Hash, out var imgX)) {
+                    if (AppImgs.TryGet(panels[1 - index].Hash, out _)) {
                         pBoxes[index].Source = AppBitmap.ImageSourceFromBitmap(panels[index].Bitmap);
                         var sb = new StringBuilder();
                         sb.Append($"{panels[index].Name}.{panels[index].Format}");

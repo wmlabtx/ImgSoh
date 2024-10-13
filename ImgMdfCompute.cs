@@ -1,11 +1,9 @@
 ﻿using System;
 using System.ComponentModel;
-using System.Diagnostics;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Web.UI.WebControls;
 
 namespace ImgSoh
 {
@@ -18,7 +16,7 @@ namespace ImgSoh
         private static bool ImportFile(string orgfilename, DateTime lastview, BackgroundWorker backgroundworker)
         {
             var orgname = Path.GetFileNameWithoutExtension(orgfilename).ToLowerInvariant();
-            if (AppImgs.TryGetImgByName(orgname, out var imgE)) {
+            if (AppImgs.TryGetByName(orgname, out var imgE)) {
                 var filenameF = AppFile.GetFileName(imgE.Name, AppConsts.PathHp);
                 if (orgfilename.Equals(filenameF)) {
                     // existing file
@@ -54,7 +52,7 @@ namespace ImgSoh
                 }
 
                 hash = AppHash.GetHash(decrypteddata);
-                if (AppImgs.TryGetImg(hash, out var imgF)) {
+                if (AppImgs.TryGet(hash, out var imgF)) {
                     var filenameF = AppFile.GetFileName(imgF.Name, AppConsts.PathHp);
                     if (File.Exists(filenameF)) {
                         // we have a file
@@ -82,7 +80,7 @@ namespace ImgSoh
             }
             else {
                 hash = AppHash.GetHash(imagedata);
-                if (AppImgs.TryGetImg(hash, out var imgF)) {
+                if (AppImgs.TryGet(hash, out var imgF)) {
                     var filenameF = AppFile.GetFileName(imgF.Name, AppConsts.PathHp);
                     if (File.Exists(filenameF)) {
                         // we have a file
@@ -137,24 +135,23 @@ namespace ImgSoh
             }
             
             var imgnew = new Img(
+                hash: hash,
                 name: name,
                 orientation: RotateFlipType.RotateNoneFlipNone,
                 lastview: lastview,
                 next: string.Empty,
-                lastcheck: DateTime.Now,
                 verified: false,
                 horizon: string.Empty,
                 counter: 0,
                 taken: taken,
                 meta: meta,
+                vector: vector,
                 magnitude: magnitude,
                 viewed: 0
              );
 
-            AppDatabase.AddImg(hash, vector, imgnew);
-            AppImgs.Add(hash:hash, name:name, vector:vector, magnitude:magnitude);
+            AppImgs.Save(imgnew);
             _added++;
-
             return true;
         }
 
@@ -185,7 +182,7 @@ namespace ImgSoh
         private static void Compute(BackgroundWorker backgroundworker)
         {
             if (AppVars.ImportRequested) {
-                var lastview = AppDatabase.GetMinimal(AppConsts.AttributeLastView);
+                var lastview = AppImgs.GetMinimalLastView();
                 _added = 0;
                 _found = 0;
                 _bad = 0;
@@ -210,71 +207,70 @@ namespace ImgSoh
             }
 
             /*
-            var hashX = AppDatabase.GetHash(AppConsts.AttributeLastCheck);
-            if (hashX != null) {
-                if (AppImgs.TryGetImg(hashX, out var imgX)) {
-                    var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
-                    var imagedata = AppFile.ReadEncryptedFile(filenameX);
-                    if (imagedata == null) {
-                        Delete(hashX);
-                        return;
-                    }
-
-                    var hashT = AppHash.GetHash(imagedata);
-                    if (!hashT.Equals(hashX)) {
-                        Delete(hashX);
-                        return;
-                    }
-
-                    if (imgX.Magnitude <= 0f) {
-                        using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
-                            using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, imgX.Orientation)) {
-                                var vector = AppVit.CalculateVector(bitmap).ToArray();
-                                var magnitude = AppVit.GetMagnitude(vector);
-                                AppDatabase.SetVector(hashX, vector, magnitude);
-                            }
-                        }
-                    }
-                }
-
-                var horizon = imgX.Horizon;
-                AppImgs.Find(hashX, imgX.Horizon, out var radiusNext, out var counter);
-                var message = string.Empty;
-                var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-                var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
-                if (counter != imgX.Counter && counter > 0) {
-                    next = string.Empty;
-                    horizon = string.Empty;
-                    counter = 0;
-                }
-
-                if (imgX.Counter != counter || !imgnext.Equals(next)) {
-                    message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
-                }
-
-                if (!imgX.Next.Equals(radiusNext)) {
-                    AppDatabase.SetNext(hashX, radiusNext);
-                }
-
-                if (!imgX.Horizon.Equals(horizon)) {
-                    AppDatabase.SetHorizon(hashX, horizon);
-                }
-
-                if (imgX.Counter != counter) {
-                    AppDatabase.SetCounter(hashX, counter);
-                }
-
-                if (!string.IsNullOrEmpty(message)) {
-                    var span = DateTime.Now.Subtract(imgX.LastCheck).ToString();
-                    backgroundworker.ReportProgress(0, $"[{span}] [{message}]");
-                }
+            if (AppVars.GetLimit() == 0) {
+                return;
             }
-            
-
-            AppDatabase.SetLastCheck(hashX, DateTime.Now);
             */
 
-            Thread.Sleep(1000);
+            var imgX = AppImgs.GetForCheck();
+            var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
+            var imagedata = AppFile.ReadEncryptedFile(filenameX);
+            if (imagedata == null) {
+                Delete(imgX.Hash);
+                return;
+            }
+
+            var hashT = AppHash.GetHash(imagedata);
+            if (!hashT.Equals(imgX.Hash)) {
+                Delete(imgX.Hash);
+                return;
+            }
+
+            if (imgX.Magnitude <= 0f) {
+                using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
+                    using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, imgX.Orientation)) {
+                        var vector = AppVit.CalculateVector(bitmap).ToArray();
+                        AppImgs.SetVector(imgX.Hash, vector);
+                        var magnitude = AppVit.GetMagnitude(vector);
+                        AppImgs.SetMagnitude(imgX.Hash, magnitude);
+                        imgX = AppImgs.Get(imgX.Hash);
+                    }
+                }
+            }
+
+            var horizon = imgX.Horizon;
+            AppImgs.Find(imgX, out var radiusNext, out var counter);
+            var message = string.Empty;
+            var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
+            var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
+            if (counter != imgX.Counter && counter > 0) {
+                radiusNext = string.Empty;
+                next = string.Empty;
+                horizon = string.Empty;
+                counter = 0;
+            }
+
+            if (imgX.Counter != counter || !imgnext.Equals(next)) {
+                message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
+            }
+
+            if (!imgX.Next.Equals(radiusNext)) {
+                AppImgs.SetNext(imgX.Hash, radiusNext);
+            }
+
+            if (!imgX.Horizon.Equals(horizon)) {
+                AppImgs.SetHorizon(imgX.Hash, horizon);
+            }
+
+            if (imgX.Counter != counter) {
+                AppImgs.SetCounter(imgX.Hash, counter);
+            }
+
+            if (!string.IsNullOrEmpty(message)) {
+                backgroundworker.ReportProgress(0, $"{message}");
+            }
+
+            Thread.Sleep(100);
         }
 
         public static void Random(string path, IProgress<string> progress)

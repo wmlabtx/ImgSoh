@@ -7,7 +7,7 @@ namespace ImgSoh
     {
         public static void Rotate(string hash, RotateFlipType rft)
         {
-            if (!AppImgs.TryGetImg(hash, out var img)) {
+            if (!AppImgs.TryGet(hash, out var img)) {
                 return;
             }
 
@@ -29,8 +29,9 @@ namespace ImgSoh
 
                     var rvector = AppVit.CalculateVector(bitmap).ToArray();
                     var rmagnitude = AppVit.GetMagnitude(rvector);
-                    AppDatabase.SetVector(hash, rvector, rmagnitude);
-                    AppDatabase.SetOrientation(hash, rft);
+                    AppImgs.SetVector(hash, rvector);
+                    AppImgs.SetMagnitude(hash, rmagnitude);
+                    AppImgs.SetOrientation(hash, rft);
                 }
             }
         }

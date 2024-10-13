@@ -214,7 +214,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AppConsts.cs" />
-    <Compile Include="AppDatabase.cs" />
     <Compile Include="AppPanels.cs" />
     <Compile Include="AppVars.cs" />
     <Compile Include="AppBitmap.cs" />

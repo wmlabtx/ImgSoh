@@ -7,7 +7,8 @@ namespace ImgSoh
     public static partial class ImgMdf
     {
         public static void Find(string hashX, IProgress<string> progress)
-         {
+        {
+            Img imgX = null;
             do {
                 var totalcount = AppImgs.Count();
                 if (totalcount < 2) {
@@ -15,8 +16,13 @@ namespace ImgSoh
                     return;
                 }
 
-                if (hashX == null) {
-                    hashX = AppDatabase.GetForView();
+                if (!string.IsNullOrEmpty(hashX) && !AppImgs.TryGet(hashX, out imgX)) {
+                    hashX = null;
+                }
+
+                if (imgX == null) {
+                    imgX = AppImgs.GetForView();
+                    hashX = imgX.Hash;
                 }
 
                 if (!AppPanels.SetImgPanel(0, hashX)) {
@@ -25,65 +31,26 @@ namespace ImgSoh
                     continue;
                 }
 
-                if (!AppImgs.TryGetImg(hashX, out var imgX)) {
-                    Delete(hashX);
+                var hashY = imgX.Next.Substring(4);
+                if (!AppImgs.TryGet(hashY, out var imgY)) {
                     hashX = null;
                     continue;
-                }
-
-                AppImgs.Find(hash:hashX, imgX.Horizon, out var radiusNext, out var counter);
-                var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-                var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
-                if (counter != imgX.Counter && counter > 0) {
-                    progress?.Report($"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:0:{next}]");
-                    AppDatabase.SetNext(hashX, string.Empty);
-                    AppDatabase.SetHorizon(hashX, string.Empty);
-                    AppDatabase.SetCounter(hashX, 0);
-                    continue;
-                }
-
-                if (!string.IsNullOrWhiteSpace(radiusNext) && !imgX.Next.Equals(radiusNext)) {
-                    AppDatabase.SetNext(hashX, radiusNext);
-                }
-
-                if (string.IsNullOrEmpty(radiusNext)) {
-                    throw new Exception();
-                }
-
-                var hashY = radiusNext.Substring(4);
-                if (hashX.Equals(hashY)) {
-                    throw new Exception();
                 }
 
                 if (!AppPanels.SetImgPanel(1, hashY)) {
-                    Delete(hashY);
                     hashX = null;
                     continue;
-                }
-
-                if (!AppImgs.TryGetImg(hashY, out var imgY)) {
-                    Delete(hashY);
-                    hashX = null;
-                    continue;
-                }
-
-                if (!AppImgs.TryGetVector(hashX, out var vectorX)) {
-                    throw new Exception();
-                }
-
-                if (!AppImgs.TryGetVector(hashY, out var vectorY)) {
-                    throw new Exception();
                 }
 
                 var diff = 255;
-                var distance = AppVit.GetDistance(vectorX, imgX.Magnitude, vectorY, imgY.Magnitude);
+                var distance = AppVit.GetDistance(imgX.Vector, imgX.Magnitude, imgY.Vector, imgY.Magnitude);
                 if (distance < 0.25f) {
                     GetVictim(imgX, imgY, out var victim, out diff);
                     AppPanels.SetVictim(victim);
                 }
 
                 var total = AppImgs.Count();
-                progress?.Report($"{total} [{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{counter}:{next}] D{diff}");
+                progress?.Report($"{total} D={distance:F4}  F{diff}");
                 break;
             }
             while (true);

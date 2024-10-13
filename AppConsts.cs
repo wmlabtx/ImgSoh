@@ -31,7 +31,6 @@
         public const string AttributeLastView = "lastview";
         public const string AttributeNext = "next";
         public const string AttributeHorizon = "horizon";
-        public const string AttributeLastCheck = "lastcheck";
         public const string AttributeVerified = "verified";
         public const string AttributeCounter = "counter";
         public const string AttributeTaken = "taken";

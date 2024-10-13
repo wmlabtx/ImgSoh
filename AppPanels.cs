@@ -14,7 +14,7 @@ namespace ImgSoh
 
         public static bool SetImgPanel(int idPanel, string hash)
         {
-            if (!AppImgs.TryGetImg(hash, out var img)) {
+            if (!AppImgs.TryGet(hash, out var img)) {
                 return false;
             }
 

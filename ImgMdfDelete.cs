@@ -8,14 +8,14 @@ namespace ImgSoh
     {
         private static void Delete(string hashD)
         {
-            if (!AppImgs.TryGetImg(hashD, out var imgX)) {
+            if (!AppImgs.TryGet(hashD, out var imgX)) {
                 return;
             }
 
             var filename = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
             DeleteEncryptedFile(filename);
-            AppDatabase.ImgDelete(hashD);
             AppImgs.Remove(hashD);
+            AppImgs.Delete(hashD);
         }
 
         private static void DeleteFile(string filename)
