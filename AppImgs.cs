@@ -15,7 +15,6 @@ namespace ImgSoh
         private static SQLiteConnection _sqlConnection;
         private static readonly SortedList<string, Img> _imgList = new SortedList<string, Img>(); // hash/img
         private static readonly SortedList<string, string> _nameList = new SortedList<string, string>(); // name/hash
-        private static readonly List<long> _historyList = new List<long>();
 
         private static string GetSelect()
         {
@@ -350,7 +349,7 @@ namespace ImgSoh
             SetLastView(hash, DateTime.Now);
         }
 
-        public static bool IsValid(Img img)
+        private static bool IsValid(Img img)
         {
             lock (_lock) {
                 if (img.Magnitude <=0f ||
@@ -373,41 +372,42 @@ namespace ImgSoh
 
         public static Img GetForView()
         {
-            Img imgX = null;
             lock (_lock) {
-                long diffMax = 0;
-                foreach (var img in _imgList.Values) {
-                    if (!IsValid(img)) {
-                        continue;
-                    }
+                /*
+                return _imgList
+                    .OrderByDescending(e => e.Value.Viewed)
+                    .Take(10000)
+                    .OrderBy(e => e.Value.LastView)
+                    .First(e => IsValid(e.Value))
+                    .Value;
+                */
+                
+                return _imgList
+                    .OrderBy(e => e.Value.Verified)
+                    .ThenBy(e => e.Value.Counter)
+                    .ThenBy(e => e.Value.Viewed)
+                    .ThenBy(e => e.Value.LastView)
+                    .First(e => IsValid(e.Value))
+                    .Value;
+                
+                /*
 
-                    if (img.Next.Length > 4 && img.Next.StartsWith("00")) {
-                        return img;
-                    }
-
-                    var diffMin = Math.Abs(DateTime.Now.Ticks - img.LastView.Ticks);
-                    foreach (var ts in _historyList) {
-                        var diff = Math.Abs(ts - img.LastView.Ticks);
-                        if (diff < diffMin) {
-                            diffMin = diff;
-                        }
-                    }
-
-                    if (diffMin > diffMax && (imgX == null || img.Counter <= imgX.Counter)) {
-                        imgX = img;
-                        diffMax = diffMin;
-                    }
+                if (AppVars.RandomNext(10) == 0) {
+                    return _imgList
+                        .OrderBy(e => e.Value.Verified)
+                        .ThenBy(e => e.Value.Viewed)
+                        .ThenBy(e => e.Value.Hash)
+                        .First(e => IsValid(e.Value))
+                        .Value;
                 }
 
-                if (imgX != null) {
-                    _historyList.Add(imgX.LastView.Ticks);
-                    while (_historyList.Count > 100) {
-                        _historyList.RemoveAt(0);
-                    }
-                }
+                return _imgList
+                    .OrderByDescending(e => e.Value.LastView)
+                    .Skip(1000)
+                    .First(e => IsValid(e.Value))
+                    .Value;
+                */
             }
-
-            return imgX;
         }
 
         public static Img GetForCheck()
@@ -425,8 +425,10 @@ namespace ImgSoh
                 }
             }
 
-            var irandom = AppVars.RandomNext(shadow.Length);
-            return shadow[irandom];
+            return null;
+
+            //var irandom = AppVars.RandomNext(shadow.Length);
+            //return shadow[irandom];
         }
 
         public static void Find(Img img, out string radiusNext, out int counter)

@@ -213,6 +213,11 @@ namespace ImgSoh
             */
 
             var imgX = AppImgs.GetForCheck();
+            if (imgX == null) {
+                Thread.Sleep(500);
+                return;
+            }
+
             var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
             var imagedata = AppFile.ReadEncryptedFile(filenameX);
             if (imagedata == null) {

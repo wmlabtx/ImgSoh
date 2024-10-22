@@ -18,6 +18,8 @@ namespace ImgSoh
         public float[] Vector { get; }
         public float Magnitude { get; }
         public int Viewed { get; }
+        public string Family { get; }
+        public string History { get; }
 
         public Img(
             string hash,
@@ -32,7 +34,9 @@ namespace ImgSoh
             int meta,
             float[] vector,
             float magnitude,
-            int viewed
+            int viewed,
+            string family,
+            string history
             )
         {
             Hash = hash;
@@ -48,6 +52,8 @@ namespace ImgSoh
             Vector = vector;
             Magnitude = magnitude;
             Viewed = viewed;
+            Family = family;
+            History = history;
         }
     }
 }

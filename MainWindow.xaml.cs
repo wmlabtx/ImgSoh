@@ -46,7 +46,7 @@ namespace ImgSoh
             }
         }
 
-        private void ButtonRightNextMouseClick(object sender, MouseEventArgs e)
+        private static void ButtonRightNextMouseClick(object sender, MouseEventArgs e)
         {
         }
 

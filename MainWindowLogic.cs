@@ -143,6 +143,7 @@ namespace ImgSoh
 
                         var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
                         sb.Append($" [{imgX.Viewed}:{imgX.Counter}:{next}]");
+                        sb.Append($" P{imgX.Popularity}");
                         sb.AppendLine();
 
                         sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
