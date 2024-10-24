@@ -3,7 +3,6 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Threading;
 
 namespace ImgSoh
 {
@@ -137,17 +136,14 @@ namespace ImgSoh
             var imgnew = new Img(
                 hash: hash,
                 name: name,
-                orientation: RotateFlipType.RotateNoneFlipNone,
-                lastview: lastview,
-                next: string.Empty,
-                verified: false,
-                horizon: string.Empty,
-                counter: 0,
                 taken: taken,
                 meta: meta,
                 vector: vector,
                 magnitude: magnitude,
-                viewed: 0
+                orientation: RotateFlipType.RotateNoneFlipNone,
+                lastview: lastview,
+                family: string.Empty,
+                history: string.Empty
              );
 
             AppImgs.Save(imgnew);
@@ -205,77 +201,6 @@ namespace ImgSoh
                 AppVars.ImportRequested = false;
                 ((IProgress<string>)AppVars.Progress).Report($"Imported a:{_added}/f:{_found}/b:{_bad}");
             }
-
-            /*
-            if (AppVars.GetLimit() == 0) {
-                return;
-            }
-            */
-
-            var imgX = AppImgs.GetForCheck();
-            if (imgX == null) {
-                Thread.Sleep(500);
-                return;
-            }
-
-            var filenameX = AppFile.GetFileName(imgX.Name, AppConsts.PathHp);
-            var imagedata = AppFile.ReadEncryptedFile(filenameX);
-            if (imagedata == null) {
-                Delete(imgX.Hash);
-                return;
-            }
-
-            var hashT = AppHash.GetHash(imagedata);
-            if (!hashT.Equals(imgX.Hash)) {
-                Delete(imgX.Hash);
-                return;
-            }
-
-            if (imgX.Magnitude <= 0f) {
-                using (var magickImage = AppBitmap.ImageDataToMagickImage(imagedata)) {
-                    using (var bitmap = AppBitmap.MagickImageToBitmap(magickImage, imgX.Orientation)) {
-                        var vector = AppVit.CalculateVector(bitmap).ToArray();
-                        AppImgs.SetVector(imgX.Hash, vector);
-                        var magnitude = AppVit.GetMagnitude(vector);
-                        AppImgs.SetMagnitude(imgX.Hash, magnitude);
-                        imgX = AppImgs.Get(imgX.Hash);
-                    }
-                }
-            }
-
-            var horizon = imgX.Horizon;
-            AppImgs.Find(imgX, out var radiusNext, out var counter);
-            var message = string.Empty;
-            var imgnext = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-            var next = string.IsNullOrWhiteSpace(radiusNext) ? "----" : radiusNext.Substring(0, 4);
-            if (counter != imgX.Counter && counter > 0) {
-                radiusNext = string.Empty;
-                next = string.Empty;
-                horizon = string.Empty;
-                counter = 0;
-            }
-
-            if (imgX.Counter != counter || !imgnext.Equals(next)) {
-                message = $"[{imgX.Viewed}:{imgX.Counter}:{imgnext}] {AppConsts.CharRightArrow} [{imgX.Viewed}:{imgX.Counter}:{next}]";
-            }
-
-            if (!imgX.Next.Equals(radiusNext)) {
-                AppImgs.SetNext(imgX.Hash, radiusNext);
-            }
-
-            if (!imgX.Horizon.Equals(horizon)) {
-                AppImgs.SetHorizon(imgX.Hash, horizon);
-            }
-
-            if (imgX.Counter != counter) {
-                AppImgs.SetCounter(imgX.Hash, counter);
-            }
-
-            if (!string.IsNullOrEmpty(message)) {
-                backgroundworker.ReportProgress(0, $"{message}");
-            }
-
-            Thread.Sleep(100);
         }
 
         public static void Random(string path, IProgress<string> progress)

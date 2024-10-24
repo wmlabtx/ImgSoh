@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
+using System.Linq;
 
 namespace ImgSoh
 {
@@ -7,53 +9,58 @@ namespace ImgSoh
     {
         public string Hash { get; }
         public string Name { get; }
-        public RotateFlipType Orientation { get; }
-        public DateTime LastView { get; }
-        public string Next { get; }
-        public string Horizon { get; }
-        public bool Verified { get; }
-        public int Counter { get; }
         public DateTime Taken { get; }
         public int Meta { get; }
         public float[] Vector { get; }
         public float Magnitude { get; }
-        public int Viewed { get; }
+        public RotateFlipType Orientation { get; }
+        public DateTime LastView { get; }
         public string Family { get; }
         public string History { get; }
+
+        private readonly HashSet<string> _history;
+
+        public string[] HistoryArray => _history.ToArray();
+        public int Count => _history.Count;
+
+        public bool IsInHistory (string hash) {
+            if (_history.Count == 0) {
+                return false;
+            }
+
+            return _history.Contains(hash);
+        }
 
         public Img(
             string hash,
             string name,
-            DateTime lastview,
-            RotateFlipType orientation,
-            string next,
-            string horizon,
-            bool verified,
-            int counter,
             DateTime taken,
             int meta,
             float[] vector,
             float magnitude,
-            int viewed,
+            RotateFlipType orientation,
+            DateTime lastview,
             string family,
             string history
             )
         {
             Hash = hash;
             Name = name;
-            Orientation = orientation;
-            LastView = lastview;
-            Next = next;
-            Horizon = horizon;
-            Verified = verified;
-            Counter = counter;
             Taken = taken;
             Meta = meta;
             Vector = vector;
             Magnitude = magnitude;
-            Viewed = viewed;
+            Orientation = orientation;
+            LastView = lastview;
             Family = family;
             History = history;
+
+            _history = new HashSet<string>();
+            if (History.Length > 0) {
+                for (var offset = 0; offset < History.Length; offset += 32) {
+                    _history.Add(History.Substring(offset, 32));
+                }
+            }
         }
     }
 }

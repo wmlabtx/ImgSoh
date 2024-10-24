@@ -198,10 +198,8 @@
     <Compile Include="AppImgs.cs" />
     <Compile Include="ExifInfo.cs" />
     <Compile Include="ImgMdfCompute.cs" />
-    <Compile Include="ImgMdfConfirm.cs" />
     <Compile Include="ImgMdfDelete.cs" />
     <Compile Include="ImgMdfEdit.cs" />
-    <Compile Include="ImgMdfFamily.cs" />
     <Compile Include="ImgMdfFind.cs" />
     <Compile Include="MainWindowLogic.cs" />
     <Compile Include="AppVit.cs" />

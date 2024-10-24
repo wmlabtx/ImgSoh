@@ -26,16 +26,13 @@
         public const string TableImages = "images";
         public const string AttributeHash = "hash";
         public const string AttributeName = "name";
-        public const string AttributeVector = "vector";
-        public const string AttributeOrientation = "orientation";
-        public const string AttributeLastView = "lastview";
-        public const string AttributeNext = "next";
-        public const string AttributeHorizon = "horizon";
-        public const string AttributeVerified = "verified";
-        public const string AttributeCounter = "counter";
         public const string AttributeTaken = "taken";
         public const string AttributeMeta = "meta";
+        public const string AttributeVector = "vector";
         public const string AttributeMagnitude = "magnitude";
-        public const string AttributeViewed = "viewed";
+        public const string AttributeOrientation = "orientation";
+        public const string AttributeLastView = "lastview";
+        public const string AttributeFamily = "family";
+        public const string AttributeHistory = "history";
     }
 }

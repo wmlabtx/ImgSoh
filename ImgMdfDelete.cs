@@ -6,7 +6,7 @@ namespace ImgSoh
 {
     public static partial class ImgMdf
     {
-        private static void Delete(string hashD)
+        public static void Delete(string hashD)
         {
             if (!AppImgs.TryGet(hashD, out var imgX)) {
                 return;
@@ -55,13 +55,6 @@ namespace ImgSoh
             AppFile.CreateDirectory(recycledName);
             File.WriteAllBytes(recycledName, array);
             File.Delete(filename);
-        }
-
-        public static void Delete(int idpanel)
-        {
-            var hashD = AppPanels.GetImgPanel(idpanel).Hash;
-            Delete(hashD);
-            ConfirmOpposite(1 - idpanel);
         }
     }
 } 

@@ -83,18 +83,18 @@ namespace ImgSoh
 
         private void PictureLeftBoxMouseClick()
         {
-            ImgPanelDelete(0);
+            ImgPanelDeleteLeft();
         }
 
         private void PictureRightBoxMouseClick()
         {
-            ImgPanelDelete(1);
+            ImgPanelDeleteRight();
         }
 
         private async void ButtonLeftNextMouseClick()
         {
             DisableElements();
-            await Task.Run(ImgMdf.Confirm).ConfigureAwait(true);
+            await Task.Run(AppPanels.Confirm).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
@@ -123,7 +123,7 @@ namespace ImgSoh
             LabelRight.IsEnabled = enabled;
         }
 
-        private void DrawCanvas()
+        private void  DrawCanvas()
         {
             var panels = new ImgPanel[2];
             panels[0] = AppPanels.GetImgPanel(0);
@@ -135,51 +135,46 @@ namespace ImgSoh
             var pBoxes = new[] { BoxLeft, BoxRight };
             var pLabels = new[] { LabelLeft, LabelRight };
             for (var index = 0; index < 2; index++) {
-                if (AppImgs.TryGet(panels[index].Hash, out var imgX)) {
-                    if (AppImgs.TryGet(panels[1 - index].Hash, out _)) {
-                        pBoxes[index].Source = AppBitmap.ImageSourceFromBitmap(panels[index].Bitmap);
-                        var sb = new StringBuilder();
-                        sb.Append($"{panels[index].Name}.{panels[index].Format}");
+                pBoxes[index].Source = AppBitmap.ImageSourceFromBitmap(panels[index].Bitmap);
+                var sb = new StringBuilder();
+                sb.Append($"{panels[index].Img.Name}.{panels[index].Format}");
 
-                        var next = string.IsNullOrWhiteSpace(imgX.Next) ? "----" : imgX.Next.Substring(0, 4);
-                        sb.Append($" [{imgX.Viewed}:{imgX.Counter}:{next}]");
-                        sb.Append($" P{imgX.Popularity}");
-                        sb.AppendLine();
+                if (panels[index].Img.Family.Length > 0) {
+                    sb.Append($" [{panels[index].Img.Family}:{panels[index].FamilySize}:{panels[index].Img.Count}]");
+                }
+                else {
+                    if (panels[index].Img.Count > 0) {
+                        sb.Append($" [{panels[index].Img.Count}]");
+                    }
+                }
 
-                        sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
-                        sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
-                        sb.AppendLine();
+                sb.AppendLine();
 
-                        sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(imgX.LastView))} ago ");
-                        if (imgX.Meta > 0) {
-                            sb.Append($" [{imgX.Meta}]");
-                        }
+                sb.Append($"{Helper.SizeToString(panels[index].Size)} ");
+                sb.Append($" ({panels[index].Bitmap.Width}x{panels[index].Bitmap.Height})");
+                sb.AppendLine();
 
-                        if (!imgX.Taken.Equals(DateTime.MinValue)) {
-                            sb.Append($" {imgX.Taken}");
-                        }
+                sb.Append($" {Helper.TimeIntervalToString(DateTime.Now.Subtract(panels[index].Img.LastView))} ago ");
+                if (panels[index].Img.Meta > 0) {
+                    sb.Append($" [{panels[index].Img.Meta}]");
+                }
 
-                        pLabels[index].Text = sb.ToString();
-                        pLabels[index].Background = System.Windows.Media.Brushes.White;
-                        if (panels[index].IsVictim) {
-                              pLabels[index].Background = System.Windows.Media.Brushes.Red;
-                        }
-                        else {
-                            /*
-                            if (!string.IsNullOrEmpty(imgX.Family) && imgX.Family.Equals(imgY.Family)) {
-                                pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
-                            }
-                            else {
-                            */
-                                if (!imgX.Verified) {
-                                    pLabels[index].Background = System.Windows.Media.Brushes.Yellow;
-                                }
-                                else {
-                                    if (imgX.Viewed > 0) {
-                                        pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
-                                    }
-                                }
-                            //}
+                if (!panels[index].Img.Taken.Equals(DateTime.MinValue)) {
+                    sb.Append($" {panels[index].Img.Taken}");
+                }
+
+                pLabels[index].Text = sb.ToString();
+                pLabels[index].Background = System.Windows.Media.Brushes.White;
+                if (panels[index].IsVictim) {
+                      pLabels[index].Background = System.Windows.Media.Brushes.Red;
+                }
+                else {
+                    if (panels[index].Img.Family.Length > 0 && panels[index].Img.Family.Equals(panels[1 - index].Img.Family)) {
+                        pLabels[index].Background = System.Windows.Media.Brushes.LightGreen;
+                    }
+                    else {
+                        if (panels[index].Img.History.Length > 0) {
+                            pLabels[index].Background = System.Windows.Media.Brushes.Bisque;
                         }
                     }
                 }
@@ -220,11 +215,19 @@ namespace ImgSoh
             Top = SystemParameters.WorkArea.Top + (SystemParameters.WorkArea.Height - AppConsts.WindowMargin - Height) / 2;
         }
 
-        private async void ImgPanelDelete(int idpanel)
+        private async void ImgPanelDeleteLeft()
         {
             DisableElements();
-            await Task.Run(() => { ImgMdf.Delete(idpanel); }).ConfigureAwait(true);
+            await Task.Run(AppPanels.DeleteLeft).ConfigureAwait(true);
             await Task.Run(() => { ImgMdf.Find(null, AppVars.Progress); }).ConfigureAwait(true);
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private async void ImgPanelDeleteRight()
+        {
+            DisableElements();
+            await Task.Run(AppPanels.DeleteRight).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
@@ -274,24 +277,55 @@ namespace ImgSoh
         {
             DisableElements();
             AppVars.ShowXOR = !AppVars.ShowXOR;
-            var hashY = AppPanels.GetImgPanel(1).Hash;
-            AppPanels.SetImgPanel(1, hashY);
+            AppPanels.UpdateRightPanel();
             DrawCanvas();
             EnableElements();
         }
 
-        private void CombineToFamily()
+        private void MoveRight()
         {
             DisableElements();
-            //await Task.Run(ImgMdf.CombineToFamily).ConfigureAwait(true);
+            AppPanels.MoveRight();
             DrawCanvas();
             EnableElements();
         }
 
-        private void DetachFromFamily()
+        private void MoveLeft()
         {
             DisableElements();
-            //await Task.Run(ImgMdf.DetachFromFamily).ConfigureAwait(true);
+            AppPanels.MoveLeft();
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private void MoveToTheFirst()
+        {
+            DisableElements();
+            AppPanels.MoveToTheFirst();
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private void MoveToTheLast()
+        {
+            DisableElements();
+            AppPanels.MoveToTheLast();
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private async void CombineToFamily()
+        {
+            DisableElements();
+            await Task.Run(AppPanels.CombineToFamily).ConfigureAwait(true);
+            DrawCanvas();
+            EnableElements();
+        }
+
+        private async void DetachFromFamily()
+        {
+            DisableElements();
+            await Task.Run(AppPanels.DetachFromFamily).ConfigureAwait(true);
             DrawCanvas();
             EnableElements();
         }
@@ -308,6 +342,12 @@ namespace ImgSoh
                 case Key.V:
                     ToggleXorClick();
                     break; 
+                case Key.Left: 
+                    MoveLeft();
+                    break;
+                case Key.Right:
+                    MoveRight();
+                    break;
             }
         }
 

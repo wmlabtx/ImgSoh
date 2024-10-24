@@ -22,17 +22,14 @@ namespace ImgSoh
             sb.Append("SELECT ");
             sb.Append($"{AppConsts.AttributeHash},"); // 0
             sb.Append($"{AppConsts.AttributeName},"); // 1
-            sb.Append($"{AppConsts.AttributeOrientation},"); // 2
-            sb.Append($"{AppConsts.AttributeLastView},"); // 3
-            sb.Append($"{AppConsts.AttributeNext},"); // 4
-            sb.Append($"{AppConsts.AttributeVerified},"); // 5
-            sb.Append($"{AppConsts.AttributeCounter},"); // 6
-            sb.Append($"{AppConsts.AttributeTaken},"); // 7
-            sb.Append($"{AppConsts.AttributeMeta},"); // 8
-            sb.Append($"{AppConsts.AttributeVector},"); // 9
-            sb.Append($"{AppConsts.AttributeMagnitude},"); // 10
-            sb.Append($"{AppConsts.AttributeHorizon},"); // 11
-            sb.Append($"{AppConsts.AttributeViewed}"); // 12
+            sb.Append($"{AppConsts.AttributeTaken},"); // 2
+            sb.Append($"{AppConsts.AttributeMeta},"); // 3
+            sb.Append($"{AppConsts.AttributeVector},"); // 4
+            sb.Append($"{AppConsts.AttributeMagnitude},"); // 5
+            sb.Append($"{AppConsts.AttributeOrientation},"); // 6
+            sb.Append($"{AppConsts.AttributeLastView},"); // 7
+            sb.Append($"{AppConsts.AttributeFamily},"); // 8
+            sb.Append($"{AppConsts.AttributeHistory}"); // 9
             return sb.ToString();
         }
 
@@ -40,31 +37,25 @@ namespace ImgSoh
         {
             var hash = reader.GetString(0);
             var name = reader.GetString(1);
-            var orientation = (RotateFlipType)Enum.Parse(typeof(RotateFlipType), reader.GetInt64(2).ToString());
-            var lastview = DateTime.FromBinary(reader.GetInt64(3));
-            var next = reader.GetString(4);
-            var verified = reader.GetBoolean(5);
-            var counter = (int)reader.GetInt64(6);
-            var taken = DateTime.FromBinary(reader.GetInt64(7));
-            var meta = (int)reader.GetInt64(8);
-            var vector = Helper.ArrayToFloat((byte[])reader[9]);
-            var magnitude = reader.GetFloat(10);
-            var horizon = reader.GetString(11);
-            var viewed = (int)reader.GetInt64(12);
+            var taken = DateTime.FromBinary(reader.GetInt64(2));
+            var meta = (int)reader.GetInt64(3);
+            var vector = Helper.ArrayToFloat((byte[])reader[4]);
+            var magnitude = reader.GetFloat(5);
+            var orientation = (RotateFlipType)Enum.Parse(typeof(RotateFlipType), reader.GetInt64(6).ToString());
+            var lastview = DateTime.FromBinary(reader.GetInt64(7));
+            var family = reader.GetString(8);
+            var history = reader.GetString(9);
             var img = new Img(
                 hash: hash,
                 name: name,
-                orientation: orientation,
-                lastview: lastview,
-                next: next,
-                verified: verified,
-                counter: counter,
                 taken: taken,
                 meta: meta,
                 vector: vector,
                 magnitude: magnitude,
-                horizon: horizon,
-                viewed: viewed
+                orientation: orientation,
+                lastview: lastview,
+                family: family,
+                history: history
             );
 
             return img;
@@ -103,7 +94,7 @@ namespace ImgSoh
             }
         }
 
-        public static Img Get(string hash)
+        private static Img Get(string hash)
         {
             lock (_lock) {
                 var sb = new StringBuilder(GetSelect());
@@ -131,46 +122,37 @@ namespace ImgSoh
                     sb.Append($"INSERT INTO {AppConsts.TableImages} (");
                     sb.Append($"{AppConsts.AttributeHash},");
                     sb.Append($"{AppConsts.AttributeName},");
-                    sb.Append($"{AppConsts.AttributeOrientation},");
-                    sb.Append($"{AppConsts.AttributeLastView},");
-                    sb.Append($"{AppConsts.AttributeNext},");
-                    sb.Append($"{AppConsts.AttributeVerified},");
-                    sb.Append($"{AppConsts.AttributeCounter},");
                     sb.Append($"{AppConsts.AttributeTaken},");
                     sb.Append($"{AppConsts.AttributeMeta},");
                     sb.Append($"{AppConsts.AttributeVector},");
                     sb.Append($"{AppConsts.AttributeMagnitude},");
-                    sb.Append($"{AppConsts.AttributeHorizon},");
-                    sb.Append($"{AppConsts.AttributeViewed}");
+                    sb.Append($"{AppConsts.AttributeOrientation},");
+                    sb.Append($"{AppConsts.AttributeLastView},");
+                    sb.Append($"{AppConsts.AttributeFamily},");
+                    sb.Append($"{AppConsts.AttributeHistory}");
                     sb.Append(") VALUES (");
                     sb.Append($"@{AppConsts.AttributeHash},");
                     sb.Append($"@{AppConsts.AttributeName},");
-                    sb.Append($"@{AppConsts.AttributeOrientation},");
-                    sb.Append($"@{AppConsts.AttributeLastView},");
-                    sb.Append($"@{AppConsts.AttributeNext},");
-                    sb.Append($"@{AppConsts.AttributeVerified},");
-                    sb.Append($"@{AppConsts.AttributeCounter},");
                     sb.Append($"@{AppConsts.AttributeTaken},");
                     sb.Append($"@{AppConsts.AttributeMeta},");
                     sb.Append($"@{AppConsts.AttributeVector},");
                     sb.Append($"@{AppConsts.AttributeMagnitude},");
-                    sb.Append($"@{AppConsts.AttributeHorizon},");
-                    sb.Append($"@{AppConsts.AttributeViewed}");
+                    sb.Append($"@{AppConsts.AttributeOrientation},");
+                    sb.Append($"@{AppConsts.AttributeLastView},");
+                    sb.Append($"@{AppConsts.AttributeFamily},");
+                    sb.Append($"@{AppConsts.AttributeHistory}");
                     sb.Append(')');
                     sqlCommand.CommandText = sb.ToString();
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHash}", img.Hash);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeName}", img.Name);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeOrientation}", (int)img.Orientation);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", img.LastView.Ticks);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeNext}", img.Next);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVerified}", img.Verified);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeCounter}", img.Counter);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeTaken}", img.Taken.Ticks);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeMeta}", img.Meta);
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeVector}", Helper.ArrayFromFloat(img.Vector));
                     sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeMagnitude}", img.Magnitude);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHorizon}", img.Horizon);
-                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeViewed}", img.Viewed);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeOrientation}", (int)img.Orientation);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeLastView}", img.LastView.Ticks);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeFamily}", img.Family);
+                    sqlCommand.Parameters.AddWithValue($"@{AppConsts.AttributeHistory}", img.History);
                     sqlCommand.ExecuteNonQuery();
                 }
 
@@ -298,31 +280,6 @@ namespace ImgSoh
             }
         }
 
-        public static void SetOrientation(string hash, RotateFlipType orientation)
-        {
-            ImgUpdateProperty(hash, AppConsts.AttributeOrientation, (int)orientation);
-        }
-
-        private static void SetLastView(string hash, DateTime lastview)
-        {
-            ImgUpdateProperty(hash, AppConsts.AttributeLastView, lastview.Ticks);
-        }
-
-        public static void SetNext(string hash, string next)
-        {
-            ImgUpdateProperty(hash, AppConsts.AttributeNext, next);
-        }
-
-        public static void SetVerified(string hash)
-        {
-            ImgUpdateProperty(hash, AppConsts.AttributeVerified, true);
-        }
-
-        public static void SetCounter(string hash, int counter)
-        {
-            ImgUpdateProperty(hash, AppConsts.AttributeCounter, counter);
-        }
-
         public static void SetVector(string hash, float[] vector)
         {
             ImgUpdateProperty(hash, AppConsts.AttributeVector, Helper.ArrayFromFloat(vector));
@@ -333,136 +290,188 @@ namespace ImgSoh
             ImgUpdateProperty(hash, AppConsts.AttributeMagnitude, magnitude);
         }
 
-        public static void SetHorizon(string hash, string horizon)
+        public static void SetOrientation(string hash, RotateFlipType orientation)
         {
-            ImgUpdateProperty(hash, AppConsts.AttributeHorizon, horizon);
+            ImgUpdateProperty(hash, AppConsts.AttributeOrientation, (int)orientation);
         }
 
-        private static void SetViewed(string hash, int viewed)
+        public static void SetLastView(string hash, DateTime lastview)
         {
-            ImgUpdateProperty(hash, AppConsts.AttributeViewed, viewed);
+            ImgUpdateProperty(hash, AppConsts.AttributeLastView, lastview.Ticks);
         }
 
-        public static void UpdateViewed(string hash, int viewed)
+        public static void SetFamily(string hash, string family)
         {
-            SetViewed(hash, viewed + 1);
-            SetLastView(hash, DateTime.Now);
+            ImgUpdateProperty(hash, AppConsts.AttributeFamily, family);
         }
 
-        private static bool IsValid(Img img)
+        public static void SetHistory(string hash, string history)
         {
-            lock (_lock) {
-                if (img.Magnitude <=0f ||
-                    string.IsNullOrWhiteSpace(img.Next) ||
-                    (!string.IsNullOrWhiteSpace(img.Horizon) &&
-                     !string.IsNullOrWhiteSpace(img.Next) &&
-                     string.CompareOrdinal(img.Horizon, img.Next) >= 0)
-                   ) {
-                    return false;
-                }
+            ImgUpdateProperty(hash, AppConsts.AttributeHistory, history);
+        }
 
-                var next = img.Next.Substring(4);
-                if (!ContainsKey(next)) {
-                    return false;
+        public static void AddToHistory(string hash, string added)
+        {
+            if (TryGet(hash, out var img)) {
+                if (!img.IsInHistory(added)) {
+                    var history = img.History + added;
+                    SetHistory(hash, history);
                 }
             }
-
-            return true;
         }
 
         public static Img GetForView()
         {
             lock (_lock) {
-                /*
-                return _imgList
-                    .OrderByDescending(e => e.Value.Viewed)
-                    .Take(10000)
-                    .OrderBy(e => e.Value.LastView)
-                    .First(e => IsValid(e.Value))
-                    .Value;
-                */
-                
-                return _imgList
-                    .OrderBy(e => e.Value.Verified)
-                    .ThenBy(e => e.Value.Counter)
-                    .ThenBy(e => e.Value.Viewed)
-                    .ThenBy(e => e.Value.LastView)
-                    .First(e => IsValid(e.Value))
-                    .Value;
-                
-                /*
+                Img imgX;
+                if (AppVars.RandomNext(10) > 0) {
+                    var families = _imgList
+                        .Select(e => e.Value.Family)
+                        .Where(e => e.Length > 0)
+                        .Distinct()
+                        .ToArray();
 
-                if (AppVars.RandomNext(10) == 0) {
-                    return _imgList
-                        .OrderBy(e => e.Value.Verified)
-                        .ThenBy(e => e.Value.Viewed)
-                        .ThenBy(e => e.Value.Hash)
-                        .First(e => IsValid(e.Value))
-                        .Value;
-                }
-
-                return _imgList
-                    .OrderByDescending(e => e.Value.LastView)
-                    .Skip(1000)
-                    .First(e => IsValid(e.Value))
-                    .Value;
-                */
-            }
-        }
-
-        public static Img GetForCheck()
-        {
-            Img[] shadow;
-            lock (_lock) {
-                shadow = _imgList
-                    .Select(e => e.Value)
-                    .ToArray();
-            }
-
-            foreach (var img in shadow) {
-                if (!IsValid(img)) {
-                    return img;
-                }
-            }
-
-            return null;
-
-            //var irandom = AppVars.RandomNext(shadow.Length);
-            //return shadow[irandom];
-        }
-
-        public static void Find(Img img, out string radiusNext, out int counter)
-        {
-            lock (_lock) {
-                var distances = new float[Count()];
-                var hashList = _imgList.Select(e => e.Value.Hash).ToArray();
-                var vectorList = _imgList.Select(e => e.Value.Vector).ToArray();
-                var magnitudeList = _imgList.Select(e => e.Value.Magnitude).ToArray();
-                var vx = img.Vector;
-                var mx = img.Magnitude;
-                Parallel.For(0, distances.Length, i => {
-                        distances[i] = AppVit.GetDistance(vx, mx, vectorList[i], magnitudeList[i]);
-                    });
-
-                radiusNext = null;
-                counter = 0;
-                var hx = img.Hash;
-                for (var i = 0; i < _imgList.Keys.Count; i++) {
-                    if (hx.Equals(hashList[i])) {
-                        continue;
+                    if (families.Length > 0) {
+                        var rindex = AppVars.RandomNext(families.Length);
+                        var family = families[rindex];
+                        imgX = _imgList
+                            .Values
+                            .Where(e => e.Family.Equals(family))
+                            .OrderBy(e => e.LastView)
+                            .First();
+                        return imgX;
                     }
+                }
 
-                    var radius = Helper.GetRadius(hashList[i], distances[i]);
-                    if (string.IsNullOrEmpty(img.Horizon) || (!string.IsNullOrEmpty(img.Horizon) && string.CompareOrdinal(radius, img.Horizon) > 0)) {
-                        if (radiusNext == null || string.CompareOrdinal(radius, radiusNext) < 0) {
-                            radiusNext = radius;
+                if (AppVars.RandomNext(5) > 0) {
+                    var used = _imgList
+                        .Values
+                        .Where(e => e.Family.Length == 0 && e.History.Length > 0)
+                        .ToArray();
+                    if (used.Length > 0) {
+                        imgX = used
+                            .OrderBy(e => e.LastView)
+                            .First();
+                        return imgX;
+                    }
+                }
+
+                var virgins = _imgList
+                    .Values
+                    .Where(e => e.Family.Length == 0 && e.History.Length == 0)
+                    .ToArray();
+                if (virgins.Length > 0) {
+                    var rindex = AppVars.RandomNext(virgins.Length);
+                    imgX = virgins[rindex];
+                    return imgX;
+                }
+
+                imgX = _imgList
+                    .Values
+                    .OrderBy(e => e.LastView)
+                    .First();
+                return imgX;
+            }
+        }
+
+        private static List<Tuple<string, float>> CalculateDistances(Img img, List<string> hashList, List<float[]> vectorList, List<float> magnitudeList)
+        {
+            var distances = new float[hashList.Count];
+            var vx = img.Vector;
+            var mx = img.Magnitude;
+            Parallel.For(0, distances.Length, i => {
+                distances[i] = AppVit.GetDistance(vx, mx, vectorList[i], magnitudeList[i]);
+            });
+
+            var vector = hashList.Select((t, i) => Tuple.Create(t, distances[i])).ToList();
+            vector.Sort((x, y) => x.Item2.CompareTo(y.Item2));
+            return vector;
+        }
+
+        public static List<Tuple<string, float>> GetVector(Img img)
+        {
+            lock (_lock) {
+                if (img.History.Length > 0) {
+                    var history = new List<string>();
+                    foreach (var e in img.HistoryArray) {
+                        if (_imgList.TryGetValue(e, out var imgY)) {
+                            if (img.Family.Length == 0) {
+                                history.Add(e);
+                            }
+                            else {
+                                if (img.Family.Length > 0 && imgY.Family.Length == 0) {
+                                    history.Add(e);
+                                }
+                                else {
+                                    if (img.Family.Length > 0 && imgY.Family.Length > 0 && img.Family.Equals(imgY.Family)) {
+                                        history.Add(e);
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    if (!string.IsNullOrEmpty(img.Horizon) && string.CompareOrdinal(radius, img.Horizon) <= 0) {
-                        counter++;
+                    var history_new = string.Join(string.Empty, history);
+                    if (!history_new.Equals(img.History)) {
+                        SetHistory(img.Hash, history_new);
+                        img = _imgList[img.Hash];
                     }
                 }
+
+                var hashList = new List<string>();
+                var vectorList = new List<float[]>();
+                var magnitudeList = new List<float>();
+
+                if (img.Family.Length == 0) {
+                    var families = GetFamilies();
+                    foreach (var e in img.HistoryArray) {
+                        if (_imgList.TryGetValue(e, out var imgY)) {
+                            if (imgY.Family.Length > 0) {
+                                families.Remove(imgY.Family);
+                            }
+                        }
+                    }
+
+                    if (families.Count > 0) {
+                        foreach (var family in families) {
+                            var f = _imgList
+                                .Values
+                                .Where(e => e.Family.Equals(family))
+                                .OrderBy(e => e.LastView)
+                                .First();
+
+                            hashList.Add(f.Hash);
+                            vectorList.Add(f.Vector);
+                            magnitudeList.Add(f.Magnitude);
+                        }
+
+                        return CalculateDistances(img, hashList, vectorList, magnitudeList);
+                    }
+
+                    families = GetFamilies();
+                    string family_new;
+                    do {
+                        family_new = AppHash.GetFamily();
+                    } while (families.Contains(family_new));
+                    SetFamily(img.Hash, family_new);
+                    img = _imgList[img.Hash];
+                }
+
+                foreach (var e in _imgList.Values) {
+                    if (e.Hash.Equals(img.Hash) || img.IsInHistory(e.Hash)) {
+                        continue;
+                    }
+
+                    if (img.Family.Length > 0 && e.Family.Length > 0 && e.Family != img.Family) {
+                        continue;
+                    }
+
+                    hashList.Add(e.Hash);
+                    vectorList.Add(e.Vector);
+                    magnitudeList.Add(e.Magnitude);
+                }
+
+                return CalculateDistances(img, hashList, vectorList, magnitudeList);
             }
         }
 
@@ -470,6 +479,29 @@ namespace ImgSoh
         {
             lock (_lock) {
                 return _imgList.Min(e => e.Value.LastView).AddSeconds(-1);
+            }
+        }
+
+        private static HashSet<string> GetFamilies()
+        {
+            lock (_lock) {
+                return new HashSet<string>(
+                    _imgList
+                        .Select(e => e.Value.Family)
+                        .Where(e => e.Length > 0)
+                        .Distinct()
+                        .ToArray());
+            }
+        }
+
+        public static int GetFamilySize(string family)
+        {
+            if (family.Length == 0) {
+                return 0;
+            }
+
+            lock (_lock) {
+                return _imgList.Count(e => e.Value.Family.Equals(family));
             }
         }
     }

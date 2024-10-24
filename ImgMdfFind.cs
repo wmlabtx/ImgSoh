@@ -25,19 +25,20 @@ namespace ImgSoh
                     hashX = imgX.Hash;
                 }
 
-                if (!AppPanels.SetImgPanel(0, hashX)) {
+                if (!AppPanels.SetLeftPanel(hashX)) {
                     Delete(hashX);
                     hashX = null;
                     continue;
                 }
 
-                var hashY = imgX.Next.Substring(4);
+                var hashY = AppPanels.GetRight();
                 if (!AppImgs.TryGet(hashY, out var imgY)) {
                     hashX = null;
                     continue;
                 }
 
-                if (!AppPanels.SetImgPanel(1, hashY)) {
+                if (!AppPanels.SetRightPanel(hashY)) {
+                    Delete(hashY);
                     hashX = null;
                     continue;
                 }

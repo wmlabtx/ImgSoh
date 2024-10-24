@@ -27,8 +27,8 @@ namespace ImgSoh
 
         public static string GetFamily()
         {
-            var buffer = AppVars.RandomBuffer(3);
-            return GetHexString(buffer).Substring(0, 5);
+            var buffer = AppVars.RandomBuffer(2);
+            return GetHexString(buffer);
         }
     }
 }

@@ -23,7 +23,12 @@
                 <MenuItem Header="Rotate 180" Tag="2" Click="RotateClick" />
                 <MenuItem Header="Mirror" Tag="4" Click="RotateClick" />
             </MenuItem>
-            <MenuItem Header="Family">
+            <MenuItem Header="Navigation">
+                <MenuItem Header="Move right (→)" Click="MoveRightClick" />
+                <MenuItem Header="Move left (←)" Click="MoveLeftClick" />
+                <MenuItem Header="Move to the first" Click="MoveToTheFirstClick" />
+                <MenuItem Header="Move to the last" Click="MoveToTheLastClick" />
+                <Separator />
                 <MenuItem Header="Add (A)" Click="AddToFamilyClick" />
                 <MenuItem Header="Remove (D)" Click="RemoveFromFamilyClick" />
             </MenuItem>
